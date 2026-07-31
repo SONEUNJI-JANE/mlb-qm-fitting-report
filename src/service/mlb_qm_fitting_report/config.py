@@ -1,12 +1,29 @@
 import json
+import os
 from datetime import date, timedelta
 
 _WEEKDAY_MAP = {"MON": 0, "TUE": 1, "WED": 2, "THU": 3, "FRI": 4, "SAT": 5, "SUN": 6}
 
 
-def load_settings(path: str = "config/report_settings.json") -> dict:
+def _load_dotenv(path: str = ".env") -> None:
+    if not os.path.exists(path):
+        return
     with open(path, "r", encoding="utf-8") as f:
-        return json.load(f)
+        for line in f:
+            line = line.strip()
+            if not line or line.startswith("#") or "=" not in line:
+                continue
+            key, value = line.split("=", 1)
+            os.environ.setdefault(key.strip(), value.strip())
+
+
+def load_settings(path: str = "config/report_settings.json") -> dict:
+    _load_dotenv()
+    with open(path, "r", encoding="utf-8") as f:
+        settings = json.load(f)
+    settings["supabase_url"] = os.environ["SUPABASE_URL"]
+    settings["supabase_anon_key"] = os.environ["SUPABASE_ANON_KEY"]
+    return settings
 
 
 def resolve_as_of_date(settings: dict, run_date: date) -> date:
