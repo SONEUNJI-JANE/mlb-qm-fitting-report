@@ -23,6 +23,17 @@ def load_settings(path: str = "config/report_settings.json") -> dict:
         settings = json.load(f)
     settings["supabase_url"] = os.environ["SUPABASE_URL"]
     settings["supabase_anon_key"] = os.environ["SUPABASE_ANON_KEY"]
+
+    # 대시보드 [적용] 버튼으로 누군가 Supabase settings 테이블에 값을 저장해뒀으면 그걸 우선한다.
+    # Supabase가 안 붙거나 값이 없으면 로컬 report_settings.json 기본값을 그대로 쓴다(fail open).
+    from src.service.mlb_qm_fitting_report.supabase_client import fetch_report_config
+    try:
+        remote = fetch_report_config(settings)
+    except Exception:
+        remote = None
+    if remote:
+        settings.update(remote)
+
     return settings
 
 

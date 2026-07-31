@@ -55,12 +55,15 @@ th:nth-child(5),td:nth-child(5){width:70px;text-align:center}
       </select>
       <label>특정 날짜로 고정(선택)</label>
       <input type="date" id="set-date-override">
+      <button class="btn" onclick="applySettings()">적용</button>
+      <span id="settings-status"></span>
     </div>
   </details>
   <details class="settings-bar">
     <summary>체이스(마감) 경고 기준일수</summary>
-    <p class="desc">단계별 상태에서 다음 샘플 접수까지 며칠 전부터 경고 대상으로 볼지. 대시보드엔 표시 안 되고 계산 로직에서만 씀.</p>
+    <p class="desc">단계별 상태에서 다음 샘플 접수까지 며칠 전부터 경고 대상으로 볼지. 대시보드엔 표시 안 되고 계산 로직에서만 씀. 적용해도 다음 주 실행부터 반영(지금 화면 숫자는 안 바뀜).</p>
     <table class="th-table" id="th-table"><tbody></tbody></table>
+    <div class="row"><button class="btn" onclick="applySettings()">적용</button><span id="settings-status-2"></span></div>
   </details>
 </div>
 <div class="content" id="seasons"></div>
@@ -70,7 +73,7 @@ th:nth-child(5),td:nth-child(5){width:70px;text-align:center}
   <button class="btn" onclick="downloadOverrides()">오버라이드 파일 다운로드</button>
 </div>
 <script id="snapshot-data" type="application/json">{"weeks": {"2026-W30": {"as_of_date": "2026-07-24", "progress": {"26FW": {"TD": {"FIT": {"total_done": 427, "total_all": 427, "baseline_done": 424, "baseline_all": 424}}, "QA": {"PP": {"total_done": 408, "total_all": 427, "baseline_done": 403, "baseline_all": 422}, "TOP": {"total_done": 329, "total_all": 427, "baseline_done": 272, "baseline_all": 295}}}, "27SS": {"TD": {"FIT": {"total_done": 0, "total_all": 547, "baseline_done": 0, "baseline_all": 0}}, "QA": {"PP": {"total_done": 0, "total_all": 547, "baseline_done": 0, "baseline_all": 0}, "TOP": {"total_done": 0, "total_all": 547, "baseline_done": 0, "baseline_all": 0}}}}, "warnings": []}}}</script>
-<script id="settings-data" type="application/json">{"as_of_weekday": "FRI", "as_of_date_override": null, "legacy_xlsx_sources": {"26FW": "C:\\Users\\AC1005\\F&F\\F ML MLB 26F GTM - 301 QM - Technical Design , QA\\26FW FITTING 현황.xlsx"}, "chase_thresholds": {"보정 Approved → PP 샘플 접수": 20, "보정 Go to FIT → 1ST FIT 샘플 접수": 30, "보정 Rejected → 다음 차수 보정 샘플 접수": 45, "FIT Approved → PP 샘플 접수": 20, "FIT Rej/IntRej 1차 → 다음 FIT 샘플 접수": 30, "FIT Rej/IntRej 2차+ → 다음 FIT 샘플 접수": 15, "PP Approved → TOP 샘플 접수": 28, "PP Rej/IntRej → 다음 차수 PP 샘플 접수": 10, "TOP Rej/IntRej → 다음 차수 TOP 샘플 접수": 14}}</script>
+<script id="settings-data" type="application/json">{"as_of_weekday": "FRI", "as_of_date_override": null, "chase_thresholds": {"보정 Approved → PP 샘플 접수": 20, "보정 Go to FIT → 1ST FIT 샘플 접수": 30, "보정 Rejected → 다음 차수 보정 샘플 접수": 45, "FIT Approved → PP 샘플 접수": 20, "FIT Rej/IntRej 1차 → 다음 FIT 샘플 접수": 30, "FIT Rej/IntRej 2차+ → 다음 FIT 샘플 접수": 15, "PP Approved → TOP 샘플 접수": 28, "PP Rej/IntRej → 다음 차수 PP 샘플 접수": 10, "TOP Rej/IntRej → 다음 차수 TOP 샘플 접수": 14}, "supabase_url": "https://ppeedhejhbgshdjnlrha.supabase.co", "supabase_anon_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBwZWVkaGVqaGJnc2hkam5scmhhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI3NTI3NjEsImV4cCI6MjA5ODMyODc2MX0.URjHO5l8QKkiyMSADdxsjuouOlwJPwrhMSlBBDq7sPA"}</script>
 <script>
 const DATA = JSON.parse(document.getElementById('snapshot-data').textContent);
 const SETTINGS = JSON.parse(document.getElementById('settings-data').textContent);
@@ -87,6 +90,35 @@ Object.entries(SETTINGS.chase_thresholds || {}).forEach(([desc, days]) => {
   row.innerHTML = `<td>${esc(desc)}</td><td><input type="number" data-th="${esc(desc)}" value="${days}"> 일</td>`;
   thBody.appendChild(row);
 });
+
+async function applySettings() {
+  const chase_thresholds = {};
+  thBody.querySelectorAll('input[data-th]').forEach(inp => { chase_thresholds[inp.dataset.th] = parseInt(inp.value, 10); });
+  const value = JSON.stringify({
+    as_of_weekday: document.getElementById('set-weekday').value,
+    as_of_date_override: document.getElementById('set-date-override').value || null,
+    chase_thresholds,
+  });
+
+  const statusEls = [document.getElementById('settings-status'), document.getElementById('settings-status-2')];
+  statusEls.forEach(el => el.textContent = '저장 중...');
+  try {
+    const resp = await fetch(`${SETTINGS.supabase_url}/rest/v1/settings`, {
+      method: 'POST',
+      headers: {
+        'apikey': SETTINGS.supabase_anon_key,
+        'Authorization': `Bearer ${SETTINGS.supabase_anon_key}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates',
+      },
+      body: JSON.stringify({key: 'mlb_qm_fitting_report_config', value}),
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    statusEls.forEach(el => el.textContent = '적용됨 (다음 주 실행부터 반영)');
+  } catch (e) {
+    statusEls.forEach(el => el.textContent = '저장 실패: ' + e.message);
+  }
+}
 
 function pct(done, all) { return all > 0 ? Math.round(done / all * 1000) / 10 : 0; }
 

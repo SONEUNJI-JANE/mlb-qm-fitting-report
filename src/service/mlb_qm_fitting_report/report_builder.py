@@ -57,12 +57,15 @@ th:nth-child(5),td:nth-child(5){width:70px;text-align:center}
       </select>
       <label>특정 날짜로 고정(선택)</label>
       <input type="date" id="set-date-override">
+      <button class="btn" onclick="applySettings()">적용</button>
+      <span id="settings-status"></span>
     </div>
   </details>
   <details class="settings-bar">
     <summary>체이스(마감) 경고 기준일수</summary>
-    <p class="desc">단계별 상태에서 다음 샘플 접수까지 며칠 전부터 경고 대상으로 볼지. 대시보드엔 표시 안 되고 계산 로직에서만 씀.</p>
+    <p class="desc">단계별 상태에서 다음 샘플 접수까지 며칠 전부터 경고 대상으로 볼지. 대시보드엔 표시 안 되고 계산 로직에서만 씀. 적용해도 다음 주 실행부터 반영(지금 화면 숫자는 안 바뀜).</p>
     <table class="th-table" id="th-table"><tbody></tbody></table>
+    <div class="row"><button class="btn" onclick="applySettings()">적용</button><span id="settings-status-2"></span></div>
   </details>
 </div>
 <div class="content" id="seasons"></div>
@@ -89,6 +92,35 @@ Object.entries(SETTINGS.chase_thresholds || {}).forEach(([desc, days]) => {
   row.innerHTML = `<td>${esc(desc)}</td><td><input type="number" data-th="${esc(desc)}" value="${days}"> 일</td>`;
   thBody.appendChild(row);
 });
+
+async function applySettings() {
+  const chase_thresholds = {};
+  thBody.querySelectorAll('input[data-th]').forEach(inp => { chase_thresholds[inp.dataset.th] = parseInt(inp.value, 10); });
+  const value = JSON.stringify({
+    as_of_weekday: document.getElementById('set-weekday').value,
+    as_of_date_override: document.getElementById('set-date-override').value || null,
+    chase_thresholds,
+  });
+
+  const statusEls = [document.getElementById('settings-status'), document.getElementById('settings-status-2')];
+  statusEls.forEach(el => el.textContent = '저장 중...');
+  try {
+    const resp = await fetch(`${SETTINGS.supabase_url}/rest/v1/settings`, {
+      method: 'POST',
+      headers: {
+        'apikey': SETTINGS.supabase_anon_key,
+        'Authorization': `Bearer ${SETTINGS.supabase_anon_key}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates',
+      },
+      body: JSON.stringify({key: 'mlb_qm_fitting_report_config', value}),
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    statusEls.forEach(el => el.textContent = '적용됨 (다음 주 실행부터 반영)');
+  } catch (e) {
+    statusEls.forEach(el => el.textContent = '저장 실패: ' + e.message);
+  }
+}
 
 function pct(done, all) { return all > 0 ? Math.round(done / all * 1000) / 10 : 0; }
 
@@ -166,12 +198,14 @@ if (weekIds.length) { sel.value = weekIds[0]; render(); }
 """
 
 
-_SECRET_KEYS = {"supabase_url", "supabase_anon_key"}
+# [적용] 버튼이 브라우저에서 Supabase settings 테이블에 직접 쓰기 때문에 anon key를 여기 embed한다.
+# 이 anon key는 이미 dcsai.fnf.co.kr/apps/mlb-qm-fitting 앱에도 공개되어 있어 새로운 노출은 아니다.
+_STRIPPED_KEYS = {"legacy_xlsx_sources"}  # 로컬 파일 경로라 브라우저에 보여줄 이유 없음
 
 
 def build_report_html(snapshots: dict, settings: dict) -> str:
     snapshot_json = json.dumps(snapshots, ensure_ascii=False).replace("<", "\\u003c")
-    public_settings = {k: v for k, v in settings.items() if k not in _SECRET_KEYS}
+    public_settings = {k: v for k, v in settings.items() if k not in _STRIPPED_KEYS}
     settings_json = json.dumps(public_settings, ensure_ascii=False).replace("<", "\\u003c")
     return (_TEMPLATE
             .replace("__SNAPSHOT_JSON__", snapshot_json)
