@@ -36,7 +36,21 @@ def test_qa_owner_mirrors_td_when_qa_field_set():
     assert fit_qa["total_all"] == 2, fit_qa
 
 
+def test_drop_styles_excluded():
+    as_of = date(2026, 7, 31)
+    styles = STYLES + [
+        {"style_code": "A3", "season": "27SS", "td": "김철수", "qa": "이영희", "co": "DROP", "qc_due": "2026-07-20", "pp_due": "2026-08-10", "top_due": "2026-09-01"},
+    ]
+    records = RECORDS + [
+        {"style_code": "A3", "stage": "FIT", "round": 1, "status": "Approved", "updated_at": "2026-07-15T00:00:00Z"},
+    ]
+    result = compute_progress(styles, records, as_of)
+    fit_td = result["27SS"]["TD"]["FIT"]
+    assert fit_td["total_all"] == 2, fit_td  # A3(DROP) excluded, still just A1/A2
+
+
 if __name__ == "__main__":
     test_total_vs_baseline_fit()
     test_qa_owner_mirrors_td_when_qa_field_set()
+    test_drop_styles_excluded()
     print("OK: test_aggregate")

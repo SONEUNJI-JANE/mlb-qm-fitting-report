@@ -27,6 +27,9 @@ def compute_progress(styles: list[dict], records: list[dict], as_of_date: date) 
     result: dict = {}
 
     for style in styles:
+        if style.get("co") == "DROP":
+            continue
+
         season = style["season"]
         result.setdefault(season, {"TD": {}, "QA": {}})
 

@@ -1,6 +1,6 @@
 import requests
 
-_STYLES_FIELDS = "style_code,item,quarter,season,td,qa,qc_due,pp_due,top_due"
+_STYLES_FIELDS = "style_code,item,quarter,season,td,qa,co,qc_due,pp_due,top_due"
 _FITTING_FIELDS = "style_code,stage,round,status,updated_at"
 
 

@@ -15,8 +15,8 @@ select{padding:6px 10px;border-radius:6px;border:1px solid #ccc;font-size:12px}
 table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;margin-bottom:16px}
 th,td{padding:8px 10px;border-bottom:1px solid #eee;text-align:left;font-size:12px}
 th{background:#f8f9fa;color:#555}
-.warn{color:#b3261e;font-weight:700}
-.section-title{font-weight:700;margin:16px 0 8px}
+.season-title{font-weight:700;font-size:15px;margin:20px 0 8px;padding-bottom:4px;border-bottom:2px solid #1a1a2e}
+.season-title:first-child{margin-top:0}
 </style>
 </head>
 <body>
@@ -24,12 +24,7 @@ th{background:#f8f9fa;color:#555}
   <h1>MLB QM Fitting 주간 보고</h1>
   <select id="week-select" onchange="render()"></select>
 </div>
-<div class="content">
-  <div class="section-title">진척률 (총량대비 % / 기준대비 %)</div>
-  <table id="progress-table"><thead><tr><th>시즌</th><th>담당</th><th>단계</th><th>총량대비</th><th>기준대비</th></tr></thead><tbody></tbody></table>
-  <div class="section-title">체이스 경고</div>
-  <table id="warning-table"><thead><tr><th>스타일</th><th>시즌</th><th>담당</th><th>기준</th><th>Due</th><th>D-day</th></tr></thead><tbody></tbody></table>
-</div>
+<div class="content" id="seasons"></div>
 <script id="snapshot-data" type="application/json">__SNAPSHOT_JSON__</script>
 <script>
 const DATA = JSON.parse(document.getElementById('snapshot-data').textContent);
@@ -46,27 +41,28 @@ function esc(s) {
 function render() {
   const week = DATA.weeks[sel.value];
   if (!week) return;
-  const pBody = document.querySelector('#progress-table tbody');
-  pBody.innerHTML = '';
+  const container = document.getElementById('seasons');
+  container.innerHTML = '';
   for (const season of Object.keys(week.progress).sort()) {
+    const title = document.createElement('div');
+    title.className = 'season-title';
+    title.textContent = season;
+    container.appendChild(title);
+
+    const table = document.createElement('table');
+    table.innerHTML = '<thead><tr><th>담당</th><th>단계</th><th>총량대비</th><th>기준대비</th></tr></thead><tbody></tbody>';
+    const tbody = table.querySelector('tbody');
     for (const owner of ['TD', 'QA']) {
       for (const stage of Object.keys(week.progress[season][owner] || {})) {
         const m = week.progress[season][owner][stage];
         const row = document.createElement('tr');
-        row.innerHTML = `<td>${esc(season)}</td><td>${esc(owner)}</td><td>${esc(stage)}</td>` +
+        row.innerHTML = `<td>${esc(owner)}</td><td>${esc(stage)}</td>` +
           `<td>${pct(m.total_done, m.total_all)}% (${m.total_done}/${m.total_all})</td>` +
           `<td>${pct(m.baseline_done, m.baseline_all)}% (${m.baseline_done}/${m.baseline_all})</td>`;
-        pBody.appendChild(row);
+        tbody.appendChild(row);
       }
     }
-  }
-  const wBody = document.querySelector('#warning-table tbody');
-  wBody.innerHTML = '';
-  for (const w of week.warnings) {
-    const row = document.createElement('tr');
-    row.className = 'warn';
-    row.innerHTML = `<td>${esc(w.style_code)}</td><td>${esc(w.season)}</td><td>${esc(w.owner)}</td><td>${esc(w.rule)}</td><td>${esc(w.due_date || '-')}</td><td>${esc(w.days_to_due ?? '-')}</td>`;
-    wBody.appendChild(row);
+    container.appendChild(table);
   }
 }
 
