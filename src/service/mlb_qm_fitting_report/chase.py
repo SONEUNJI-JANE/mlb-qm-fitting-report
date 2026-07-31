@@ -19,6 +19,8 @@ CHASE_RULES = [
     {"stage": "TOP", "status": "Int Rej", "ref": "top_due", "days": 14, "desc": "TOP Rej/IntRej → 다음 차수 TOP 샘플 접수"},
 ]
 
+STAGE_ORDER = {"보정": 0, "FIT": 1, "PP": 2, "TOP": 3}
+
 
 def _parse_date(value):
     if not value:
@@ -41,7 +43,9 @@ def _latest_records_by_style(records: list[dict]) -> dict:
     for r in records:
         key = r["style_code"]
         current = latest.get(key)
-        if current is None or (r["round"], r["updated_at"]) > (current["round"], current["updated_at"]):
+        key_r = (STAGE_ORDER[r["stage"]], r["round"], r["updated_at"])
+        key_c = (STAGE_ORDER[current["stage"]], current["round"], current["updated_at"]) if current else None
+        if current is None or key_r > key_c:
             latest[key] = r
     return latest
 
@@ -75,7 +79,7 @@ def compute_chase_warnings(styles: list[dict], records: list[dict], as_of_date: 
                 if due is None:
                     continue
                 days_to_due = (due - as_of_date).days
-                if days_to_due <= rule["days"]:
+                if 0 <= days_to_due <= rule["days"]:
                     warnings.append({
                         "style_code": style_code, "season": style.get("season"), "owner": owner,
                         "rule": rule["desc"], "due_date": due.isoformat(), "days_to_due": days_to_due,

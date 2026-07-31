@@ -78,4 +78,5 @@ if (weekIds.length) { sel.value = weekIds[0]; render(); }
 
 
 def build_report_html(snapshots: dict) -> str:
-    return _TEMPLATE.replace("__SNAPSHOT_JSON__", json.dumps(snapshots, ensure_ascii=False))
+    snapshot_json = json.dumps(snapshots, ensure_ascii=False).replace("<", "\\u003c")
+    return _TEMPLATE.replace("__SNAPSHOT_JSON__", snapshot_json)
