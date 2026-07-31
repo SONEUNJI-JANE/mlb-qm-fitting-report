@@ -1,4 +1,7 @@
 {
   "as_of_weekday": "FRI",
-  "as_of_date_override": null
+  "as_of_date_override": null,
+  "legacy_xlsx_sources": {
+    "26FW": "C:\\Users\\AC1005\\F&F\\F ML MLB 26F GTM - 301 QM - Technical Design , QA\\26FW FITTING 현황.xlsx"
+  }
 }

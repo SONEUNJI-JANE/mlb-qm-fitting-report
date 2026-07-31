@@ -4,25 +4,44 @@
       "as_of_date": "2026-07-24",
       "progress": {
         "26FW": {
-          "QA": {},
-          "TD": {
+          "QA": {
             "FIT": {
-              "baseline_all": 430,
-              "baseline_done": 369,
-              "total_all": 432,
-              "total_done": 369
+              "baseline_all": 424,
+              "baseline_done": 424,
+              "total_all": 427,
+              "total_done": 427
             },
             "PP": {
-              "baseline_all": 428,
-              "baseline_done": 338,
-              "total_all": 432,
-              "total_done": 339
+              "baseline_all": 422,
+              "baseline_done": 401,
+              "total_all": 427,
+              "total_done": 406
             },
             "TOP": {
-              "baseline_all": 305,
-              "baseline_done": 184,
-              "total_all": 432,
-              "total_done": 200
+              "baseline_all": 295,
+              "baseline_done": 271,
+              "total_all": 427,
+              "total_done": 327
+            }
+          },
+          "TD": {
+            "FIT": {
+              "baseline_all": 424,
+              "baseline_done": 424,
+              "total_all": 427,
+              "total_done": 427
+            },
+            "PP": {
+              "baseline_all": 422,
+              "baseline_done": 401,
+              "total_all": 427,
+              "total_done": 406
+            },
+            "TOP": {
+              "baseline_all": 295,
+              "baseline_done": 271,
+              "total_all": 427,
+              "total_done": 327
             }
           }
         },
