@@ -55,14 +55,12 @@ th:nth-child(5),td:nth-child(5){width:70px;text-align:center}
       </select>
       <label>특정 날짜로 고정(선택)</label>
       <input type="date" id="set-date-override">
-      <button class="btn" onclick="downloadSettings()">설정 파일 다운로드</button>
     </div>
   </details>
   <details class="settings-bar">
     <summary>체이스(마감) 경고 기준일수</summary>
     <p class="desc">단계별 상태에서 다음 샘플 접수까지 며칠 전부터 경고 대상으로 볼지. 대시보드엔 표시 안 되고 계산 로직에서만 씀.</p>
     <table class="th-table" id="th-table"><tbody></tbody></table>
-    <div class="row"><button class="btn" onclick="downloadSettings()">설정 파일 다운로드</button></div>
   </details>
 </div>
 <div class="content" id="seasons"></div>
@@ -89,22 +87,6 @@ Object.entries(SETTINGS.chase_thresholds || {}).forEach(([desc, days]) => {
   row.innerHTML = `<td>${esc(desc)}</td><td><input type="number" data-th="${esc(desc)}" value="${days}"> 일</td>`;
   thBody.appendChild(row);
 });
-
-function downloadSettings() {
-  const chase_thresholds = {};
-  thBody.querySelectorAll('input[data-th]').forEach(inp => { chase_thresholds[inp.dataset.th] = parseInt(inp.value, 10); });
-  const updated = {
-    ...SETTINGS,
-    as_of_weekday: document.getElementById('set-weekday').value,
-    as_of_date_override: document.getElementById('set-date-override').value || null,
-    chase_thresholds,
-  };
-  const blob = new Blob([JSON.stringify(updated, null, 2)], {type: 'application/json'});
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'report_settings.json';
-  a.click();
-}
 
 function pct(done, all) { return all > 0 ? Math.round(done / all * 1000) / 10 : 0; }
 
