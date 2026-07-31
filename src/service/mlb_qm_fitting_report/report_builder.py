@@ -39,6 +39,10 @@ weekIds.forEach(w => { const o = document.createElement('option'); o.value = w; 
 
 function pct(done, all) { return all > 0 ? Math.round(done / all * 1000) / 10 : 0; }
 
+function esc(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
 function render() {
   const week = DATA.weeks[sel.value];
   if (!week) return;
@@ -49,7 +53,7 @@ function render() {
       for (const stage of Object.keys(week.progress[season][owner] || {})) {
         const m = week.progress[season][owner][stage];
         const row = document.createElement('tr');
-        row.innerHTML = `<td>${season}</td><td>${owner}</td><td>${stage}</td>` +
+        row.innerHTML = `<td>${esc(season)}</td><td>${esc(owner)}</td><td>${esc(stage)}</td>` +
           `<td>${pct(m.total_done, m.total_all)}% (${m.total_done}/${m.total_all})</td>` +
           `<td>${pct(m.baseline_done, m.baseline_all)}% (${m.baseline_done}/${m.baseline_all})</td>`;
         pBody.appendChild(row);
@@ -61,7 +65,7 @@ function render() {
   for (const w of week.warnings) {
     const row = document.createElement('tr');
     row.className = 'warn';
-    row.innerHTML = `<td>${w.style_code}</td><td>${w.season}</td><td>${w.owner}</td><td>${w.rule}</td><td>${w.due_date || '-'}</td><td>${w.days_to_due ?? '-'}</td>`;
+    row.innerHTML = `<td>${esc(w.style_code)}</td><td>${esc(w.season)}</td><td>${esc(w.owner)}</td><td>${esc(w.rule)}</td><td>${esc(w.due_date || '-')}</td><td>${esc(w.days_to_due ?? '-')}</td>`;
     wBody.appendChild(row);
   }
 }
