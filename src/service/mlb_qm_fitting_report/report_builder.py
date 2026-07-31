@@ -32,10 +32,12 @@ th:nth-child(5),td:nth-child(5){width:70px;text-align:center}
 .settings-bar .row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
 .settings-bar label{color:#555;white-space:nowrap}
 .settings-bar input,.settings-bar select{padding:4px 6px;font-size:11px;border:1px solid #ccc;border-radius:4px}
-.settings-bar .th-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px 12px;margin-top:10px}
-.settings-bar .th-grid label{width:170px}
-.settings-bar .th-grid input{width:50px}
 .settings-bar .desc{color:#888;font-size:11px;margin:4px 0 0}
+.th-table{width:100%;border-collapse:collapse;margin-top:10px}
+.th-table td{padding:5px 8px;border-bottom:1px solid #f0f1f4;font-size:11px}
+.th-table td:first-child{color:#555}
+.th-table td:last-child{width:90px;text-align:right}
+.th-table input{width:48px;text-align:right}
 </style>
 </head>
 <body>
@@ -46,7 +48,7 @@ th:nth-child(5),td:nth-child(5){width:70px;text-align:center}
 <div style="max-width:1100px;margin:16px auto 0">
   <details class="settings-bar">
     <summary>기준일 설정</summary>
-    <p class="desc">총량대비 = 완료 / 전체. 기준대비 = as_of_date까지 due date 지난 것 중 완료 / 지난 것 전체(계획 대비 실적). as_of_date 기본값은 실행일 직전 요일.</p>
+    <p class="desc">총량대비 = 완료 / 전체. 기준대비 = as_of_date까지 due date 지난 것 중 완료 / 지난 것 전체(계획 대비 실적).<br>기준 요일 = 매주 자동 적용(예: 금요일 지정 시 실행일 기준 직전 금요일을 그 주 기준일로 씀). 특정 주만 다른 날짜 쓰려면 아래 날짜 지정.</p>
     <div class="row">
       <label>기준 요일</label>
       <select id="set-weekday">
@@ -61,7 +63,7 @@ th:nth-child(5),td:nth-child(5){width:70px;text-align:center}
   <details class="settings-bar">
     <summary>체이스(마감) 경고 기준일수</summary>
     <p class="desc">단계별 상태에서 다음 샘플 접수까지 며칠 전부터 경고 대상으로 볼지. 대시보드엔 표시 안 되고 계산 로직에서만 씀.</p>
-    <div class="th-grid" id="th-grid"></div>
+    <table class="th-table" id="th-table"><tbody></tbody></table>
     <div class="row"><button class="btn" onclick="downloadSettings()">설정 파일 다운로드</button></div>
   </details>
 </div>
@@ -83,16 +85,16 @@ weekIds.forEach(w => { const o = document.createElement('option'); o.value = w; 
 document.getElementById('set-weekday').value = SETTINGS.as_of_weekday || 'FRI';
 document.getElementById('set-date-override').value = SETTINGS.as_of_date_override || '';
 
-const thGrid = document.getElementById('th-grid');
+const thBody = document.querySelector('#th-table tbody');
 Object.entries(SETTINGS.chase_thresholds || {}).forEach(([desc, days]) => {
-  const row = document.createElement('div');
-  row.innerHTML = `<label>${esc(desc)}</label><input type="number" data-th="${esc(desc)}" value="${days}">`;
-  thGrid.appendChild(row);
+  const row = document.createElement('tr');
+  row.innerHTML = `<td>${esc(desc)}</td><td><input type="number" data-th="${esc(desc)}" value="${days}"> 일</td>`;
+  thBody.appendChild(row);
 });
 
 function downloadSettings() {
   const chase_thresholds = {};
-  thGrid.querySelectorAll('input[data-th]').forEach(inp => { chase_thresholds[inp.dataset.th] = parseInt(inp.value, 10); });
+  thBody.querySelectorAll('input[data-th]').forEach(inp => { chase_thresholds[inp.dataset.th] = parseInt(inp.value, 10); });
   const updated = {
     ...SETTINGS,
     as_of_weekday: document.getElementById('set-weekday').value,

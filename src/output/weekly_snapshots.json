@@ -7,15 +7,15 @@
           "QA": {
             "PP": {
               "baseline_all": 422,
-              "baseline_done": 401,
+              "baseline_done": 403,
               "total_all": 427,
-              "total_done": 406
+              "total_done": 408
             },
             "TOP": {
               "baseline_all": 295,
-              "baseline_done": 271,
+              "baseline_done": 272,
               "total_all": 427,
-              "total_done": 327
+              "total_done": 329
             }
           },
           "TD": {
