@@ -3,5 +3,16 @@
   "as_of_date_override": null,
   "legacy_xlsx_sources": {
     "26FW": "C:\\Users\\AC1005\\F&F\\F ML MLB 26F GTM - 301 QM - Technical Design , QA\\26FW FITTING 현황.xlsx"
+  },
+  "chase_thresholds": {
+    "보정 Approved → PP 샘플 접수": 20,
+    "보정 Go to FIT → 1ST FIT 샘플 접수": 30,
+    "보정 Rejected → 다음 차수 보정 샘플 접수": 45,
+    "FIT Approved → PP 샘플 접수": 20,
+    "FIT Rej/IntRej 1차 → 다음 FIT 샘플 접수": 30,
+    "FIT Rej/IntRej 2차+ → 다음 FIT 샘플 접수": 15,
+    "PP Approved → TOP 샘플 접수": 28,
+    "PP Rej/IntRej → 다음 차수 PP 샘플 접수": 10,
+    "TOP Rej/IntRej → 다음 차수 TOP 샘플 접수": 14
   }
 }

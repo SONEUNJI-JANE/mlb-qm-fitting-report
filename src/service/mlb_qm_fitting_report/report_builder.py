@@ -12,9 +12,13 @@ body{font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;font-size:13px
 .hdr h1{font-size:17px;margin:0}
 select{padding:6px 10px;border-radius:6px;border:1px solid #ccc;font-size:12px}
 .content{padding:20px;max-width:1100px;margin:0 auto}
-table{width:100%;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;margin-bottom:16px}
+table{width:100%;table-layout:fixed;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;margin-bottom:16px}
 th,td{padding:8px 10px;border-bottom:1px solid #eee;text-align:left;font-size:12px}
 th{background:#f8f9fa;color:#555}
+th:nth-child(1),td:nth-child(1){width:70px}
+th:nth-child(2),td:nth-child(2){width:70px}
+th:nth-child(3),td:nth-child(3),th:nth-child(4),td:nth-child(4){width:220px;text-align:right;font-variant-numeric:tabular-nums}
+th:nth-child(5),td:nth-child(5){width:70px;text-align:center}
 .season-title{font-weight:700;font-size:15px;margin:20px 0 8px;padding-bottom:4px;border-bottom:2px solid #1a1a2e}
 .season-title:first-child{margin-top:0}
 .btn{padding:3px 8px;border-radius:4px;border:1px solid #ccc;background:#fff;font-size:11px;cursor:pointer}
@@ -23,6 +27,7 @@ th{background:#f8f9fa;color:#555}
 .override-bar{position:sticky;bottom:0;background:#1a1a2e;color:#fff;padding:10px 20px;display:none;align-items:center;gap:12px;font-size:12px}
 .override-bar.show{display:flex}
 .override-bar .btn{background:#4a65a9;color:#fff;border:none}
+.settings-note{background:#eef0f5;color:#555;font-size:11px;padding:8px 24px}
 </style>
 </head>
 <body>
@@ -30,6 +35,7 @@ th{background:#f8f9fa;color:#555}
   <h1>MLB QM Fitting 주간 보고</h1>
   <select id="week-select" onchange="render()"></select>
 </div>
+<div class="settings-note">기준일(as_of_date)·체이스 경고 기준일수는 <code>config/report_settings.json</code>에서 설정. 기본 기준일 = 실행일 직전 금요일, 특정 주만 다르게 하려면 <code>as_of_date_override</code> 값 지정.</div>
 <div class="content" id="seasons"></div>
 <div class="override-bar" id="override-bar">
   <span id="override-count"></span>
@@ -44,6 +50,8 @@ const sel = document.getElementById('week-select');
 weekIds.forEach(w => { const o = document.createElement('option'); o.value = w; o.textContent = w + ' (기준일 ' + DATA.weeks[w].as_of_date + ')'; sel.appendChild(o); });
 
 function pct(done, all) { return all > 0 ? Math.round(done / all * 1000) / 10 : 0; }
+
+const OWNER_STAGES = {TD: ['FIT'], QA: ['PP', 'TOP']}; // TD=FIT 담당, QA=PP/TOP 담당 (수기보고서 구조와 동일)
 
 function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -96,7 +104,7 @@ function render() {
     table.innerHTML = `<thead><tr><th>담당</th><th>단계</th><th>총량대비</th><th>기준대비</th>${isLatest ? '<th></th>' : ''}</tr></thead><tbody></tbody>`;
     const tbody = table.querySelector('tbody');
     for (const owner of ['TD', 'QA']) {
-      for (const stage of Object.keys(week.progress[season][owner] || {})) {
+      for (const stage of Object.keys(week.progress[season][owner] || {}).filter(s => OWNER_STAGES[owner].includes(s))) {
         let m = week.progress[season][owner][stage];
         const key = editKey(season, owner, stage);
         if (edits[key]) m = {...m, total_done: edits[key].override_numerator, total_all: edits[key].override_denominator};

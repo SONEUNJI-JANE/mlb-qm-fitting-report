@@ -50,7 +50,9 @@ def _latest_records_by_style(records: list[dict]) -> dict:
     return latest
 
 
-def compute_chase_warnings(styles: list[dict], records: list[dict], as_of_date: date) -> list[dict]:
+def compute_chase_warnings(styles: list[dict], records: list[dict], as_of_date: date, thresholds: dict = None) -> list[dict]:
+    """thresholds: {rule desc: 일수} — 넘기면 CHASE_RULES 기본 days를 이 값으로 덮어씀 (config/report_settings.json의 chase_thresholds)."""
+    thresholds = thresholds or {}
     styles_by_code = {s["style_code"]: s for s in styles}
     latest = _latest_records_by_style(records)
     warnings = []
@@ -65,11 +67,12 @@ def compute_chase_warnings(styles: list[dict], records: list[dict], as_of_date: 
                 continue
 
             owner = style.get("td") or style.get("qa") or ""
+            days = thresholds.get(rule["desc"], rule["days"])
 
             if rule["ref"] == "elapsed":
                 last_change = date.fromisoformat(record["updated_at"][:10])
                 days_elapsed = (as_of_date - last_change).days
-                if days_elapsed >= rule["days"]:
+                if days_elapsed >= days:
                     warnings.append({
                         "style_code": style_code, "season": style.get("season"), "owner": owner,
                         "rule": rule["desc"], "due_date": None, "days_to_due": None,
@@ -79,7 +82,7 @@ def compute_chase_warnings(styles: list[dict], records: list[dict], as_of_date: 
                 if due is None:
                     continue
                 days_to_due = (due - as_of_date).days
-                if 0 <= days_to_due <= rule["days"]:
+                if 0 <= days_to_due <= days:
                     warnings.append({
                         "style_code": style_code, "season": style.get("season"), "owner": owner,
                         "rule": rule["desc"], "due_date": due.isoformat(), "days_to_due": days_to_due,
