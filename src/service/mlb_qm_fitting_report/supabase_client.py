@@ -9,17 +9,28 @@ def _headers(settings: dict) -> dict:
     return {"apikey": key, "Authorization": f"Bearer {key}"}
 
 
-def _get_all(settings: dict, table: str, fields: str) -> list[dict]:
+def _get_all(settings: dict, table: str, fields: str, order: str) -> list[dict]:
     url = f"{settings['supabase_url']}/rest/v1/{table}"
-    params = {"select": fields, "limit": "10000"}
-    resp = requests.get(url, headers=_headers(settings), params=params, timeout=30)
-    resp.raise_for_status()
-    return resp.json()
+    headers = _headers(settings)
+    headers["Range-Unit"] = "items"
+    all_rows = []
+    start = 0
+    page_size = 1000
+    while True:
+        headers["Range"] = f"{start}-{start + page_size - 1}"
+        resp = requests.get(url, headers=headers, params={"select": fields, "order": order}, timeout=30)
+        resp.raise_for_status()
+        page = resp.json()
+        all_rows.extend(page)
+        if len(page) < page_size:
+            break
+        start += page_size
+    return all_rows
 
 
 def fetch_styles(settings: dict) -> list[dict]:
-    return _get_all(settings, "styles", _STYLES_FIELDS)
+    return _get_all(settings, "styles", _STYLES_FIELDS, "style_code")
 
 
 def fetch_fitting_records(settings: dict) -> list[dict]:
-    return _get_all(settings, "fitting_records", _FITTING_FIELDS)
+    return _get_all(settings, "fitting_records", _FITTING_FIELDS, "style_code,round")
