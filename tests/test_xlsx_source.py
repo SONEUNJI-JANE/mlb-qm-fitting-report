@@ -15,8 +15,8 @@ def test_totals_from_done_flags():
     result = compute_progress_from_xlsx(ROWS, as_of)
     assert result["TD"]["FIT"]["total_done"] == 2, result
     assert result["TD"]["FIT"]["total_all"] == 2, result
-    assert result["TD"]["PP"]["total_done"] == 1, result
-    assert result["TD"]["TOP"]["total_done"] == 0, result
+    assert result["QA"]["PP"]["total_done"] == 1, result
+    assert result["QA"]["TOP"]["total_done"] == 0, result
 
 
 def test_baseline_uses_due_dates():
@@ -24,7 +24,7 @@ def test_baseline_uses_due_dates():
     result = compute_progress_from_xlsx(ROWS, as_of)
     # fit_due(7/1) and pp_due(8/1 not yet due) -> baseline only counts FIT as due
     assert result["TD"]["FIT"]["baseline_all"] == 2, result
-    assert result["TD"]["PP"]["baseline_all"] == 0, result
+    assert result["QA"]["PP"]["baseline_all"] == 0, result
 
 
 if __name__ == "__main__":

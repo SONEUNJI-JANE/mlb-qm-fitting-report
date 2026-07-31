@@ -5,12 +5,6 @@
       "progress": {
         "26FW": {
           "QA": {
-            "FIT": {
-              "baseline_all": 424,
-              "baseline_done": 424,
-              "total_all": 427,
-              "total_done": 427
-            },
             "PP": {
               "baseline_all": 422,
               "baseline_done": 401,
@@ -30,30 +24,11 @@
               "baseline_done": 424,
               "total_all": 427,
               "total_done": 427
-            },
-            "PP": {
-              "baseline_all": 422,
-              "baseline_done": 401,
-              "total_all": 427,
-              "total_done": 406
-            },
-            "TOP": {
-              "baseline_all": 295,
-              "baseline_done": 271,
-              "total_all": 427,
-              "total_done": 327
             }
           }
         },
         "27SS": {
-          "QA": {},
-          "TD": {
-            "FIT": {
-              "baseline_all": 0,
-              "baseline_done": 0,
-              "total_all": 547,
-              "total_done": 0
-            },
+          "QA": {
             "PP": {
               "baseline_all": 0,
               "baseline_done": 0,
@@ -61,6 +36,14 @@
               "total_done": 0
             },
             "TOP": {
+              "baseline_all": 0,
+              "baseline_done": 0,
+              "total_all": 547,
+              "total_done": 0
+            }
+          },
+          "TD": {
+            "FIT": {
               "baseline_all": 0,
               "baseline_done": 0,
               "total_all": 547,

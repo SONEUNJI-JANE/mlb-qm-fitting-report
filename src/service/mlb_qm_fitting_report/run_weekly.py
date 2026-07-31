@@ -31,7 +31,7 @@ def main() -> None:
     snapshots = append_snapshot(snapshots, week_id, as_of_date, progress, warnings=[])
     save_snapshots(snapshots)
 
-    html = build_report_html(snapshots)
+    html = build_report_html(snapshots, settings)
     with open("src/output/dashboard/index.html", "w", encoding="utf-8") as f:
         f.write(html)
 

@@ -51,9 +51,11 @@ def read_fit_track_rows(path: str) -> list[dict]:
     return rows
 
 
+OWNER_BY_STAGE = {"FIT": "TD", "PP": "QA", "TOP": "QA"}
+
+
 def compute_progress_from_xlsx(rows: list[dict], as_of_date: date) -> dict:
     result = {"TD": {}, "QA": {}}
-    owner_fields = {"TD": "td", "QA": "qa"}
     done_fields = {"FIT": "fit_done", "PP": "pp_done", "TOP": "top_done"}
     due_fields = {"FIT": "fit_due", "PP": "pp_due", "TOP": "top_due"}
 
@@ -63,19 +65,16 @@ def compute_progress_from_xlsx(rows: list[dict], as_of_date: date) -> dict:
             due = row[due_fields[stage]]
             is_due = bool(due and due <= as_of_date)
 
-            for owner_type, field in owner_fields.items():
-                owner_name = row.get(field)
-                if not owner_name:
-                    continue
-                bucket = result[owner_type].setdefault(
-                    stage, {"total_done": 0, "total_all": 0, "baseline_done": 0, "baseline_all": 0}
-                )
-                bucket["total_all"] += 1
+            owner_type = OWNER_BY_STAGE[stage]
+            bucket = result[owner_type].setdefault(
+                stage, {"total_done": 0, "total_all": 0, "baseline_done": 0, "baseline_all": 0}
+            )
+            bucket["total_all"] += 1
+            if is_done:
+                bucket["total_done"] += 1
+            if is_due:
+                bucket["baseline_all"] += 1
                 if is_done:
-                    bucket["total_done"] += 1
-                if is_due:
-                    bucket["baseline_all"] += 1
-                    if is_done:
-                        bucket["baseline_done"] += 1
+                    bucket["baseline_done"] += 1
 
     return result

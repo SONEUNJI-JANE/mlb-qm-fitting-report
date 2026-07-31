@@ -29,11 +29,19 @@ def test_total_vs_baseline_fit():
     assert fit_td["baseline_all"] == 1, fit_td
 
 
-def test_qa_owner_mirrors_td_when_qa_field_set():
+def test_fit_is_td_pp_top_are_qa_regardless_of_owner_fields():
+    # 담당은 역할 기준: FIT=TD, PP/TOP=QA. styles.qa 값이 비어있어도(27SS 실제 상황) PP/TOP은 QA로 집계돼야 함.
     as_of = date(2026, 7, 31)
-    result = compute_progress(STYLES, RECORDS, as_of)
-    fit_qa = result["27SS"]["QA"]["FIT"]
-    assert fit_qa["total_all"] == 2, fit_qa
+    styles = [
+        {"style_code": "B1", "season": "27SS", "td": "김철수", "qa": "", "qc_due": "2026-07-20", "pp_due": "2026-08-10", "top_due": "2026-09-01"},
+    ]
+    records = [
+        {"style_code": "B1", "stage": "PP", "round": 1, "status": "Approved", "updated_at": "2026-07-20T00:00:00Z"},
+    ]
+    result = compute_progress(styles, records, as_of)
+    assert "PP" not in result["27SS"]["TD"], result["27SS"]["TD"]
+    assert result["27SS"]["QA"]["PP"]["total_all"] == 1, result["27SS"]["QA"]
+    assert result["27SS"]["QA"]["PP"]["total_done"] == 1, result["27SS"]["QA"]
 
 
 def test_drop_styles_excluded():
@@ -51,6 +59,6 @@ def test_drop_styles_excluded():
 
 if __name__ == "__main__":
     test_total_vs_baseline_fit()
-    test_qa_owner_mirrors_td_when_qa_field_set()
+    test_fit_is_td_pp_top_are_qa_regardless_of_owner_fields()
     test_drop_styles_excluded()
     print("OK: test_aggregate")

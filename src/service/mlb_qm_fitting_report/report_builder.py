@@ -27,7 +27,15 @@ th:nth-child(5),td:nth-child(5){width:70px;text-align:center}
 .override-bar{position:sticky;bottom:0;background:#1a1a2e;color:#fff;padding:10px 20px;display:none;align-items:center;gap:12px;font-size:12px}
 .override-bar.show{display:flex}
 .override-bar .btn{background:#4a65a9;color:#fff;border:none}
-.settings-note{background:#eef0f5;color:#555;font-size:11px;padding:8px 24px}
+.settings-bar{background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin:0 auto 12px;max-width:1100px;padding:12px 16px;font-size:12px}
+.settings-bar summary{cursor:pointer;font-weight:700;color:#1a1a2e}
+.settings-bar .row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
+.settings-bar label{color:#555;white-space:nowrap}
+.settings-bar input,.settings-bar select{padding:4px 6px;font-size:11px;border:1px solid #ccc;border-radius:4px}
+.settings-bar .th-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:6px 12px;margin-top:10px}
+.settings-bar .th-grid label{width:170px}
+.settings-bar .th-grid input{width:50px}
+.settings-bar .desc{color:#888;font-size:11px;margin:4px 0 0}
 </style>
 </head>
 <body>
@@ -35,7 +43,28 @@ th:nth-child(5),td:nth-child(5){width:70px;text-align:center}
   <h1>MLB QM Fitting 주간 보고</h1>
   <select id="week-select" onchange="render()"></select>
 </div>
-<div class="settings-note">기준일(as_of_date)·체이스 경고 기준일수는 <code>config/report_settings.json</code>에서 설정. 기본 기준일 = 실행일 직전 금요일, 특정 주만 다르게 하려면 <code>as_of_date_override</code> 값 지정.</div>
+<div style="max-width:1100px;margin:16px auto 0">
+  <details class="settings-bar">
+    <summary>기준일 설정</summary>
+    <p class="desc">총량대비 = 완료 / 전체. 기준대비 = as_of_date까지 due date 지난 것 중 완료 / 지난 것 전체(계획 대비 실적). as_of_date 기본값은 실행일 직전 요일.</p>
+    <div class="row">
+      <label>기준 요일</label>
+      <select id="set-weekday">
+        <option value="MON">월</option><option value="TUE">화</option><option value="WED">수</option>
+        <option value="THU">목</option><option value="FRI">금</option><option value="SAT">토</option><option value="SUN">일</option>
+      </select>
+      <label>특정 날짜로 고정(선택)</label>
+      <input type="date" id="set-date-override">
+      <button class="btn" onclick="downloadSettings()">설정 파일 다운로드</button>
+    </div>
+  </details>
+  <details class="settings-bar">
+    <summary>체이스(마감) 경고 기준일수</summary>
+    <p class="desc">단계별 상태에서 다음 샘플 접수까지 며칠 전부터 경고 대상으로 볼지. 대시보드엔 표시 안 되고 계산 로직에서만 씀.</p>
+    <div class="th-grid" id="th-grid"></div>
+    <div class="row"><button class="btn" onclick="downloadSettings()">설정 파일 다운로드</button></div>
+  </details>
+</div>
 <div class="content" id="seasons"></div>
 <div class="override-bar" id="override-bar">
   <span id="override-count"></span>
@@ -43,15 +72,41 @@ th:nth-child(5),td:nth-child(5){width:70px;text-align:center}
   <button class="btn" onclick="downloadOverrides()">오버라이드 파일 다운로드</button>
 </div>
 <script id="snapshot-data" type="application/json">__SNAPSHOT_JSON__</script>
+<script id="settings-data" type="application/json">__SETTINGS_JSON__</script>
 <script>
 const DATA = JSON.parse(document.getElementById('snapshot-data').textContent);
+const SETTINGS = JSON.parse(document.getElementById('settings-data').textContent);
 const weekIds = Object.keys(DATA.weeks).sort().reverse();
 const sel = document.getElementById('week-select');
 weekIds.forEach(w => { const o = document.createElement('option'); o.value = w; o.textContent = w + ' (기준일 ' + DATA.weeks[w].as_of_date + ')'; sel.appendChild(o); });
 
-function pct(done, all) { return all > 0 ? Math.round(done / all * 1000) / 10 : 0; }
+document.getElementById('set-weekday').value = SETTINGS.as_of_weekday || 'FRI';
+document.getElementById('set-date-override').value = SETTINGS.as_of_date_override || '';
 
-const OWNER_STAGES = {TD: ['FIT'], QA: ['PP', 'TOP']}; // TD=FIT 담당, QA=PP/TOP 담당 (수기보고서 구조와 동일)
+const thGrid = document.getElementById('th-grid');
+Object.entries(SETTINGS.chase_thresholds || {}).forEach(([desc, days]) => {
+  const row = document.createElement('div');
+  row.innerHTML = `<label>${esc(desc)}</label><input type="number" data-th="${esc(desc)}" value="${days}">`;
+  thGrid.appendChild(row);
+});
+
+function downloadSettings() {
+  const chase_thresholds = {};
+  thGrid.querySelectorAll('input[data-th]').forEach(inp => { chase_thresholds[inp.dataset.th] = parseInt(inp.value, 10); });
+  const updated = {
+    ...SETTINGS,
+    as_of_weekday: document.getElementById('set-weekday').value,
+    as_of_date_override: document.getElementById('set-date-override').value || null,
+    chase_thresholds,
+  };
+  const blob = new Blob([JSON.stringify(updated, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'report_settings.json';
+  a.click();
+}
+
+function pct(done, all) { return all > 0 ? Math.round(done / all * 1000) / 10 : 0; }
 
 function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -104,7 +159,7 @@ function render() {
     table.innerHTML = `<thead><tr><th>담당</th><th>단계</th><th>총량대비</th><th>기준대비</th>${isLatest ? '<th></th>' : ''}</tr></thead><tbody></tbody>`;
     const tbody = table.querySelector('tbody');
     for (const owner of ['TD', 'QA']) {
-      for (const stage of Object.keys(week.progress[season][owner] || {}).filter(s => OWNER_STAGES[owner].includes(s))) {
+      for (const stage of Object.keys(week.progress[season][owner] || {})) {
         let m = week.progress[season][owner][stage];
         const key = editKey(season, owner, stage);
         if (edits[key]) m = {...m, total_done: edits[key].override_numerator, total_all: edits[key].override_denominator};
@@ -127,6 +182,13 @@ if (weekIds.length) { sel.value = weekIds[0]; render(); }
 """
 
 
-def build_report_html(snapshots: dict) -> str:
+_SECRET_KEYS = {"supabase_url", "supabase_anon_key"}
+
+
+def build_report_html(snapshots: dict, settings: dict) -> str:
     snapshot_json = json.dumps(snapshots, ensure_ascii=False).replace("<", "\\u003c")
-    return _TEMPLATE.replace("__SNAPSHOT_JSON__", snapshot_json)
+    public_settings = {k: v for k, v in settings.items() if k not in _SECRET_KEYS}
+    settings_json = json.dumps(public_settings, ensure_ascii=False).replace("<", "\\u003c")
+    return (_TEMPLATE
+            .replace("__SNAPSHOT_JSON__", snapshot_json)
+            .replace("__SETTINGS_JSON__", settings_json))

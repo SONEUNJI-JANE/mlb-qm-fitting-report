@@ -2,7 +2,9 @@ from datetime import date
 
 STAGES = ["FIT", "PP", "TOP"]
 DUE_FIELD_BY_STAGE = {"FIT": "qc_due", "PP": "pp_due", "TOP": "top_due"}
-OWNER_FIELDS = {"TD": "td", "QA": "qa"}
+# 담당은 역할 기준(FIT=TD, PP/TOP=QA) — 개별 스타일에 담당자 이름이 채워져 있는지와 무관하게 항상 집계한다.
+# styles.qa 컬럼이 시즌 전체에서 비어있어도(예: 27SS) PP/TOP 집계 자체는 빠지면 안 된다.
+OWNER_BY_STAGE = {"FIT": "TD", "PP": "QA", "TOP": "QA"}
 
 
 def _parse_date(value):
@@ -40,19 +42,16 @@ def compute_progress(styles: list[dict], records: list[dict], as_of_date: date) 
             is_done = bool(record and record["status"] == "Approved")
             is_due = bool(due and due <= as_of_date)
 
-            for owner_type, style_field in OWNER_FIELDS.items():
-                owner_name = style.get(style_field)
-                if not owner_name:
-                    continue
-                bucket = result[season][owner_type].setdefault(
-                    stage, {"total_done": 0, "total_all": 0, "baseline_done": 0, "baseline_all": 0}
-                )
-                bucket["total_all"] += 1
+            owner_type = OWNER_BY_STAGE[stage]
+            bucket = result[season][owner_type].setdefault(
+                stage, {"total_done": 0, "total_all": 0, "baseline_done": 0, "baseline_all": 0}
+            )
+            bucket["total_all"] += 1
+            if is_done:
+                bucket["total_done"] += 1
+            if is_due:
+                bucket["baseline_all"] += 1
                 if is_done:
-                    bucket["total_done"] += 1
-                if is_due:
-                    bucket["baseline_all"] += 1
-                    if is_done:
-                        bucket["baseline_done"] += 1
+                    bucket["baseline_done"] += 1
 
     return result
