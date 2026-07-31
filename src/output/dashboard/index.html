@@ -15,6 +15,12 @@ th,td{padding:8px 10px;border-bottom:1px solid #eee;text-align:left;font-size:12
 th{background:#f8f9fa;color:#555}
 .season-title{font-weight:700;font-size:15px;margin:20px 0 8px;padding-bottom:4px;border-bottom:2px solid #1a1a2e}
 .season-title:first-child{margin-top:0}
+.btn{padding:3px 8px;border-radius:4px;border:1px solid #ccc;background:#fff;font-size:11px;cursor:pointer}
+.btn:hover{background:#f0f1f4}
+.edit-cell input{width:52px;padding:2px 4px;font-size:11px}
+.override-bar{position:sticky;bottom:0;background:#1a1a2e;color:#fff;padding:10px 20px;display:none;align-items:center;gap:12px;font-size:12px}
+.override-bar.show{display:flex}
+.override-bar .btn{background:#4a65a9;color:#fff;border:none}
 </style>
 </head>
 <body>
@@ -23,7 +29,12 @@ th{background:#f8f9fa;color:#555}
   <select id="week-select" onchange="render()"></select>
 </div>
 <div class="content" id="seasons"></div>
-<script id="snapshot-data" type="application/json">{"weeks": {"2026-W30": {"as_of_date": "2026-07-24", "progress": {"26FW": {"TD": {"FIT": {"total_done": 369, "total_all": 432, "baseline_done": 369, "baseline_all": 430}, "PP": {"total_done": 339, "total_all": 432, "baseline_done": 338, "baseline_all": 428}, "TOP": {"total_done": 200, "total_all": 432, "baseline_done": 184, "baseline_all": 305}}, "QA": {}}, "27SS": {"TD": {"FIT": {"total_done": 0, "total_all": 547, "baseline_done": 0, "baseline_all": 0}, "PP": {"total_done": 0, "total_all": 547, "baseline_done": 0, "baseline_all": 0}, "TOP": {"total_done": 0, "total_all": 547, "baseline_done": 0, "baseline_all": 0}}, "QA": {}}}, "warnings": []}}}</script>
+<div class="override-bar" id="override-bar">
+  <span id="override-count"></span>
+  <span>수정한 값을 파일로 받아 overrides/ 폴더에 넣고 다시 실행하면 반영됩니다.</span>
+  <button class="btn" onclick="downloadOverrides()">오버라이드 파일 다운로드</button>
+</div>
+<script id="snapshot-data" type="application/json">{"weeks": {"2026-W30": {"as_of_date": "2026-07-24", "progress": {"26FW": {"QA": {}, "TD": {"FIT": {"baseline_all": 430, "baseline_done": 369, "total_all": 432, "total_done": 369}, "PP": {"baseline_all": 428, "baseline_done": 338, "total_all": 432, "total_done": 339}, "TOP": {"baseline_all": 305, "baseline_done": 184, "total_all": 432, "total_done": 200}}}, "27SS": {"QA": {}, "TD": {"FIT": {"baseline_all": 0, "baseline_done": 0, "total_all": 547, "total_done": 0}, "PP": {"baseline_all": 0, "baseline_done": 0, "total_all": 547, "total_done": 0}, "TOP": {"baseline_all": 0, "baseline_done": 0, "total_all": 547, "total_done": 0}}}}, "warnings": []}}}</script>
 <script>
 const DATA = JSON.parse(document.getElementById('snapshot-data').textContent);
 const weekIds = Object.keys(DATA.weeks).sort().reverse();
@@ -36,9 +47,41 @@ function esc(s) {
   return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
+let edits = {}; // key `${season}|${owner}|${stage}` -> {season, stage, owner_type, override_numerator, override_denominator}
+
+function editKey(season, owner, stage) { return `${season}|${owner}|${stage}`; }
+
+function startEdit(season, owner, stage, done, all) {
+  const cell = document.getElementById(`cell-${editKey(season, owner, stage)}`);
+  cell.innerHTML = `<span class="edit-cell"><input type="number" id="in-done-${editKey(season, owner, stage)}" value="${done}"> / ` +
+    `<input type="number" id="in-all-${editKey(season, owner, stage)}" value="${all}"> ` +
+    `<button class="btn" onclick="applyEdit('${season}','${owner}','${stage}')">적용</button></span>`;
+}
+
+function applyEdit(season, owner, stage) {
+  const key = editKey(season, owner, stage);
+  const done = parseInt(document.getElementById(`in-done-${key}`).value, 10);
+  const all = parseInt(document.getElementById(`in-all-${key}`).value, 10);
+  edits[key] = {season, stage, owner_type: owner, override_numerator: done, override_denominator: all};
+  render();
+  const bar = document.getElementById('override-bar');
+  bar.classList.add('show');
+  document.getElementById('override-count').textContent = `수정 ${Object.keys(edits).length}건`;
+}
+
+function downloadOverrides() {
+  const payload = Object.values(edits);
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {type: 'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${sel.value}.json`;
+  a.click();
+}
+
 function render() {
   const week = DATA.weeks[sel.value];
   if (!week) return;
+  const isLatest = sel.value === weekIds[0];
   const container = document.getElementById('seasons');
   container.innerHTML = '';
   for (const season of Object.keys(week.progress).sort()) {
@@ -48,15 +91,18 @@ function render() {
     container.appendChild(title);
 
     const table = document.createElement('table');
-    table.innerHTML = '<thead><tr><th>담당</th><th>단계</th><th>총량대비</th><th>기준대비</th></tr></thead><tbody></tbody>';
+    table.innerHTML = `<thead><tr><th>담당</th><th>단계</th><th>총량대비</th><th>기준대비</th>${isLatest ? '<th></th>' : ''}</tr></thead><tbody></tbody>`;
     const tbody = table.querySelector('tbody');
     for (const owner of ['TD', 'QA']) {
       for (const stage of Object.keys(week.progress[season][owner] || {})) {
-        const m = week.progress[season][owner][stage];
+        let m = week.progress[season][owner][stage];
+        const key = editKey(season, owner, stage);
+        if (edits[key]) m = {...m, total_done: edits[key].override_numerator, total_all: edits[key].override_denominator};
         const row = document.createElement('tr');
         row.innerHTML = `<td>${esc(owner)}</td><td>${esc(stage)}</td>` +
-          `<td>${pct(m.total_done, m.total_all)}% (${m.total_done}/${m.total_all})</td>` +
-          `<td>${pct(m.baseline_done, m.baseline_all)}% (${m.baseline_done}/${m.baseline_all})</td>`;
+          `<td id="cell-${key}">${pct(m.total_done, m.total_all)}% (${m.total_done}/${m.total_all})</td>` +
+          `<td>${pct(m.baseline_done, m.baseline_all)}% (${m.baseline_done}/${m.baseline_all})</td>` +
+          (isLatest ? `<td><button class="btn" onclick="startEdit('${season}','${owner}','${stage}',${m.total_done},${m.total_all})">수정</button></td>` : '');
         tbody.appendChild(row);
       }
     }
