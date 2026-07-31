@@ -28,7 +28,14 @@ def test_apply_overrides_replaces_total_only():
     assert PROGRESS["27SS"]["TD"]["FIT"]["total_done"] == 1
 
 
+def test_apply_overrides_skips_nonexistent_bucket():
+    overrides = [{"season": "NONEXISTENT", "stage": "FIT", "owner_type": "TD", "override_numerator": 30, "override_denominator": 32}]
+    result = apply_overrides(PROGRESS, overrides)
+    assert result == PROGRESS, result
+
+
 if __name__ == "__main__":
     test_load_overrides_missing_file_returns_empty()
     test_apply_overrides_replaces_total_only()
+    test_apply_overrides_skips_nonexistent_bucket()
     print("OK: test_overrides")
