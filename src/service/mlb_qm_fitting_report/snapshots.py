@@ -11,12 +11,13 @@ def load_snapshots(path: str = "src/output/weekly_snapshots.json") -> dict:
         return json.load(f)
 
 
-def append_snapshot(snapshots: dict, week_id: str, as_of_date: date, progress: dict, warnings: list[dict]) -> dict:
+def append_snapshot(snapshots: dict, week_id: str, as_of_date: date, progress: dict, warnings: list[dict], raw: dict = None) -> dict:
     result = copy.deepcopy(snapshots)
     result["weeks"][week_id] = {
         "as_of_date": as_of_date.isoformat(),
         "progress": progress,
         "warnings": warnings,
+        "raw": raw or {},
     }
     return result
 

@@ -4,6 +4,9 @@
   "legacy_xlsx_sources": {
     "26FW": "C:\\Users\\AC1005\\F&F\\F ML MLB 26F GTM - 301 QM - Technical Design , QA\\26FW FITTING 현황.xlsx"
   },
+  "raw_apparel_sources": {
+    "26FW": "C:\\Users\\AC1005\\F&F\\F ML MLB 26F GTM - 002 상품구성(RAW) 및 전략, Item Strategy\\MLB_26FW_RAW Ver 2.0의 복사본.xlsm"
+  },
   "chase_thresholds": {
     "보정 Approved → PP 샘플 접수": 20,
     "보정 Go to FIT → 1ST FIT 샘플 접수": 30,
