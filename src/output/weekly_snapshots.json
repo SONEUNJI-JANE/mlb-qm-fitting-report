@@ -37079,15 +37079,15 @@
           "QA": {
             "PP": {
               "baseline_all": 392,
-              "baseline_done": 377,
+              "baseline_done": 379,
               "total_all": 427,
-              "total_done": 408
+              "total_done": 411
             },
             "TOP": {
               "baseline_all": 254,
-              "baseline_done": 238,
+              "baseline_done": 239,
               "total_all": 427,
-              "total_done": 329
+              "total_done": 330
             }
           },
           "TD": {
@@ -42028,10 +42028,10 @@
                 "status": "Approved"
               },
               "PP": {
-                "confirm_date": "2026-07-24",
+                "confirm_date": "2026-08-03",
                 "first_received": "2026-07-23",
-                "reason": "봉제",
-                "round": "1ST",
+                "reason": null,
+                "round": "2ND",
                 "rounds": [
                   {
                     "confirm_date": "2026-07-24",
@@ -42039,9 +42039,16 @@
                     "received": "2026-07-23",
                     "round": "1ST",
                     "status": "Rejected"
+                  },
+                  {
+                    "confirm_date": "2026-08-03",
+                    "reason": null,
+                    "received": null,
+                    "round": "2ND",
+                    "status": "Approved"
                   }
                 ],
-                "status": "Rejected"
+                "status": "Approved"
               },
               "TOP": {
                 "confirm_date": null,
@@ -42073,7 +42080,7 @@
             "fit_due": null,
             "item": "DJ",
             "label": "WOVEN논워싱일반",
-            "pp_done": false,
+            "pp_done": true,
             "pp_due": null,
             "qa": "이은주",
             "quarter": "2nd TS",
@@ -44754,12 +44761,20 @@
                 "status": "Approved"
               },
               "TOP": {
-                "confirm_date": null,
-                "first_received": null,
+                "confirm_date": "2026-08-03",
+                "first_received": "2026-07-31",
                 "reason": null,
-                "round": null,
-                "rounds": [],
-                "status": null
+                "round": "1ST",
+                "rounds": [
+                  {
+                    "confirm_date": "2026-08-03",
+                    "reason": null,
+                    "received": "2026-07-31",
+                    "round": "1ST",
+                    "status": "Approved"
+                  }
+                ],
+                "status": "Approved"
               },
               "보정": {
                 "confirm_date": "2026-02-12",
@@ -44789,7 +44804,7 @@
             "quarter": "Main TS",
             "style_code": "3AJPV0564",
             "td": "권수빈",
-            "top_done": false,
+            "top_done": true,
             "top_due": null,
             "vendor": "㈜노브랜드(우븐)"
           },
@@ -53225,20 +53240,20 @@
                 "status": "Approved"
               },
               "PP": {
-                "confirm_date": "2026-07-28",
-                "first_received": "2026-07-28",
-                "reason": "사이즈",
+                "confirm_date": "2026-08-03",
+                "first_received": "2026-07-31",
+                "reason": null,
                 "round": "1ST",
                 "rounds": [
                   {
-                    "confirm_date": "2026-07-28",
-                    "reason": "사이즈",
-                    "received": "2026-07-28",
+                    "confirm_date": "2026-08-03",
+                    "reason": null,
+                    "received": "2026-07-31",
                     "round": "1ST",
-                    "status": "Rejected"
+                    "status": "Approved"
                   }
                 ],
-                "status": "Rejected"
+                "status": "Approved"
               },
               "TOP": {
                 "confirm_date": null,
@@ -53270,7 +53285,7 @@
             "fit_due": null,
             "item": "MT",
             "label": "KNIT논워싱3천장이하",
-            "pp_done": false,
+            "pp_done": true,
             "pp_due": null,
             "qa": "이은주",
             "quarter": "2nd TS",
@@ -55860,20 +55875,12 @@
           {
             "detail": {
               "FIT": {
-                "confirm_date": "2026-04-03",
-                "first_received": "2026-04-02",
+                "confirm_date": null,
+                "first_received": null,
                 "reason": null,
-                "round": "1ST",
-                "rounds": [
-                  {
-                    "confirm_date": "2026-04-03",
-                    "reason": null,
-                    "received": "2026-04-02",
-                    "round": "1ST",
-                    "status": "Approved"
-                  }
-                ],
-                "status": "Approved"
+                "round": null,
+                "rounds": [],
+                "status": "생략(보정→PP 직행)"
               },
               "PP": {
                 "confirm_date": "2026-06-30",
@@ -56024,20 +56031,12 @@
           {
             "detail": {
               "FIT": {
-                "confirm_date": "2026-03-30",
-                "first_received": "2026-03-27",
+                "confirm_date": null,
+                "first_received": null,
                 "reason": null,
-                "round": "1ST",
-                "rounds": [
-                  {
-                    "confirm_date": "2026-03-30",
-                    "reason": null,
-                    "received": "2026-03-27",
-                    "round": "1ST",
-                    "status": "Approved"
-                  }
-                ],
-                "status": "Approved"
+                "round": null,
+                "rounds": [],
+                "status": "생략(보정→PP 직행)"
               },
               "PP": {
                 "confirm_date": "2026-05-28",
@@ -56072,13 +56071,13 @@
                 "status": "Approved"
               },
               "보정": {
-                "confirm_date": "2026-03-25",
+                "confirm_date": "2026-03-30",
                 "first_received": null,
                 "reason": null,
                 "round": "1ST",
                 "rounds": [
                   {
-                    "confirm_date": "2026-03-25",
+                    "confirm_date": "2026-03-30",
                     "reason": null,
                     "received": null,
                     "round": "1ST",
@@ -63178,12 +63177,20 @@
                 "status": "Approved"
               },
               "PP": {
-                "confirm_date": null,
-                "first_received": null,
+                "confirm_date": "2026-08-03",
+                "first_received": "2026-07-31",
                 "reason": null,
-                "round": null,
-                "rounds": [],
-                "status": null
+                "round": "1ST",
+                "rounds": [
+                  {
+                    "confirm_date": "2026-08-03",
+                    "reason": null,
+                    "received": "2026-07-31",
+                    "round": "1ST",
+                    "status": "Approved"
+                  }
+                ],
+                "status": "Approved"
               },
               "TOP": {
                 "confirm_date": null,
@@ -63215,7 +63222,7 @@
             "fit_due": null,
             "item": "TS",
             "label": "KNIT논워싱3천장이하",
-            "pp_done": false,
+            "pp_done": true,
             "pp_due": null,
             "qa": "이은주",
             "quarter": "2nd TS",

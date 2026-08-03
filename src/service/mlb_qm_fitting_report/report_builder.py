@@ -581,7 +581,7 @@ function hBarChart(items, opts) {
   opts = opts || {};
   const width = opts.width || 460;
   const barHeight = opts.barHeight || 20;
-  const gap = 8;
+  const gap = opts.gap != null ? opts.gap : 8;
   const labelWidth = opts.labelWidth || 100;
   const unit = opts.unit || '';
   const color = opts.color || '#4a65a9';
@@ -599,31 +599,40 @@ function hBarChart(items, opts) {
   return `<svg width="${width}" height="${Math.max(height, 1)}">${bars}</svg>`;
 }
 
-function lineChart(seriesList, opts) {
+// 그룹 막대그래프: 기간(주/월)마다 여러 series(주차별/누적 등)를 나란히. values는 periods와 같은 길이,
+// 없는 기간은 null.
+function groupedBarChart(periods, series, opts) {
   opts = opts || {};
-  const width = opts.width || 520, height = opts.height || 180;
-  const yMin = opts.yMin != null ? opts.yMin : 0;
-  const yMax = opts.yMax != null ? opts.yMax : 100;
-  const pad = {left: 34, right: 16, top: 14, bottom: 22};
-  const w = width - pad.left - pad.right, h = height - pad.top - pad.bottom;
-  const xLabels = seriesList[0] ? seriesList[0].points.map(p => p.x) : [];
-  const n = xLabels.length;
-  const xAt = i => pad.left + (n <= 1 ? w / 2 : (i / (n - 1)) * w);
-  const yAt = v => pad.top + h - (Math.max(yMin, Math.min(yMax, v)) - yMin) / (yMax - yMin) * h;
-  const gridVals = [0, 0.25, 0.5, 0.75, 1].map(t => Math.round((yMin + (yMax - yMin) * t) * 10) / 10);
-  const grid = gridVals.map(v =>
-    `<line x1="${pad.left}" y1="${yAt(v).toFixed(1)}" x2="${width - pad.right}" y2="${yAt(v).toFixed(1)}" stroke="#eee"/>` +
-    `<text x="${pad.left - 6}" y="${(yAt(v) + 3).toFixed(1)}" text-anchor="end" font-size="9" fill="#aaa">${v}</text>`
+  const width = opts.width || 900, height = opts.height || 240;
+  const padL = 34, padR = 10, padT = 10, padB = 30;
+  const chartW = width - padL - padR, chartH = height - padT - padB;
+  const n = Math.max(periods.length, 1);
+  const groupW = chartW / n;
+  const barCount = Math.max(series.length, 1);
+  const barW = Math.max(1, (groupW - 2) / barCount);
+  let out = '';
+  [0, 25, 50, 75, 100].forEach(v => {
+    const y = padT + chartH - (v / 100) * chartH;
+    out += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${width - padR}" y2="${y.toFixed(1)}" stroke="#eee"/>` +
+      `<text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="9" fill="#aaa">${v}</text>`;
+  });
+  periods.forEach((p, gi) => {
+    const gx = padL + gi * groupW;
+    series.forEach((s, si) => {
+      const v = s.values[gi];
+      if (v == null) return;
+      const bh = Math.max(0, (v / 100) * chartH);
+      const x = gx + si * barW + 1;
+      const y = padT + chartH - bh;
+      out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1, barW - 1).toFixed(1)}" height="${bh.toFixed(1)}" fill="${s.color}" opacity="${s.opacity != null ? s.opacity : 1}"/>`;
+    });
+    out += `<text x="${(gx + groupW / 2).toFixed(1)}" y="${height - 8}" text-anchor="middle" font-size="9" fill="#888">${escSvg(p)}</text>`;
+  });
+  const legend = series.map((s, i) =>
+    `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:14px;font-size:11px;color:#555">` +
+    `<span style="width:10px;height:10px;border-radius:2px;background:${s.color};opacity:${s.opacity != null ? s.opacity : 1};display:inline-block"></span>${esc(s.name)}</span>`
   ).join('');
-  const labels = xLabels.map((x, i) => `<text x="${xAt(i).toFixed(1)}" y="${height - 6}" text-anchor="middle" font-size="9" fill="#888">${escSvg(x)}</text>`).join('');
-  const lines = seriesList.map(s => {
-    const path = s.points.map((p, i) => `${i === 0 ? 'M' : 'L'}${xAt(i).toFixed(1)},${yAt(p.y).toFixed(1)}`).join(' ');
-    const dots = s.points.map((p, i) => `<circle cx="${xAt(i).toFixed(1)}" cy="${yAt(p.y).toFixed(1)}" r="3" fill="${s.color}"/>`).join('');
-    return `<path d="${path}" fill="none" stroke="${s.color}" stroke-width="2"/>${dots}`;
-  }).join('');
-  const legend = seriesList.map((s, i) => `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:12px;font-size:11px;color:#555">` +
-    `<span style="width:10px;height:10px;border-radius:50%;background:${s.color};display:inline-block"></span>${esc(s.name)}</span>`).join('');
-  return `<div>${legend}</div><svg width="${width}" height="${height}">${grid}${lines}${labels}</svg>`;
+  return `<div style="margin-bottom:6px">${legend}</div><svg width="${width}" height="${height}">${out}</svg>`;
 }
 
 const CATEGORIES = ['KNIT', 'SWEATER', 'WOVEN', 'DENIM'];
@@ -877,6 +886,9 @@ function withCumulativeDone(records, sortedPeriods) {
 
 let analysisPeriod = 'week';
 let analysisGroupBy = 'vendor';
+let leadTimeStageFilter = 'ALL';
+let leadTimeSort = 'avg_desc';
+let complianceChartStage = 'FIT';
 const STAGE_COLORS = {FIT: '#4a65a9', PP: '#e0a72e', TOP: '#2e9e5b'};
 
 // dim -> 선택된 값 배열(여러 개 선택 가능) | []면 전체.
@@ -1025,25 +1037,36 @@ function renderAnalysis() {
 
   // 핵심 지표: 스타일 due date가 속한 기간별 "정시 승인율"(FIT/PP/TOP 각각, 주차별 + 누적). 필터도 이 표 위에 바로 붙임.
   if (season === '26FW') {
-    const onTimeSeries = STAGES.map(st => ({
-      name: st,
-      color: STAGE_COLORS[st],
-      points: allPeriods.map(p => {
-        const b = onTimeByStage[st][p];
-        return {x: periodShortLabel(p, period), y: b && b.total ? Math.round(b.onTime / b.total * 1000) / 10 : null};
-      }).filter(pt => pt.y != null),
-    })).filter(s => s.points.length > 1);
+    const chartStages = complianceChartStage === 'ALL' ? STAGES : [complianceChartStage];
+    const barSeries = [];
+    chartStages.forEach(st => {
+      barSeries.push({
+        name: `${st} 주차별`, color: STAGE_COLORS[st], opacity: 1,
+        values: allPeriods.map(p => { const b = onTimeByStage[st][p]; return b && b.total ? Math.round(b.onTime / b.total * 1000) / 10 : null; }),
+      });
+      barSeries.push({
+        name: `${st} 누적`, color: STAGE_COLORS[st], opacity: 0.4,
+        values: allPeriods.map(p => { const b = doneCum[st][p]; return b && b.cumTotal ? Math.round(b.cumDone / b.cumTotal * 1000) / 10 : null; }),
+      });
+    });
+    const periodShortLabels = allPeriods.map(p => periodShortLabel(p, period));
+    const chartStageSelectHtml = `<label style="font-weight:700;margin-right:8px;font-size:12px">차트 단계</label>` +
+      `<select onchange="complianceChartStage=this.value;renderAnalysis()" style="margin-bottom:10px">` +
+      `<option value="ALL"${complianceChartStage === 'ALL' ? ' selected' : ''}>전체(FIT+PP+TOP)</option>` +
+      STAGES.map(st => `<option value="${st}"${complianceChartStage === st ? ' selected' : ''}>${st}</option>`).join('') +
+      `</select>`;
     const secOnTime = document.createElement('div');
     secOnTime.className = 'analysis-section';
     secOnTime.innerHTML = `<h3>주차별 Due Date 준수율</h3>` +
       filterRowHtml(allRows) +
       controlsHtml +
-      (onTimeSeries.length ? lineChart(onTimeSeries, {width: 900, height: 240}) : `<p class="sub">데이터가 부족함</p>`) +
+      chartStageSelectHtml +
+      (allPeriods.length ? groupedBarChart(periodShortLabels, barSeries, {width: 900, height: 240}) : `<p class="sub">데이터가 부족함</p>`) +
       `<table style="width:100%;font-size:11px;border-collapse:collapse;margin-top:10px">` +
-      `<thead><tr><th style="text-align:left;padding:4px" rowspan="2">${periodLabelKr}</th>` +
+      `<thead><tr><th style="text-align:center;padding:4px" rowspan="2">${periodLabelKr}</th>` +
       STAGES.map(st => `<th style="text-align:center;padding:4px" colspan="2">${st}</th>`).join('') + `</tr>` +
-      `<tr>` + STAGES.map(() => `<th style="text-align:right;padding:4px;font-weight:400;color:#888">주차별(정시)</th><th style="text-align:right;padding:4px;font-weight:400;color:#888">누적(완료)</th>`).join('') + `</tr></thead><tbody>` +
-      allPeriods.map(p => `<tr><td style="padding:4px">${esc(periodDisplayLabel(p, period))}</td>` +
+      `<tr>` + STAGES.map(() => `<th style="text-align:center;padding:4px;font-weight:400;color:#888">주차별(정시)</th><th style="text-align:center;padding:4px;font-weight:400;color:#888">누적(완료)</th>`).join('') + `</tr></thead><tbody>` +
+      allPeriods.map(p => `<tr><td style="padding:4px;text-align:center">${esc(periodDisplayLabel(p, period))}</td>` +
         STAGES.map(st => {
           const wk = onTimeByStage[st][p];
           const cm = doneCum[st][p];
@@ -1053,7 +1076,7 @@ function renderAnalysis() {
           const cum = cumPct != null ? `${cumPct}% (${cm.cumDone}/${cm.cumTotal})` : '-';
           const curColor = curPct != null ? colorForPct(curPct) : '#ccc';
           const cumColor = cumPct != null ? colorForPct(cumPct) : '#ccc';
-          return `<td style="text-align:right;padding:4px;color:${curColor}">${cur}</td><td style="text-align:right;padding:4px;color:${cumColor};font-weight:700">${cum}</td>`;
+          return `<td style="text-align:right;padding:4px;color:${curColor}">${cur}</td><td style="text-align:right;padding:4px;color:${cumColor}">${cum}</td>`;
         }).join('') + `</tr>`).join('') + `</tbody></table>`;
     container.appendChild(secOnTime);
   } else {
@@ -1080,10 +1103,10 @@ function renderAnalysis() {
     const sec4 = document.createElement('div');
     sec4.className = 'analysis-section';
     sec4.innerHTML = `<div style="margin-bottom:10px">${groupByHtml}</div>` +
-      `<h3>${esc(groupLabel)}별 평균 초과 영업일 (단계별)</h3><p class="sub">due date 넘겨서 승인된 건(승인일-due) + 아직 미완료인 건(${esc(asOfDate)}-due) 전부 포함한 평균 초과 영업일. 정시 승인된 건은 0이라 제외(0이면 그런 건 없음)</p>` +
+      `<h3>${esc(groupLabel)}별 평균 초과 영업일 (단계별)</h3>` +
       `<div style="display:flex;gap:12px;flex-wrap:nowrap">` +
       STAGES.map(st => `<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:12px;color:${STAGE_COLORS[st]};margin-bottom:6px">${st}</div>` +
-        hBarChart(stageOverdueEntries[st], {unit: '일', color: STAGE_COLORS[st], width: 336, labelWidth: 56}) + `</div>`).join('') +
+        hBarChart(stageOverdueEntries[st], {unit: '일', color: STAGE_COLORS[st], width: 336, labelWidth: 80, barHeight: 14, gap: 4}) + `</div>`).join('') +
       `</div>`;
     container.appendChild(sec4);
   }
@@ -1095,49 +1118,61 @@ function renderAnalysis() {
     const rework = computeReworkByReason(rows);
     const avgOf = days => days.length ? Math.round(days.reduce((a, b) => a + b, 0) / days.length * 10) / 10 : null;
 
-    const sec5 = document.createElement('div');
-    sec5.className = 'analysis-section';
-    let html = `<h3>단계별 소요일수 (승인 핸드오프 / 재작업)</h3>` +
-      `<p class="sub">보정→FIT→PP→TOP 순서. 핸드오프 = 그 단계 승인 후 다음 단계 1회차 접수까지. 재작업 = 그 단계 안에서 회차가 다시 돈 경우, 반려 상태·사유별(전부 영업일, 체크박스 필터 반영됨)</p>`;
-
+    // 단계별 핸드오프 + 재작업(상태·사유별)을 한 표로 평탄화.
+    let leadTimeRows = [];
     WITHIN_STAGE_PIPELINE.forEach(stage => {
-      const handoffLabels = Object.keys(transitions).filter(l => l.startsWith(`${stage} APPROVED`));
+      Object.keys(transitions).filter(l => l.startsWith(`${stage} APPROVED`)).forEach(label => {
+        const days = transitions[label];
+        leadTimeRows.push({stage, kind: '핸드오프', status: '-', reason: label, avg: avgOf(days), count: days.length});
+      });
       const byStatus = rework[stage] || {};
-      const statuses = Object.keys(byStatus);
-
-      html += `<div style="margin-top:16px"><div style="font-weight:700;font-size:13px;color:${STAGE_COLORS[stage] || '#1a1a2e'};margin-bottom:6px">${esc(stage)}</div>`;
-
-      if (handoffLabels.length) {
-        html += handoffLabels.map(label => {
-          const days = transitions[label];
-          const avg = avgOf(days);
-          return `<div style="font-size:12px;margin-bottom:6px">↳ 핸드오프 <b>${esc(label)}</b>: ${avg != null ? avg + '일' : '-'} (${days.length}건)</div>`;
-        }).join('');
-      }
-
-      if (statuses.length) {
-        html += `<table style="font-size:12px;border-collapse:collapse;margin-left:14px">` +
-          `<thead><tr><th style="text-align:left;padding:3px 12px 3px 0">상태</th><th style="text-align:left;padding:3px 12px 3px 0">사유</th><th style="text-align:right;padding:3px 12px">평균 영업일</th><th style="text-align:right;padding:3px">건수</th></tr></thead><tbody>` +
-          statuses.map(status => {
-            const byReason = byStatus[status];
-            const reasons = Object.keys(byReason).sort((a, b) => byReason[b].length - byReason[a].length);
-            return reasons.map((reason, i) => {
-              const days = byReason[reason];
-              const avg = avgOf(days);
-              return `<tr><td style="padding:3px 12px 3px 0">${i === 0 ? esc(status) : ''}</td>` +
-                `<td style="padding:3px 12px 3px 0;color:#555">${esc(reason)}</td>` +
-                `<td style="text-align:right;padding:3px 12px;font-weight:700">${avg != null ? avg + '일' : '-'}</td>` +
-                `<td style="text-align:right;padding:3px;color:#888">${days.length}</td></tr>`;
-            }).join('');
-          }).join('') + `</tbody></table>`;
-      } else if (!handoffLabels.length) {
-        html += `<div style="font-size:12px;color:#888">데이터 없음</div>`;
-      }
-
-      html += `</div>`;
+      Object.keys(byStatus).forEach(status => {
+        Object.keys(byStatus[status]).forEach(reason => {
+          const days = byStatus[status][reason];
+          leadTimeRows.push({stage, kind: '재작업', status, reason, avg: avgOf(days), count: days.length});
+        });
+      });
     });
 
-    sec5.innerHTML = html;
+    if (leadTimeStageFilter !== 'ALL') leadTimeRows = leadTimeRows.filter(r => r.stage === leadTimeStageFilter);
+    const sorters = {
+      avg_desc: (a, b) => (b.avg ?? -1) - (a.avg ?? -1),
+      count_desc: (a, b) => b.count - a.count,
+      reason: (a, b) => a.reason.localeCompare(b.reason, 'ko'),
+      stage: (a, b) => WITHIN_STAGE_PIPELINE.indexOf(a.stage) - WITHIN_STAGE_PIPELINE.indexOf(b.stage),
+    };
+    leadTimeRows.sort(sorters[leadTimeSort] || sorters.avg_desc);
+
+    const sec5 = document.createElement('div');
+    sec5.className = 'analysis-section';
+    sec5.innerHTML = `<h3>단계별 소요일수 (승인 핸드오프 / 재작업)</h3>` +
+      `<p class="sub">핸드오프 = 그 단계 승인 후 다음 단계 1회차 접수까지. 재작업 = 그 단계 안에서 회차가 다시 돈 경우, 반려 상태·사유별(전부 영업일, 체크박스 필터 반영됨)</p>` +
+      `<div style="margin-bottom:10px">` +
+      `<label style="font-weight:700;margin-right:8px;font-size:12px">단계</label>` +
+      `<select onchange="leadTimeStageFilter=this.value;renderAnalysis()" style="margin-right:16px">` +
+      `<option value="ALL"${leadTimeStageFilter === 'ALL' ? ' selected' : ''}>전체</option>` +
+      WITHIN_STAGE_PIPELINE.map(st => `<option value="${esc(st)}"${leadTimeStageFilter === st ? ' selected' : ''}>${esc(st)}</option>`).join('') +
+      `</select>` +
+      `<label style="font-weight:700;margin-right:8px;font-size:12px">정렬</label>` +
+      `<select onchange="leadTimeSort=this.value;renderAnalysis()">` +
+      `<option value="avg_desc"${leadTimeSort === 'avg_desc' ? ' selected' : ''}>평균 영업일 많은순</option>` +
+      `<option value="count_desc"${leadTimeSort === 'count_desc' ? ' selected' : ''}>건수 많은순</option>` +
+      `<option value="reason"${leadTimeSort === 'reason' ? ' selected' : ''}>사유순</option>` +
+      `<option value="stage"${leadTimeSort === 'stage' ? ' selected' : ''}>단계순(보정→FIT→PP→TOP)</option>` +
+      `</select></div>` +
+      `<table style="width:100%;font-size:12px;border-collapse:collapse">` +
+      `<thead><tr><th style="text-align:left;padding:4px 12px 4px 0">단계</th><th style="text-align:left;padding:4px 12px 4px 0">구분</th>` +
+      `<th style="text-align:left;padding:4px 12px 4px 0">상태</th><th style="text-align:left;padding:4px 12px 4px 0">사유/전환</th>` +
+      `<th style="text-align:right;padding:4px 12px">평균 영업일</th><th style="text-align:right;padding:4px">건수</th></tr></thead><tbody>` +
+      (leadTimeRows.length ? leadTimeRows.map(r => `<tr>` +
+        `<td style="padding:4px 12px 4px 0;font-weight:700;color:${STAGE_COLORS[r.stage] || '#1a1a2e'}">${esc(r.stage)}</td>` +
+        `<td style="padding:4px 12px 4px 0;color:#888">${esc(r.kind)}</td>` +
+        `<td style="padding:4px 12px 4px 0">${esc(r.status)}</td>` +
+        `<td style="padding:4px 12px 4px 0;color:#555">${esc(r.reason)}</td>` +
+        `<td style="text-align:right;padding:4px 12px;font-weight:700">${r.avg != null ? r.avg + '일' : '-'}</td>` +
+        `<td style="text-align:right;padding:4px;color:#888">${r.count}</td></tr>`).join('')
+        : `<tr><td colspan="6" style="padding:8px;color:#888">데이터 없음</td></tr>`) +
+      `</tbody></table>`;
     container.appendChild(sec5);
   }
 }
