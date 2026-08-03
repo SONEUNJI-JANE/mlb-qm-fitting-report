@@ -949,11 +949,11 @@ function renderAnalysis() {
 
   const controlsHtml = `<div style="margin-bottom:10px">` +
     `<label style="font-weight:700;margin-right:8px">기간 단위</label>` +
-    `<select onchange="analysisPeriod=this.value;renderAnalysis()"><option value="week"${period === 'week' ? ' selected' : ''}>주</option><option value="month"${period === 'month' ? ' selected' : ''}>월</option></select>` +
-    `<label style="font-weight:700;margin:0 8px 0 16px">그룹 기준</label>` +
-    `<select onchange="analysisGroupBy=this.value;renderAnalysis()">` +
+    `<select onchange="analysisPeriod=this.value;renderAnalysis()"><option value="week"${period === 'week' ? ' selected' : ''}>주</option><option value="month"${period === 'month' ? ' selected' : ''}>월</option></select></div>`;
+  const groupByHtml = `<label style="font-weight:700;margin-right:8px;font-size:12px">그룹 기준</label>` +
+    `<select onchange="analysisGroupBy=this.value;renderAnalysis()" style="margin-right:16px">` +
     Object.entries(GROUP_LABELS).map(([k, v]) => `<option value="${k}"${groupBy === k ? ' selected' : ''}>${v}</option>`).join('') +
-    `</select></div>`;
+    `</select>`;
 
   // 핵심 지표: 스타일 due date가 속한 기간별 "정시 승인율"(FIT/PP/TOP 각각, 주차별 + 누적). 필터도 이 표 위에 바로 붙임.
   if (season === '26FW') {
@@ -1013,7 +1013,7 @@ function renderAnalysis() {
       STAGES.map(st => `<option value="${st}"${analysisOverdueStage === st ? ' selected' : ''}>${st}</option>`).join('') +
       `</select>`;
     sec4.innerHTML = `<h3>${esc(groupLabel)}별 평균 초과 영업일</h3><p class="sub">현재(${esc(asOfDate)}) 기준, 전체 스타일 중 기준일 넘겼는데 아직 미완료인 건들의 평균 초과일수(0이면 그런 건 없음)</p>` +
-      stageSelectHtml +
+      groupByHtml + stageSelectHtml +
       hBarChart(overdueEntries, {unit: '일', color: '#d9534f'});
     container.appendChild(sec4);
   }

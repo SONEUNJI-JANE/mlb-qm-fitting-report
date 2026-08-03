@@ -59079,19 +59079,19 @@
                 "status": null
               }
             },
-            "etd": "2027-01-27",
+            "etd": "2027-01-12",
             "fit_done": false,
-            "fit_due": "2026-11-13",
+            "fit_due": "2026-10-29",
             "item": "SM",
             "label": "WOVEN논워싱일반",
             "pp_done": false,
-            "pp_due": "2026-12-03",
+            "pp_due": "2026-11-18",
             "qa": "",
             "quarter": "Main TS",
             "style_code": "3ASMM0173",
             "td": "권수빈",
             "top_done": false,
-            "top_due": "2027-01-10",
+            "top_due": "2026-12-26",
             "vendor": "(주)기도산업"
           },
           {
@@ -70623,10 +70623,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-27",
@@ -70707,10 +70707,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-02-17",
@@ -71169,10 +71169,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-02-03",
@@ -73815,7 +73815,7 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": "2026-07-31",
+                "confirm_date": "2026-08-03",
                 "reason": null,
                 "round": 1,
                 "status": "Holding"
@@ -74193,10 +74193,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Holding"
               }
             },
             "etd": "2027-01-12",
@@ -74403,10 +74403,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-02-09",
@@ -74697,10 +74697,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Holding"
               }
             },
             "etd": "2026-12-29",
@@ -75285,10 +75285,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Holding"
               }
             },
             "etd": "2027-02-23",
