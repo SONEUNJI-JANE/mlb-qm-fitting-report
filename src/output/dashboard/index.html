@@ -751,8 +751,8 @@ const WITHIN_STAGE_PIPELINE = ['보정', 'FIT', 'PP', 'TOP'];
 // 회차 단위 리드타임: 각 회차의 status(Approved/Rejected/Int Rej 등)가 확정된 시점(confirm_date)부터
 // "다음 이벤트"까지 영업일수. 다음 이벤트는 같은 단계의 다음 회차 접수일이거나(재작업), 그 회차가
 // 그 단계의 마지막 Approved 회차면 다음 단계 1회차 접수일(핸드오프, 보정→FIT 생략 시 PP로 직행).
-// 회차 단위로 계산은 하되, 표에는 회차 구분 없이 스테이지·상태 단위로 뭉쳐서 보여준다.
-// stage -> status -> reason -> [영업일,...]
+// 회차·사유 구분 없이 스테이지·상태 단위로 뭉치되, 어디로 넘어갔는지(다음 단계/회차)는 뱃지로 남긴다.
+// stage -> status -> {days:[...], next:{label: count, ...}}
 const NEXT_STAGE_OF = {'보정': 'FIT', 'FIT': 'PP', 'PP': 'TOP', 'TOP': null};
 
 function computeRoundLeadTimes(rawRows) {
@@ -766,23 +766,29 @@ function computeRoundLeadTimes(rawRows) {
       rounds.forEach((r, i) => {
         if (!r.confirm_date) return;
         let nextDate = null;
+        let nextLabel = null;
         if (i < rounds.length - 1) {
           // 같은 단계 안에서 다음 회차로 넘어간 재작업.
           nextDate = rounds[i + 1].received;
+          nextLabel = `${stage} ${rounds[i + 1].round || '다음회차'}`;
         } else if (r.status === 'Approved') {
           // 그 단계의 마지막 승인 회차 → 다음 단계로 핸드오프(보정→FIT 생략 시 PP로 직행).
           let nextStage = NEXT_STAGE_OF[stage];
           let nextDetail = nextStage ? row.detail[nextStage] : null;
           if (nextStage === 'FIT' && nextDetail && nextDetail.round == null) { nextDetail = row.detail['PP']; nextStage = 'PP'; }
-          nextDate = nextStage ? (nextDetail && nextDetail.first_received) : null;
+          if (nextStage) {
+            nextDate = nextDetail && nextDetail.first_received;
+            const nextRound = (nextDetail && nextDetail.rounds && nextDetail.rounds[0] && nextDetail.rounds[0].round) || '1ST';
+            nextLabel = `${nextStage} ${nextRound}`;
+          }
         }
-        if (!nextDate || nextDate < r.confirm_date) return;
+        if (!nextDate || nextDate < r.confirm_date || !nextLabel) return;
         const days = businessDaysSince(r.confirm_date, nextDate);
         if (days == null) return;
         const status = r.status || '미상';
-        const reason = r.reason || '(사유 없음)';
-        const byStatus = result[stage][status] || (result[stage][status] = {});
-        (byStatus[reason] || (byStatus[reason] = [])).push(days);
+        const bucket = result[stage][status] || (result[stage][status] = {days: [], next: {}});
+        bucket.days.push(days);
+        bucket.next[nextLabel] = (bucket.next[nextLabel] || 0) + 1;
       });
     });
   }
@@ -879,7 +885,6 @@ function withIndependentCumulative(dueAndDone, sortedPeriods) {
 
 let analysisPeriod = 'week';
 let analysisGroupBy = 'vendor';
-let leadTimeStageFilter = 'ALL';
 let complianceChartStage = 'FIT';
 const STAGE_COLORS = {FIT: '#4a65a9', PP: '#e0a72e', TOP: '#2e9e5b'};
 
@@ -983,15 +988,13 @@ function renderAnalysis() {
       ])].sort()
     : [];
   const doneCum = dueAndDone ? withIndependentCumulative(dueAndDone, allPeriods) : null;
-  // 아래 "주별 승인율" 표의 맨 마지막(최신) 누적 행이랑 완전히 같은 숫자를 쓴다 — 위 요약 도넛과
-  // 아래 상세표 숫자가 서로 다르게 보이면 안 되니까, 별도 계산 없이 그 표의 최종 누적을 그대로 씀.
-  // 이 값은 메인탭 "Due Date 기준" 값과도 100% 같아야 정상(같은 isDue/isDone 로직을 기간별로 쪼갠 것뿐).
-  const lastPeriod = allPeriods.length ? allPeriods[allPeriods.length - 1] : null;
+  // 요약 도넛(오른쪽) = 주차별 누적치(그 주까지의 누적 승인율)들의 단순평균. 최신 주 값 하나가 아니라
+  // 매주 누적%가 어떻게 쌓여왔는지의 평균을 보여준다. 아래 상세표는 주차별 누적을 그대로 보여준다.
   const finalDonePct = {};
   STAGES.forEach(st => {
-    if (!doneCum || !lastPeriod) { finalDonePct[st] = null; return; }
-    const b = doneCum[st][lastPeriod];
-    finalDonePct[st] = b && b.cumTotal ? {pct: Math.round(b.cumDone / b.cumTotal * 1000) / 10, done: b.cumDone, total: b.cumTotal} : null;
+    if (!doneCum) { finalDonePct[st] = null; return; }
+    const pcts = allPeriods.map(p => doneCum[st][p]).filter(b => b && b.cumTotal > 0).map(b => b.cumDone / b.cumTotal * 100);
+    finalDonePct[st] = pcts.length ? Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length * 10) / 10 : null;
   });
 
   // 주차별 정시율 단순평균(왼쪽) — 데이터 있는 주만 평균낸다.
@@ -1002,7 +1005,7 @@ function renderAnalysis() {
     avgOnTimePct[st] = pcts.length ? Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length * 10) / 10 : null;
   });
 
-  // 단계별 Due Date 달성률: 왼쪽 = 전체 기간 주차별 정시율 평균, 오른쪽 = 누적 승인율(아래 표 최종 누적과 동일). 서로 다른 개념, 다른 숫자가 정상.
+  // 단계별 Due Date 달성률: 왼쪽 = 전체 기간 주차별 정시율 평균, 오른쪽 = 주차별 누적 승인율의 평균. 서로 다른 개념, 다른 숫자가 정상.
   const sec1 = document.createElement('div');
   sec1.className = 'analysis-section';
   const cumHalf = `<div><div style="font-weight:700;font-size:12px;color:#555;margin-bottom:8px">주차별 Due Date 준수율</div><div style="display:flex;gap:16px">` +
@@ -1013,7 +1016,7 @@ function renderAnalysis() {
   const avgHalf = `<div><div style="font-weight:700;font-size:12px;color:#555;margin-bottom:8px">누적 Due Date 준수율</div><div style="display:flex;gap:16px">` +
     STAGES.map(st => {
       const v = finalDonePct[st];
-      return `<div>${donutSVG(v ? v.pct : 0, 76)}<div style="text-align:center;font-size:11px;color:#888;margin-top:4px">${st} ${v ? `(${v.done}/${v.total})` : '-'}</div></div>`;
+      return `<div>${donutSVG(v ?? 0, 76)}<div style="text-align:center;font-size:11px;color:#888;margin-top:4px">${st} ${v != null ? `(${v}%)` : '-'}</div></div>`;
     }).join('') + `</div></div>`;
   sec1.innerHTML = `<h3>단계별 Due Date 달성률</h3>` +
     `<div style="display:flex;gap:40px;flex-wrap:wrap">${cumHalf}${avgHalf}</div>`;
@@ -1111,61 +1114,42 @@ function renderAnalysis() {
 
     const sec5 = document.createElement('div');
     sec5.className = 'analysis-section';
-    let html = `<h3>단계별 소요일수 (상태별, 회차 통합)</h3>` +
-      `<p class="sub">회차 구분 없이 그 단계·상태에서 다음 이벤트(재작업이면 같은 단계 다음 회차 접수, 최종 승인이면 다음 단계 접수)까지 걸린 평균 소요일을 다 합쳐서 표시</p>` +
-      `<div style="display:flex;gap:12px;flex-wrap:wrap">`;
+    let html = `<h3>Stage별 소요일 수</h3>` +
+      `<div style="display:flex;gap:8px;flex-wrap:nowrap">`;
 
-    const stages = leadTimeStageFilter === 'ALL' ? WITHIN_STAGE_PIPELINE : [leadTimeStageFilter];
-    stages.forEach(stage => {
+    WITHIN_STAGE_PIPELINE.forEach(stage => {
       const byStatus = roundLead[stage] || {};
       const statuses = Object.keys(byStatus).sort((a, b) => {
         if (a === 'Approved') return -1;
         if (b === 'Approved') return 1;
         return a.localeCompare(b, 'ko');
       });
-      const stageAllDays = statuses.flatMap(status => Object.values(byStatus[status]).flat());
+      const stageAllDays = statuses.flatMap(status => byStatus[status].days);
 
-      html += `<div style="flex:1;min-width:260px">` +
-        `<h4 style="color:${STAGE_COLORS[stage] || '#1a1a2e'};margin:0 0 6px">${esc(stage)}` +
-        (stageAllDays.length ? ` <span style="font-weight:400;color:#888;font-size:11px">전체 평균 ${avgOf(stageAllDays)}일 (${stageAllDays.length}건)</span>` : '') +
+      html += `<div style="flex:1;min-width:0">` +
+        `<h4 style="color:${STAGE_COLORS[stage] || '#1a1a2e'};margin:0 0 4px;font-size:12px">${esc(stage)}` +
+        (stageAllDays.length ? ` <span style="font-weight:400;color:#888;font-size:10px">평균 ${avgOf(stageAllDays)}일(${stageAllDays.length})</span>` : '') +
         `</h4>` +
-        `<table style="width:100%;font-size:12px;border-collapse:collapse">` +
-        `<thead><tr><th style="text-align:left;padding:4px 8px 4px 0">상태</th>` +
-        `<th style="text-align:right;padding:4px 8px">평균 소요일</th><th style="text-align:right;padding:4px 0">건수</th></tr></thead><tbody>`;
+        `<table style="width:100%;font-size:11px;border-collapse:collapse">` +
+        `<thead><tr><th style="text-align:left;padding:3px 4px 3px 0">상태</th><th style="text-align:left;padding:3px 4px">다음</th>` +
+        `<th style="text-align:right;padding:3px 4px">평균</th><th style="text-align:right;padding:3px 0">건수</th></tr></thead><tbody>`;
 
       if (!statuses.length) {
-        html += `<tr><td colspan="3" style="padding:8px;color:#888">데이터 없음</td></tr>`;
+        html += `<tr><td colspan="4" style="padding:6px;color:#888">데이터 없음</td></tr>`;
       }
       statuses.forEach(status => {
-        const byReason = byStatus[status];
-        const reasons = Object.keys(byReason);
-        const statusDays = Object.values(byReason).flat();
-        const detailId = `leadtime-${stage}-${status}`.replace(/[^\w-]/g, '_');
-        html += `<tr style="cursor:pointer" onclick="toggleOverdue('${detailId}')">` +
-          `<td style="padding:4px 8px 4px 0;font-weight:700;border-top:1px solid #eee">${esc(status)} <span style="color:#aaa;font-weight:400">▾</span></td>` +
-          `<td style="text-align:right;padding:4px 8px;font-weight:700;border-top:1px solid #eee">${avgOf(statusDays)}일</td>` +
-          `<td style="text-align:right;padding:4px 0;color:#888;border-top:1px solid #eee">${statusDays.length}</td></tr>`;
-        if (status !== 'Approved') {
-          html += `<tr><td colspan="3" style="padding:0"><div id="${detailId}" style="display:none;padding:4px 8px 8px 16px;background:#fafbfe">` +
-            `<table style="width:100%;font-size:11px;border-collapse:collapse">` +
-            reasons.map(reason => {
-              const days = byReason[reason];
-              return `<tr><td style="padding:2px 8px 2px 0;color:#555">${esc(reason)}</td>` +
-                `<td style="text-align:right;padding:2px 8px;color:#333">${avgOf(days)}일</td>` +
-                `<td style="text-align:right;padding:2px 0;color:#888">${days.length}건</td></tr>`;
-            }).join('') +
-            `</table></div></td></tr>`;
-        }
+        const bucket = byStatus[status];
+        const nextLabel = Object.entries(bucket.next).sort((a, b) => b[1] - a[1])[0][0];
+        html += `<tr>` +
+          `<td style="padding:3px 4px 3px 0;font-weight:700;border-top:1px solid #eee">${esc(status)}</td>` +
+          `<td style="padding:3px 4px;border-top:1px solid #eee">` +
+          `<span style="background:#eef1fa;color:#4a65a9;border-radius:4px;padding:1px 4px;font-size:10px;white-space:nowrap">→${esc(nextLabel)}</span></td>` +
+          `<td style="text-align:right;padding:3px 4px;font-weight:700;border-top:1px solid #eee">${avgOf(bucket.days)}일</td>` +
+          `<td style="text-align:right;padding:3px 0;color:#888;border-top:1px solid #eee">${bucket.days.length}</td></tr>`;
       });
       html += `</tbody></table></div>`;
     });
-    html += `</div>` +
-      `<div style="margin-top:10px">` +
-      `<label style="font-weight:700;margin-right:8px;font-size:12px">단계 필터</label>` +
-      `<select onchange="leadTimeStageFilter=this.value;renderAnalysis()">` +
-      `<option value="ALL"${leadTimeStageFilter === 'ALL' ? ' selected' : ''}>전체(4개 표)</option>` +
-      WITHIN_STAGE_PIPELINE.map(st => `<option value="${esc(st)}"${leadTimeStageFilter === st ? ' selected' : ''}>${esc(st)}만</option>`).join('') +
-      `</select></div>`;
+    html += `</div>`;
     sec5.innerHTML = html;
     container.appendChild(sec5);
   }
