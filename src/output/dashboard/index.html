@@ -807,8 +807,8 @@ let analysisGroupBy = 'vendor';
 let analysisOverdueStage = 'ALL';
 const STAGE_COLORS = {FIT: '#4a65a9', PP: '#e0a72e', TOP: '#2e9e5b'};
 
-// dim -> 선택된 값(문자열) | null(전체).
-const analysisFilters = {quarter: null, item: null, td: null, qa: null, vendor: null};
+// dim -> 선택된 값 배열(여러 개 선택 가능) | []면 전체.
+const analysisFilters = {quarter: [], item: [], td: [], qa: [], vendor: []};
 const FILTER_DIM_LABELS = {quarter: 'Quarter', item: 'Item', td: 'TD', qa: 'QA', vendor: 'Vendor'};
 
 // 벤더 필터만 구분(KNIT/WOVEN/SWEATER/DENIM)별로 묶어서 보여준다(사용자가 알려준 매핑).
@@ -830,35 +830,35 @@ let lastFilterSeason = null;
 function resetFiltersIfSeasonChanged(season) {
   if (lastFilterSeason === season) return;
   lastFilterSeason = season;
-  Object.keys(analysisFilters).forEach(dim => { analysisFilters[dim] = null; });
+  Object.keys(analysisFilters).forEach(dim => { analysisFilters[dim] = []; });
 }
 
 function filterOptionsHtml(rows, dim) {
   const values = [...new Set(rows.map(r => filterFieldValue(r, dim)))].sort();
   const cur = analysisFilters[dim];
-  const opt = v => `<option value="${escSvg(v)}"${cur === v ? ' selected' : ''}>${esc(v)}</option>`;
-  const allOpt = `<option value=""${!cur ? ' selected' : ''}>전체</option>`;
-  if (dim !== 'vendor') return allOpt + values.map(opt).join('');
+  const opt = v => `<option value="${escSvg(v)}"${cur.includes(v) ? ' selected' : ''}>${esc(v)}</option>`;
+  if (dim !== 'vendor') return values.map(opt).join('');
   const byCat = {};
   values.forEach(v => { const cat = VENDOR_CATEGORY[v] || '기타'; (byCat[cat] || (byCat[cat] = [])).push(v); });
-  return allOpt + ['KNIT', 'WOVEN', 'SWEATER', 'DENIM', '기타'].filter(c => byCat[c])
+  return ['KNIT', 'WOVEN', 'SWEATER', 'DENIM', '기타'].filter(c => byCat[c])
     .map(cat => `<optgroup label="${esc(cat)}">${byCat[cat].map(opt).join('')}</optgroup>`).join('');
 }
 
-// 필터 드롭다운 한 줄(표 위에 바로 붙임 — 따로 떨어진 패널 아님).
+// 필터 드롭다운 한 줄(표 위에 바로 붙임 — 따로 떨어진 패널 아님). 여러 개 선택: ctrl/cmd+클릭(또는 드래그).
+// 선택 안 하면 전체.
 function filterRowHtml(rows) {
-  return `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-bottom:10px">` +
+  return `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;margin-bottom:10px">` +
     Object.keys(FILTER_DIM_LABELS).map(dim =>
-      `<span style="font-size:11px;display:inline-flex;align-items:center;gap:4px">` +
-      `<label style="font-weight:700;color:#888">${esc(FILTER_DIM_LABELS[dim])}</label>` +
-      `<select onchange="analysisFilters['${dim}']=this.value||null;renderAnalysis()">${filterOptionsHtml(rows, dim)}</select></span>`
+      `<span style="font-size:11px;display:inline-flex;flex-direction:column;gap:2px">` +
+      `<label style="font-weight:700;color:#888">${esc(FILTER_DIM_LABELS[dim])} <span style="font-weight:400">(여러개 선택 가능)</span></label>` +
+      `<select multiple size="4" style="min-width:110px" onchange="analysisFilters['${dim}']=[...this.selectedOptions].map(o=>o.value);renderAnalysis()">${filterOptionsHtml(rows, dim)}</select></span>`
     ).join('') + `</div>`;
 }
 
 function applyAnalysisFilters(rows) {
   return rows.filter(r => Object.keys(analysisFilters).every(dim => {
     const sel = analysisFilters[dim];
-    return !sel || filterFieldValue(r, dim) === sel;
+    return !sel.length || sel.includes(filterFieldValue(r, dim));
   }));
 }
 
@@ -922,17 +922,17 @@ function renderAnalysis() {
   // 단계별 Due Date 달성률: 왼쪽 = 전체 기간 주차별 정시율 평균, 오른쪽 = 누적 승인율(아래 표 최종 누적과 동일). 서로 다른 개념, 다른 숫자가 정상.
   const sec1 = document.createElement('div');
   sec1.className = 'analysis-section';
-  const cumHalf = `<div><div style="font-weight:700;font-size:12px;color:#555;margin-bottom:8px">전체 기간 정시율 평균 (주차별 정시 승인율 단순평균)</div><div style="display:flex;gap:16px">` +
+  const cumHalf = `<div><div style="font-weight:700;font-size:12px;color:#555;margin-bottom:8px">주차별 Due Date 준수율</div><div style="display:flex;gap:16px">` +
     STAGES.map(st => {
       const p = avgOnTimePct[st];
       return `<div>${donutSVG(p ?? 0, 76)}<div style="text-align:center;font-size:11px;color:#888;margin-top:4px">${st} ${p != null ? `(${p}%)` : '-'}</div></div>`;
     }).join('') + `</div></div>`;
-  const avgHalf = `<div><div style="font-weight:700;font-size:12px;color:#555;margin-bottom:8px">누적 승인율 (아래 표와 동일)</div><div style="display:flex;gap:16px">` +
+  const avgHalf = `<div><div style="font-weight:700;font-size:12px;color:#555;margin-bottom:8px">누적 Due Date 준수율</div><div style="display:flex;gap:16px">` +
     STAGES.map(st => {
       const v = finalDonePct[st];
       return `<div>${donutSVG(v ? v.pct : 0, 76)}<div style="text-align:center;font-size:11px;color:#888;margin-top:4px">${st} ${v ? `(${v.done}/${v.total})` : '-'}</div></div>`;
     }).join('') + `</div></div>`;
-  sec1.innerHTML = `<h3>단계별 Due Date 달성률</h3><p class="sub">왼쪽 = 주차별 정시 승인율(그 주 due였던 것 중 due 이내 승인 비율)을 전체 기간 단순평균한 것. 오른쪽 = 아래 표의 누적 승인율(정시 개념 없이 지금까지 승인된 비율의 누적, 메인탭 Due Date 기준과 동일). 서로 다른 지표라 숫자가 다른 게 정상.</p>` +
+  sec1.innerHTML = `<h3>단계별 Due Date 달성률</h3>` +
     `<div style="display:flex;gap:40px;flex-wrap:wrap">${cumHalf}${avgHalf}</div>`;
   container.appendChild(sec1);
 
@@ -956,9 +956,7 @@ function renderAnalysis() {
     })).filter(s => s.points.length > 1);
     const secOnTime = document.createElement('div');
     secOnTime.className = 'analysis-section';
-    secOnTime.innerHTML = `<h3>${periodLabelKr}별 승인율 (FIT/PP/TOP 별도)</h3>` +
-      `<p class="sub">주차별 = 그 ${periodLabelKr}에 due였던 것 중 실제 승인일이 due date 이내였던 비율(정시 승인율, 고정값, 나중에 승인돼도 안 바뀜). ` +
-      `누적 = "정시"와 무관하게 그냥 지금까지 승인(완료)된 비율의 누적(메인탭 Due Date 기준과 동일 로직). 이 둘은 원래 다른 숫자가 정상.</p>` +
+    secOnTime.innerHTML = `<h3>주차별 Due Date 준수율</h3>` +
       filterRowHtml(allRows) +
       controlsHtml +
       (onTimeSeries.length ? lineChart(onTimeSeries, {width: 900, height: 240}) : `<p class="sub">데이터가 부족함</p>`) +
@@ -982,7 +980,7 @@ function renderAnalysis() {
   } else {
     const stub = document.createElement('div');
     stub.className = 'analysis-section';
-    stub.innerHTML = `<h3>${periodLabelKr}별 정시 승인율</h3>` + filterRowHtml(allRows) + controlsHtml +
+    stub.innerHTML = `<h3>주차별 Due Date 준수율</h3>` + filterRowHtml(allRows) + controlsHtml +
       `<p class="sub">${esc(season)} 상세 분석은 추후 추가 예정(레이아웃만 26FW와 동일하게 자리 잡아둠).</p>`;
     container.appendChild(stub);
   }
