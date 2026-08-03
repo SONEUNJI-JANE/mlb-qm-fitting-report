@@ -610,9 +610,13 @@ function groupedBarChart(periods, series, opts) {
   const groupW = chartW / n;
   const barCount = Math.max(series.length, 1);
   const barW = Math.max(1, (groupW - 2) / barCount);
+  // Y축 최대값: 값이 100 넘는 게 있으면(조기완료 누적처럼) 그만큼 자동으로 늘어난다.
+  const dataMax = Math.max(0, ...series.flatMap(s => s.values.filter(v => v != null)));
+  const yMax = opts.yMax || Math.max(100, Math.ceil(dataMax / 50) * 50);
+  const ticks = [0, 0.25, 0.5, 0.75, 1].map(t => Math.round(yMax * t));
   let out = '';
-  [0, 25, 50, 75, 100].forEach(v => {
-    const y = padT + chartH - (v / 100) * chartH;
+  ticks.forEach(v => {
+    const y = padT + chartH - (v / yMax) * chartH;
     out += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${width - padR}" y2="${y.toFixed(1)}" stroke="#eee"/>` +
       `<text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="9" fill="#aaa">${v}</text>`;
   });
@@ -621,7 +625,7 @@ function groupedBarChart(periods, series, opts) {
     series.forEach((s, si) => {
       const v = s.values[gi];
       if (v == null) return;
-      const bh = Math.max(0, (Math.min(v, 100) / 100) * chartH);
+      const bh = Math.max(0, (Math.min(v, yMax) / yMax) * chartH);
       const x = gx + si * barW + 1;
       const y = padT + chartH - bh;
       out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1, barW - 1).toFixed(1)}" height="${bh.toFixed(1)}" fill="${s.color}" opacity="${s.opacity != null ? s.opacity : 1}"/>`;
