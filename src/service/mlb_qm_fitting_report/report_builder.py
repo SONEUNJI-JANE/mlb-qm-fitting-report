@@ -42,6 +42,11 @@ th.grp-a,th.grp-th:first-of-type{border-left:1px solid #e5e7eb}
 .settings-bar label{color:#555;white-space:nowrap}
 .settings-bar input,.settings-bar select{padding:4px 6px;font-size:11px;border:1px solid #ccc;border-radius:4px}
 .settings-bar .desc{color:#888;font-size:11px;margin:4px 0 0}
+.modal-overlay{position:fixed;inset:0;background:rgba(26,26,46,0.45);z-index:1000;display:none;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto}
+.modal-overlay.show{display:flex}
+.modal-panel{max-width:1100px;width:100%}
+.modal-panel .settings-bar{max-width:none}
+.settings-btn{background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;color:#1a1a2e;cursor:pointer;margin-left:auto}
 .th-table{width:100%;border-collapse:collapse;margin-top:10px}
 .th-table th,.th-table td{padding:5px 8px;border-bottom:1px solid #f0f1f4;font-size:11px;text-align:left}
 .th-table th{color:#888;font-weight:700}
@@ -69,17 +74,23 @@ th.grp-a,th.grp-th:first-of-type{border-left:1px solid #e5e7eb}
     <button class="tab-btn active" id="tab-btn-main" onclick="switchTab('main')">메인</button>
     <button class="tab-btn" id="tab-btn-analysis" onclick="switchTab('analysis')">분석</button>
   </div>
+  <button class="settings-btn" onclick="toggleSettingsModal()">⚙ 설정</button>
+</div>
+<div id="settings-modal" class="modal-overlay" onclick="if(event.target===this) toggleSettingsModal()">
+  <div class="modal-panel">
+    <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
+      <button class="btn" onclick="toggleSettingsModal()">닫기</button>
+    </div>
+    <details class="settings-bar">
+      <summary>기준일 설정 (시즌별)</summary>
+      <p class="desc">전체 스타일 수 기준 = 완료 / 전체. Due Date 기준 = as_of_date까지 due date 지난 것 중 완료 / 지난 것 전체(계획 대비 실적).<br>기준 요일 = 매주 자동 적용(예: 금요일 지정 시 실행일 기준 직전 금요일을 그 주 기준일로 씀). 특정 주만 다른 날짜 쓰려면 날짜 지정. 시즌마다 따로 설정 가능.</p>
+      <div id="as-of-rows"></div>
+      <div class="row"><button class="btn" onclick="applySettings()">적용</button><span id="settings-status"></span></div>
+    </details>
+    <div id="due-offset-panels"></div>
+  </div>
 </div>
 <div id="main-tab">
-<div style="max-width:1100px;margin:16px auto 0">
-  <details class="settings-bar">
-    <summary>기준일 설정 (시즌별)</summary>
-    <p class="desc">전체 스타일 수 기준 = 완료 / 전체. Due Date 기준 = as_of_date까지 due date 지난 것 중 완료 / 지난 것 전체(계획 대비 실적).<br>기준 요일 = 매주 자동 적용(예: 금요일 지정 시 실행일 기준 직전 금요일을 그 주 기준일로 씀). 특정 주만 다른 날짜 쓰려면 날짜 지정. 시즌마다 따로 설정 가능.</p>
-    <div id="as-of-rows"></div>
-    <div class="row"><button class="btn" onclick="applySettings()">적용</button><span id="settings-status"></span></div>
-  </details>
-  <div id="due-offset-panels"></div>
-</div>
 <div class="content" id="seasons"></div>
 <div class="override-bar" id="override-bar">
   <span id="override-count"></span>
@@ -543,6 +554,10 @@ function switchTab(tab) {
   if (tab === 'analysis') renderAnalysis();
 }
 
+function toggleSettingsModal() {
+  document.getElementById('settings-modal').classList.toggle('show');
+}
+
 function refresh() {
   render();
   if (activeTab === 'analysis') renderAnalysis();
@@ -785,7 +800,13 @@ function computeRoundLeadTimes(rawRows) {
         const status = canonStatus(r.status);
         let nextDate = null;
         let nextStageLabel = null;
-        if (i < rounds.length - 1) {
+        if (status === 'Go to FIT') {
+          // "Go to FIT"는 보정에서 FIT으로 바로 넘어간다는 상태 그 자체라, 같은 단계에 우연히
+          // 남은 회차 기록이 있어도 무시하고 무조건 FIT 접수일을 다음 이벤트로 본다.
+          const nextDetail = row.detail['FIT'];
+          nextDate = nextDetail && nextDetail.first_received;
+          nextStageLabel = 'FIT';
+        } else if (i < rounds.length - 1) {
           // 같은 단계 안에서 다음 회차로 넘어간 재작업.
           nextDate = rounds[i + 1].received;
           nextStageLabel = stage;
@@ -1032,12 +1053,12 @@ function renderAnalysis() {
   // 단계별 Due Date 달성률: 왼쪽 = 전체 기간 주차별 정시율 평균, 오른쪽 = 주차별 누적 승인율의 평균. 서로 다른 개념, 다른 숫자가 정상.
   const sec1 = document.createElement('div');
   sec1.className = 'analysis-section';
-  const cumHalf = `<div><div style="font-weight:700;font-size:14px;color:#555;margin-bottom:8px">주차별 Due Date 준수율</div><div style="display:flex;gap:16px">` +
+  const cumHalf = `<div><div style="font-weight:700;font-size:14px;color:#1a1a2e;margin-bottom:8px">주차별 Due Date 준수율</div><div style="display:flex;gap:16px">` +
     STAGES.map(st => {
       const p = avgOnTimePct[st];
       return `<div>${donutSVG(p ?? 0, 76)}<div style="text-align:center;font-size:11px;color:#888;margin-top:4px">${st} ${p != null ? `(${p}%)` : '-'}</div></div>`;
     }).join('') + `</div></div>`;
-  const avgHalf = `<div><div style="font-weight:700;font-size:14px;color:#555;margin-bottom:8px">누적 Due Date 준수율</div><div style="display:flex;gap:16px">` +
+  const avgHalf = `<div><div style="font-weight:700;font-size:14px;color:#1a1a2e;margin-bottom:8px">누적 Due Date 준수율</div><div style="display:flex;gap:16px">` +
     STAGES.map(st => {
       const v = finalDonePct[st];
       return `<div>${donutSVG(v ?? 0, 76)}<div style="text-align:center;font-size:11px;color:#888;margin-top:4px">${st} ${v != null ? `(${v}%)` : '-'}</div></div>`;
@@ -1045,9 +1066,8 @@ function renderAnalysis() {
   sec1.innerHTML = `<div style="display:flex;gap:40px;flex-wrap:wrap">${cumHalf}${avgHalf}</div>`;
   container.appendChild(sec1);
 
-  const controlsHtml = `<div style="margin-bottom:10px">` +
-    `<label style="font-weight:700;margin-right:8px">기간 단위</label>` +
-    `<select onchange="analysisPeriod=this.value;renderAnalysis()"><option value="week"${period === 'week' ? ' selected' : ''}>주</option><option value="month"${period === 'month' ? ' selected' : ''}>월</option></select></div>`;
+  const controlsHtml = `<label style="font-weight:700;margin-right:8px">기간 단위</label>` +
+    `<select onchange="analysisPeriod=this.value;renderAnalysis()" style="margin-right:16px"><option value="week"${period === 'week' ? ' selected' : ''}>주</option><option value="month"${period === 'month' ? ' selected' : ''}>월</option></select>`;
   const groupByHtml = `<label style="font-weight:700;margin-right:8px;font-size:12px">그룹 기준</label>` +
     `<select onchange="analysisGroupBy=this.value;renderAnalysis()" style="margin-right:16px">` +
     Object.entries(GROUP_LABELS).map(([k, v]) => `<option value="${k}"${groupBy === k ? ' selected' : ''}>${v}</option>`).join('') +
@@ -1137,7 +1157,7 @@ function renderAnalysis() {
 
     const sec5 = document.createElement('div');
     sec5.className = 'analysis-section';
-    let html = `<h3>Stage별 소요일 수</h3>` +
+    let html = `<h3 style="margin-bottom:20px">Stage별 소요일 수</h3>` +
       `<div style="display:flex;gap:8px;flex-wrap:nowrap">`;
 
     WITHIN_STAGE_PIPELINE.forEach(stage => {
@@ -1153,9 +1173,9 @@ function renderAnalysis() {
         `<h4 style="color:${STAGE_COLORS[stage] || '#1a1a2e'};margin:0 0 4px;font-size:12px">${esc(stage)}` +
         (stageAllDays.length ? ` <span style="font-weight:400;color:#888;font-size:10px">평균 ${avgOf(stageAllDays)}일(${stageAllDays.length})</span>` : '') +
         `</h4>` +
-        `<table style="width:100%;font-size:11px;border-collapse:collapse;text-align:center">` +
-        `<thead><tr><th style="padding:3px 4px">상태</th><th style="padding:3px 4px">다음</th>` +
-        `<th style="padding:3px 4px">평균</th><th style="padding:3px 4px">건수</th></tr></thead><tbody>`;
+        `<table style="width:100%;font-size:11px;border-collapse:collapse">` +
+        `<thead><tr><th style="padding:3px 4px;text-align:center">상태</th><th style="padding:3px 4px;text-align:center">다음</th>` +
+        `<th style="padding:3px 4px;text-align:center">평균</th><th style="padding:3px 4px;text-align:center">건수</th></tr></thead><tbody>`;
 
       if (!statuses.length) {
         html += `<tr><td colspan="4" style="padding:6px;color:#888">데이터 없음</td></tr>`;
@@ -1166,10 +1186,10 @@ function renderAnalysis() {
         // 목적지는 단계명만 표시(회차 생략), 여러 단계로 갈리면 제일 많은 걸 대표로.
         const nextLabel = Object.entries(bucket.next).sort((a, b) => b[1] - a[1])[0][0];
         html += `<tr>` +
-          `<td style="padding:3px 4px;border-top:1px solid #eee">${esc(status)}</td>` +
-          `<td style="padding:3px 4px;border-top:1px solid #eee;color:#555;font-size:11px">${esc(nextLabel)}</td>` +
-          `<td style="padding:3px 4px;font-weight:700;border-top:1px solid #eee">${avgOf(bucket.days)}일</td>` +
-          `<td style="padding:3px 4px;color:#888;border-top:1px solid #eee">${bucket.days.length}</td></tr>`;
+          `<td style="padding:3px 4px;text-align:center;border-top:1px solid #eee">${esc(status)}</td>` +
+          `<td style="padding:3px 4px;text-align:center;border-top:1px solid #eee;color:#555;font-size:11px">${esc(nextLabel)}</td>` +
+          `<td style="padding:3px 4px;text-align:center;font-weight:700;border-top:1px solid #eee">${avgOf(bucket.days)}일</td>` +
+          `<td style="padding:3px 4px;text-align:center;color:#888;border-top:1px solid #eee">${bucket.days.length}</td></tr>`;
       });
       html += `</tbody></table></div>`;
     });
