@@ -654,26 +654,22 @@ const CATEGORIES = ['KNIT', 'SWEATER', 'WOVEN', 'DENIM'];
 
 const GROUP_LABELS = {vendor: '협력사', item: '아이템', td: 'TD', qa: 'QA'};
 
-function groupDimValue(row, dim) {
-  if (dim === 'item') return row.item || '미상';
-  if (dim === 'td') return row.td || '미배정';
-  if (dim === 'qa') return row.qa || '미배정';
+// 특정 값으로 좁히는 건 위쪽 전체 필터(Quarter/Item/TD/QA/Vendor 체크박스, 이미 교집합 적용됨)가
+// 담당하고, 여기는 그 결과를 어느 기준으로 묶어서 차트에 뿌릴지만 고른다.
+function groupKeyForRow(row, groupBy) {
+  if (groupBy === 'item') return row.item || '미상';
+  if (groupBy === 'td') return row.td || '미배정';
+  if (groupBy === 'qa') return row.qa || '미배정';
   return vendorAlias(row.vendor) || '미상';
 }
 
-// 체크박스로 고른 차원(들)을 조합해서 그룹 키 만든다(1개면 기존과 동일, 여러 개면 "X / Y" 교집합 키).
-function groupKeyForRow(row, dims) {
-  const list = dims.length ? dims : ['vendor'];
-  return list.map(d => groupDimValue(row, d)).join(' / ');
-}
-
-function analysisStats(rawRows, asOfDate, offsets, groupDims) {
+function analysisStats(rawRows, asOfDate, offsets, groupBy) {
   const byGroup = {}, byCategory = {}, byStage = {FIT: {done: 0, total: 0}, PP: {done: 0, total: 0}, TOP: {done: 0, total: 0}};
   let overallDone = 0, overallTotal = 0;
   const groupOverdueDays = {};
   const groupOverdueDaysByStage = {FIT: {}, PP: {}, TOP: {}};
   for (const row of rawRows) {
-    const group = groupKeyForRow(row, groupDims);
+    const group = groupKeyForRow(row, groupBy);
     const category = CATEGORIES.find(c => row.label && row.label.startsWith(c)) || '미분류';
     for (const stage of STAGES) {
       const isDone = row[`${stage.toLowerCase()}_done`];
@@ -923,7 +919,7 @@ function withIndependentCumulative(dueAndDone, sortedPeriods) {
 }
 
 let analysisPeriod = 'week';
-let analysisGroupDims = ['vendor'];
+let analysisGroupBy = 'vendor';
 let complianceChartStage = 'FIT';
 const STAGE_COLORS = {FIT: '#4a65a9', PP: '#e0a72e', TOP: '#2e9e5b'};
 
@@ -965,16 +961,32 @@ function resetAnalysisFilters() {
   renderAnalysis();
 }
 
-function toggleGroupDim(dim, checked) {
-  if (checked) { if (!analysisGroupDims.includes(dim)) analysisGroupDims.push(dim); }
-  else { analysisGroupDims = analysisGroupDims.filter(d => d !== dim); }
+function clearFilterDim(dim) {
+  analysisFilters[dim] = [];
   renderAnalysis();
+}
+
+// 열려있는 필터 드롭다운(한 번에 하나만). 문서 아무데나 클릭하면 닫힘.
+let openFilterDim = null;
+function toggleFilterDropdown(dim, ev) {
+  ev.stopPropagation();
+  openFilterDim = openFilterDim === dim ? null : dim;
+  renderAnalysis();
+}
+document.addEventListener('click', () => { if (openFilterDim) { openFilterDim = null; renderAnalysis(); } });
+
+// 검색창은 전체 재렌더 없이 목록만 로컬로 숨기고 보여준다(재렌더하면 입력 포커스가 날아감).
+function filterDropdownSearch(dim, term) {
+  const t = term.trim().toLowerCase();
+  document.querySelectorAll(`#filter-list-${dim} label.fv`).forEach(el => {
+    el.style.display = !t || (el.dataset.value || '').toLowerCase().includes(t) ? '' : 'none';
+  });
 }
 
 function filterCheckboxesHtml(rows, dim) {
   const values = [...new Set(rows.map(r => filterFieldValue(r, dim)))].sort();
   const cur = analysisFilters[dim];
-  const cb = v => `<label style="display:block;font-weight:400;white-space:nowrap">` +
+  const cb = v => `<label class="fv" data-value="${escSvg(v)}" style="display:block;font-weight:400;white-space:nowrap">` +
     `<input type="checkbox" value="${escSvg(v)}"${cur.includes(v) ? ' checked' : ''} onchange="toggleFilterValue('${dim}', this.value, this.checked)"> ${esc(v)}</label>`;
   if (dim !== 'vendor') return values.map(cb).join('');
   const byCat = {};
@@ -983,16 +995,27 @@ function filterCheckboxesHtml(rows, dim) {
     .map(cat => `<div style="font-weight:700;color:#555;margin-top:4px">${esc(cat)}</div>${byCat[cat].map(cb).join('')}`).join('');
 }
 
-// 필터 체크박스 한 줄(표 위에 바로 붙임 — 따로 떨어진 패널 아님). 아무것도 체크 안 하면 전체.
+// 필터 = 칸마다 작은 드롭다운 버튼("전체" 또는 "N개 선택") + 클릭하면 검색창·전체·값 목록 팝업.
 function filterRowHtml(rows) {
-  return `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;margin-bottom:10px">` +
-    Object.keys(FILTER_DIM_LABELS).map(dim =>
-      `<span style="font-size:11px">` +
-      `<label style="font-weight:700;color:#888;display:block;margin-bottom:2px">${esc(FILTER_DIM_LABELS[dim])}</label>` +
-      `<div style="min-width:110px;max-height:110px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:4px;padding:4px 6px;background:#fff">${filterCheckboxesHtml(rows, dim)}</div></span>`
-    ).join('') +
+  return `<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-start;margin-bottom:10px">` +
+    Object.keys(FILTER_DIM_LABELS).map(dim => {
+      const cur = analysisFilters[dim];
+      const summary = cur.length ? `${cur.length}개 선택` : '전체';
+      const isOpen = openFilterDim === dim;
+      return `<span style="font-size:11px;position:relative" onclick="event.stopPropagation()">` +
+        `<label style="font-weight:700;color:#888;display:block;margin-bottom:2px">${esc(FILTER_DIM_LABELS[dim])}</label>` +
+        `<button class="btn" style="min-width:88px;text-align:left;display:flex;justify-content:space-between;gap:6px" onclick="toggleFilterDropdown('${dim}', event)">` +
+        `<span>${esc(summary)}</span><span>▾</span></button>` +
+        (isOpen ? `<div style="position:absolute;top:100%;left:0;z-index:50;margin-top:2px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:6px;min-width:160px;max-height:220px;overflow-y:auto;box-shadow:0 4px 14px rgba(0,0,0,0.12)">` +
+          `<input type="text" placeholder="검색..." oninput="filterDropdownSearch('${dim}', this.value)" style="width:100%;box-sizing:border-box;padding:4px 6px;font-size:11px;border:1px solid #ccc;border-radius:4px;margin-bottom:6px">` +
+          `<label style="display:block;font-weight:700;white-space:nowrap;margin-bottom:2px">` +
+          `<input type="checkbox"${cur.length ? '' : ' checked'} onchange="clearFilterDim('${dim}')"> 전체</label>` +
+          `<div id="filter-list-${dim}">${filterCheckboxesHtml(rows, dim)}</div>` +
+          `</div>` : '') +
+        `</span>`;
+    }).join('') +
     `<span style="font-size:11px;align-self:flex-end">` +
-    `<button class="btn" onclick="resetAnalysisFilters()">필터 초기화</button></span>` +
+    `<button class="btn" onclick="resetAnalysisFilters()">초기화</button></span>` +
     `</div>`;
 }
 
@@ -1011,8 +1034,8 @@ function renderAnalysis() {
   }
   const season = seasonSelect.value || weekSeasonsAll[0];
   const period = analysisPeriod;
-  const groupDims = analysisGroupDims;
-  const groupLabel = groupDims.length ? groupDims.map(d => GROUP_LABELS[d]).join('+') : GROUP_LABELS.vendor;
+  const groupBy = analysisGroupBy;
+  const groupLabel = GROUP_LABELS[groupBy];
   const container = document.getElementById('analysis-body');
   container.innerHTML = '';
   if (!season) return;
@@ -1025,7 +1048,7 @@ function renderAnalysis() {
   const rows = applyAnalysisFilters(allRows);
   const offsets = currentOffsets(season);
   const asOfDate = (sel.value === weekIds[0]) ? resolveAsOfDate(season) : week.as_of_date;
-  const stats = analysisStats(rows, asOfDate, offsets, groupDims);
+  const stats = analysisStats(rows, asOfDate, offsets, groupBy);
   const periodLabelKr = period === 'month' ? '월' : '주';
 
   // 주차별(정시) 표는 dueDateRecordsByStage/dueDateOnTimeComplianceByStage 그대로 씀(고정값, 안 바뀜).
@@ -1076,12 +1099,10 @@ function renderAnalysis() {
 
   const controlsHtml = `<label style="font-weight:700;margin-right:8px">기간 단위</label>` +
     `<select onchange="analysisPeriod=this.value;renderAnalysis()" style="margin-right:16px"><option value="week"${period === 'week' ? ' selected' : ''}>주</option><option value="month"${period === 'month' ? ' selected' : ''}>월</option></select>`;
-  const groupByHtml = `<span style="font-size:11px">` +
-    `<label style="font-weight:700;color:#888;display:block;margin-bottom:2px">그룹 기준(복수 선택 = 교집합)</label>` +
-    `<div style="display:inline-flex;gap:10px;border:1px solid #e5e7eb;border-radius:4px;padding:4px 8px;background:#fff">` +
-    Object.entries(GROUP_LABELS).map(([k, v]) => `<label style="white-space:nowrap;font-weight:400">` +
-      `<input type="checkbox" value="${k}"${groupDims.includes(k) ? ' checked' : ''} onchange="toggleGroupDim('${k}', this.checked)"> ${esc(v)}</label>`).join('') +
-    `</div></span>`;
+  const groupByHtml = `<label style="font-weight:700;margin-right:8px;font-size:12px">그룹 기준</label>` +
+    `<select onchange="analysisGroupBy=this.value;renderAnalysis()" style="margin-right:16px">` +
+    Object.entries(GROUP_LABELS).map(([k, v]) => `<option value="${k}"${groupBy === k ? ' selected' : ''}>${v}</option>`).join('') +
+    `</select>`;
 
   // 핵심 지표: 스타일 due date가 속한 기간별 "정시 승인율"(FIT/PP/TOP 각각, 주차별 + 누적). 필터도 이 표 위에 바로 붙임.
   if (season === '26FW') {

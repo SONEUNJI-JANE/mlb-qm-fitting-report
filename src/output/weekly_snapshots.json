@@ -77929,10 +77929,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-26",
@@ -82820,7 +82820,7 @@
             "td": "김서진",
             "top_done": false,
             "top_due": null,
-            "vendor": "(주)팬코"
+            "vendor": "ESQUEL ENTERPRISES LIMITED"
           },
           {
             "detail": {
@@ -82946,7 +82946,7 @@
             "td": "김서진",
             "top_done": false,
             "top_due": null,
-            "vendor": "(주)팬코"
+            "vendor": "㈜노브랜드"
           },
           {
             "detail": {
