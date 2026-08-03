@@ -837,25 +837,32 @@ function resetFiltersIfSeasonChanged(season) {
   Object.keys(analysisFilters).forEach(dim => { analysisFilters[dim] = []; });
 }
 
-function filterOptionsHtml(rows, dim) {
+function toggleFilterValue(dim, value, checked) {
+  const arr = analysisFilters[dim];
+  if (checked) { if (!arr.includes(value)) arr.push(value); }
+  else { analysisFilters[dim] = arr.filter(v => v !== value); }
+  renderAnalysis();
+}
+
+function filterCheckboxesHtml(rows, dim) {
   const values = [...new Set(rows.map(r => filterFieldValue(r, dim)))].sort();
   const cur = analysisFilters[dim];
-  const opt = v => `<option value="${escSvg(v)}"${cur.includes(v) ? ' selected' : ''}>${esc(v)}</option>`;
-  if (dim !== 'vendor') return values.map(opt).join('');
+  const cb = v => `<label style="display:block;font-weight:400;white-space:nowrap">` +
+    `<input type="checkbox" value="${escSvg(v)}"${cur.includes(v) ? ' checked' : ''} onchange="toggleFilterValue('${dim}', this.value, this.checked)"> ${esc(v)}</label>`;
+  if (dim !== 'vendor') return values.map(cb).join('');
   const byCat = {};
   values.forEach(v => { const cat = VENDOR_CATEGORY[v] || '기타'; (byCat[cat] || (byCat[cat] = [])).push(v); });
   return ['KNIT', 'WOVEN', 'SWEATER', 'DENIM', '기타'].filter(c => byCat[c])
-    .map(cat => `<optgroup label="${esc(cat)}">${byCat[cat].map(opt).join('')}</optgroup>`).join('');
+    .map(cat => `<div style="font-weight:700;color:#555;margin-top:4px">${esc(cat)}</div>${byCat[cat].map(cb).join('')}`).join('');
 }
 
-// 필터 드롭다운 한 줄(표 위에 바로 붙임 — 따로 떨어진 패널 아님). 여러 개 선택: ctrl/cmd+클릭(또는 드래그).
-// 선택 안 하면 전체.
+// 필터 체크박스 한 줄(표 위에 바로 붙임 — 따로 떨어진 패널 아님). 아무것도 체크 안 하면 전체.
 function filterRowHtml(rows) {
   return `<div style="display:flex;gap:14px;flex-wrap:wrap;align-items:flex-start;margin-bottom:10px">` +
     Object.keys(FILTER_DIM_LABELS).map(dim =>
-      `<span style="font-size:11px;display:inline-flex;flex-direction:column;gap:2px">` +
-      `<label style="font-weight:700;color:#888">${esc(FILTER_DIM_LABELS[dim])} <span style="font-weight:400">(여러개 선택 가능)</span></label>` +
-      `<select multiple size="4" style="min-width:110px" onchange="analysisFilters['${dim}']=[...this.selectedOptions].map(o=>o.value);renderAnalysis()">${filterOptionsHtml(rows, dim)}</select></span>`
+      `<span style="font-size:11px">` +
+      `<label style="font-weight:700;color:#888;display:block;margin-bottom:2px">${esc(FILTER_DIM_LABELS[dim])}</label>` +
+      `<div style="min-width:110px;max-height:110px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:4px;padding:4px 6px;background:#fff">${filterCheckboxesHtml(rows, dim)}</div></span>`
     ).join('') + `</div>`;
 }
 
