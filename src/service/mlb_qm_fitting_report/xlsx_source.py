@@ -153,6 +153,17 @@ def _round_block_cols(start_letter: str) -> dict:
 _ROUND_BLOCK_COLS = {stage: [_round_block_cols(b) for b in blocks] for stage, blocks in _ROUND_BLOCKS.items()}
 
 
+def _first_received(row, stage: str):
+    """그 stage 1회차부터 순서대로 봐서 접수일(날짜 타입)이 실제로 찍힌 첫 회차의 접수일.
+    승인 이후 "다음 스테이지 접수까지 며칠 걸렸나"(스테이지 전환 리드타임)를 재려면 그 스테이지가
+    실제로 시작된 시점이 필요해서, 최신 회차가 아니라 맨 처음 회차 기준으로 따로 잡는다."""
+    for cols in _ROUND_BLOCK_COLS[stage]:
+        received = row[cols["received"] - 1]
+        if isinstance(received, datetime):
+            return received.date()
+    return None
+
+
 def _latest_round(row, stage: str) -> dict:
     """그 stage에서 실제 데이터(접수일/전달일/status) 있는 마지막 회차의 status/전달일/사유.
     접수 칸엔 "전 회차 승인 완료" 같은 안내 텍스트만, fitting 칸엔 "넥목업" 같은 메모만 들어있고
@@ -167,7 +178,7 @@ def _latest_round(row, stage: str) -> dict:
         if isinstance(received, datetime) or isinstance(delivered, datetime) or row[cols["status"] - 1]:
             last = i
     if last is None:
-        return {"round": None, "status": None, "confirm_date": None, "reason": None}
+        return {"round": None, "status": None, "confirm_date": None, "reason": None, "first_received": None}
     cols = blocks[last]
     status = row[cols["status"] - 1]
     # 전달일(확정일) 칸이 비어있어도 status가 Approved면 fitting일(실제 피팅 진행일)을 대신 쓴다
@@ -180,6 +191,7 @@ def _latest_round(row, stage: str) -> dict:
         "status": status,
         "confirm_date": confirm_date,
         "reason": row[cols["reason"] - 1],
+        "first_received": _first_received(row, stage),
     }
 
 
@@ -344,6 +356,7 @@ def read_fit_track_raw(path: str, raw_apparel_path: str = None) -> list[dict]:
                     "status": d["status"],
                     "confirm_date": d["confirm_date"].isoformat() if d["confirm_date"] else None,
                     "reason": d["reason"],
+                    "first_received": d["first_received"].isoformat() if d["first_received"] else None,
                 }
                 for stage, d in track["detail"].items()
             },

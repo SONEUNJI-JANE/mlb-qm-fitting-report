@@ -662,6 +662,16 @@ function analysisStats(rawRows, asOfDate, offsets, groupBy) {
         byStage[stage].done++;
         byGroup[group].done++;
         byCategory[category].done++;
+        // 정시(due 이내)에 승인 안 됐으면 "늦게 승인된" 건으로 초과일수에 넣는다(0일 초과는 제외).
+        const confirmDate = due ? effectiveConfirmDate(row, stage) : null;
+        if (confirmDate && confirmDate > due) {
+          const lateDays = businessDaysSince(due, confirmDate) || 0;
+          if (lateDays > 0) {
+            (groupOverdueDays[group] || (groupOverdueDays[group] = [])).push(lateDays);
+            const byStageMap = groupOverdueDaysByStage[stage];
+            (byStageMap[group] || (byStageMap[group] = [])).push(lateDays);
+          }
+        }
       } else {
         const days = businessDaysSince(due, asOfDate) || 0;
         (groupOverdueDays[group] || (groupOverdueDays[group] = [])).push(days);
@@ -723,6 +733,27 @@ function effectiveConfirmDate(row, stage) {
     if (prep.confirm_date) return prep.confirm_date;
   }
   return null;
+}
+
+// 단계 전환 리드타임: 이전 단계가 Approved된 시점(confirm_date) → 다음 단계 1회차 접수일(first_received)까지
+// 영업일수. 이전 단계가 승인 안 됐거나 다음 단계가 아직 접수 전이면 그 스타일은 그 전환에서 뺀다.
+const STAGE_TRANSITIONS = [['보정', 'FIT'], ['FIT', 'PP'], ['PP', 'TOP']];
+
+function transitionLeadDays(rawRows) {
+  const result = {};
+  STAGE_TRANSITIONS.forEach(([from, to]) => {
+    const days = [];
+    for (const row of rawRows) {
+      const fromD = row.detail && row.detail[from];
+      const toD = row.detail && row.detail[to];
+      if (!fromD || fromD.status !== 'Approved' || !fromD.confirm_date) continue;
+      if (!toD || !toD.first_received || toD.first_received < fromD.confirm_date) continue;
+      const d = businessDaysSince(fromD.confirm_date, toD.first_received);
+      if (d != null) days.push(d);
+    }
+    result[`${from}→${to}`] = days;
+  });
+  return result;
 }
 
 // stage별 원자료: 실제 due date가 있는 건은 {duePeriod, confirmPeriod, onTime, hasRealDue:true}로,
@@ -1013,9 +1044,27 @@ function renderAnalysis() {
       STAGES.map(st => `<option value="${st}"${analysisOverdueStage === st ? ' selected' : ''}>${st}</option>`).join('') +
       `</select>`;
     sec4.innerHTML = `<div style="margin-bottom:10px">${groupByHtml}${stageSelectHtml}</div>` +
-      `<h3>${esc(groupLabel)}별 평균 초과 영업일</h3><p class="sub">현재(${esc(asOfDate)}) 기준, 전체 스타일 중 기준일 넘겼는데 아직 미완료인 건들의 평균 초과일수(0이면 그런 건 없음)</p>` +
+      `<h3>${esc(groupLabel)}별 평균 초과 영업일</h3><p class="sub">due date 넘겨서 승인된 건(승인일-due) + 아직 미완료인 건(${esc(asOfDate)}-due) 전부 포함한 평균 초과 영업일. 정시 승인된 건은 0이라 제외(0이면 그런 건 없음)</p>` +
       hBarChart(overdueEntries, {unit: '일', color: '#d9534f'});
     container.appendChild(sec4);
+  }
+
+  // 단계 전환 리드타임: 이전 스테이지 승인일 → 다음 스테이지 첫 회차 접수일까지 영업일수.
+  if (season === '26FW') {
+    const transitions = transitionLeadDays(rows);
+    const sec5 = document.createElement('div');
+    sec5.className = 'analysis-section';
+    sec5.innerHTML = `<h3>단계 전환 평균 소요일수</h3>` +
+      `<p class="sub">이전 단계 승인일 → 다음 단계 1회차 접수일까지 평균 영업일(체크박스 필터 반영됨)</p>` +
+      `<table style="font-size:12px;border-collapse:collapse">` +
+      `<thead><tr><th style="text-align:left;padding:4px 12px 4px 0">전환</th><th style="text-align:right;padding:4px 12px">평균 영업일</th><th style="text-align:right;padding:4px">건수</th></tr></thead><tbody>` +
+      Object.entries(transitions).map(([label, days]) => {
+        const avg = days.length ? Math.round(days.reduce((a, b) => a + b, 0) / days.length * 10) / 10 : null;
+        return `<tr><td style="padding:4px 12px 4px 0">${esc(label)}</td>` +
+          `<td style="text-align:right;padding:4px 12px;font-weight:700">${avg != null ? avg + '일' : '-'}</td>` +
+          `<td style="text-align:right;padding:4px;color:#888">${days.length}</td></tr>`;
+      }).join('') + `</tbody></table>`;
+    container.appendChild(sec5);
   }
 }
 
