@@ -42,11 +42,7 @@ th.grp-a,th.grp-th:first-of-type{border-left:1px solid #e5e7eb}
 .settings-bar label{color:#555;white-space:nowrap}
 .settings-bar input,.settings-bar select{padding:4px 6px;font-size:11px;border:1px solid #ccc;border-radius:4px}
 .settings-bar .desc{color:#888;font-size:11px;margin:4px 0 0}
-.modal-overlay{position:fixed;inset:0;background:rgba(26,26,46,0.45);z-index:1000;display:none;align-items:flex-start;justify-content:center;padding:40px 20px;overflow-y:auto}
-.modal-overlay.show{display:flex}
-.modal-panel{max-width:1100px;width:100%}
-.modal-panel .settings-bar{max-width:none}
-.settings-btn{background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;color:#1a1a2e;cursor:pointer;margin-left:auto}
+.settings-btn{background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;color:#1a1a2e;cursor:pointer}
 .th-table{width:100%;border-collapse:collapse;margin-top:10px}
 .th-table th,.th-table td{padding:5px 8px;border-bottom:1px solid #f0f1f4;font-size:11px;text-align:left}
 .th-table th{color:#888;font-weight:700}
@@ -74,23 +70,11 @@ th.grp-a,th.grp-th:first-of-type{border-left:1px solid #e5e7eb}
     <button class="tab-btn active" id="tab-btn-main" onclick="switchTab('main')">메인</button>
     <button class="tab-btn" id="tab-btn-analysis" onclick="switchTab('analysis')">분석</button>
   </div>
-  <button class="settings-btn" onclick="toggleSettingsModal()">⚙ 설정</button>
-</div>
-<div id="settings-modal" class="modal-overlay" onclick="if(event.target===this) toggleSettingsModal()">
-  <div class="modal-panel">
-    <div style="display:flex;justify-content:flex-end;margin-bottom:8px">
-      <button class="btn" onclick="toggleSettingsModal()">닫기</button>
-    </div>
-    <details class="settings-bar">
-      <summary>기준일 설정 (시즌별)</summary>
-      <p class="desc">전체 스타일 수 기준 = 완료 / 전체. Due Date 기준 = as_of_date까지 due date 지난 것 중 완료 / 지난 것 전체(계획 대비 실적).<br>기준 요일 = 매주 자동 적용(예: 금요일 지정 시 실행일 기준 직전 금요일을 그 주 기준일로 씀). 특정 주만 다른 날짜 쓰려면 날짜 지정. 시즌마다 따로 설정 가능.</p>
-      <div id="as-of-rows"></div>
-      <div class="row"><button class="btn" onclick="applySettings()">적용</button><span id="settings-status"></span></div>
-    </details>
-    <div id="due-offset-panels"></div>
-  </div>
 </div>
 <div id="main-tab">
+<div style="max-width:1100px;margin:16px auto 0">
+  <button class="settings-btn" onclick="switchTab('settings')">⚙ 설정</button>
+</div>
 <div class="content" id="seasons"></div>
 <div class="override-bar" id="override-bar">
   <span id="override-count"></span>
@@ -103,6 +87,21 @@ th.grp-a,th.grp-th:first-of-type{border-left:1px solid #e5e7eb}
     <label style="font-weight:700;margin-right:8px">시즌</label><select id="analysis-season-select" onchange="renderAnalysis()"></select>
   </div>
   <div id="analysis-body"></div>
+</div>
+<div class="content" id="settings-tab" style="display:none">
+  <div style="max-width:1100px;margin:0 auto">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <h2 style="margin:0">설정</h2>
+      <button class="btn" onclick="switchTab('main')">닫기</button>
+    </div>
+    <details class="settings-bar">
+      <summary>기준일 설정 (시즌별)</summary>
+      <p class="desc">전체 스타일 수 기준 = 완료 / 전체. Due Date 기준 = as_of_date까지 due date 지난 것 중 완료 / 지난 것 전체(계획 대비 실적).<br>기준 요일 = 매주 자동 적용(예: 금요일 지정 시 실행일 기준 직전 금요일을 그 주 기준일로 씀). 특정 주만 다른 날짜 쓰려면 날짜 지정. 시즌마다 따로 설정 가능.</p>
+      <div id="as-of-rows"></div>
+      <div class="row"><button class="btn" onclick="applySettings()">적용</button><span id="settings-status"></span></div>
+    </details>
+    <div id="due-offset-panels"></div>
+  </div>
 </div>
 <script id="snapshot-data" type="application/json">__SNAPSHOT_JSON__</script>
 <script id="settings-data" type="application/json">__SETTINGS_JSON__</script>
@@ -549,13 +548,10 @@ function switchTab(tab) {
   activeTab = tab;
   document.getElementById('main-tab').style.display = tab === 'main' ? '' : 'none';
   document.getElementById('analysis-tab').style.display = tab === 'analysis' ? '' : 'none';
+  document.getElementById('settings-tab').style.display = tab === 'settings' ? '' : 'none';
   document.getElementById('tab-btn-main').classList.toggle('active', tab === 'main');
   document.getElementById('tab-btn-analysis').classList.toggle('active', tab === 'analysis');
   if (tab === 'analysis') renderAnalysis();
-}
-
-function toggleSettingsModal() {
-  document.getElementById('settings-modal').classList.toggle('show');
 }
 
 function refresh() {
@@ -658,20 +654,26 @@ const CATEGORIES = ['KNIT', 'SWEATER', 'WOVEN', 'DENIM'];
 
 const GROUP_LABELS = {vendor: '협력사', item: '아이템', td: 'TD', qa: 'QA'};
 
-function groupKeyForRow(row, groupBy) {
-  if (groupBy === 'item') return row.item || '미상';
-  if (groupBy === 'td') return row.td || '미배정';
-  if (groupBy === 'qa') return row.qa || '미배정';
+function groupDimValue(row, dim) {
+  if (dim === 'item') return row.item || '미상';
+  if (dim === 'td') return row.td || '미배정';
+  if (dim === 'qa') return row.qa || '미배정';
   return vendorAlias(row.vendor) || '미상';
 }
 
-function analysisStats(rawRows, asOfDate, offsets, groupBy) {
+// 체크박스로 고른 차원(들)을 조합해서 그룹 키 만든다(1개면 기존과 동일, 여러 개면 "X / Y" 교집합 키).
+function groupKeyForRow(row, dims) {
+  const list = dims.length ? dims : ['vendor'];
+  return list.map(d => groupDimValue(row, d)).join(' / ');
+}
+
+function analysisStats(rawRows, asOfDate, offsets, groupDims) {
   const byGroup = {}, byCategory = {}, byStage = {FIT: {done: 0, total: 0}, PP: {done: 0, total: 0}, TOP: {done: 0, total: 0}};
   let overallDone = 0, overallTotal = 0;
   const groupOverdueDays = {};
   const groupOverdueDaysByStage = {FIT: {}, PP: {}, TOP: {}};
   for (const row of rawRows) {
-    const group = groupKeyForRow(row, groupBy);
+    const group = groupKeyForRow(row, groupDims);
     const category = CATEGORIES.find(c => row.label && row.label.startsWith(c)) || '미분류';
     for (const stage of STAGES) {
       const isDone = row[`${stage.toLowerCase()}_done`];
@@ -921,7 +923,7 @@ function withIndependentCumulative(dueAndDone, sortedPeriods) {
 }
 
 let analysisPeriod = 'week';
-let analysisGroupBy = 'vendor';
+let analysisGroupDims = ['vendor'];
 let complianceChartStage = 'FIT';
 const STAGE_COLORS = {FIT: '#4a65a9', PP: '#e0a72e', TOP: '#2e9e5b'};
 
@@ -960,6 +962,12 @@ function toggleFilterValue(dim, value, checked) {
 
 function resetAnalysisFilters() {
   Object.keys(analysisFilters).forEach(dim => { analysisFilters[dim] = []; });
+  renderAnalysis();
+}
+
+function toggleGroupDim(dim, checked) {
+  if (checked) { if (!analysisGroupDims.includes(dim)) analysisGroupDims.push(dim); }
+  else { analysisGroupDims = analysisGroupDims.filter(d => d !== dim); }
   renderAnalysis();
 }
 
@@ -1003,8 +1011,8 @@ function renderAnalysis() {
   }
   const season = seasonSelect.value || weekSeasonsAll[0];
   const period = analysisPeriod;
-  const groupBy = analysisGroupBy;
-  const groupLabel = GROUP_LABELS[groupBy];
+  const groupDims = analysisGroupDims;
+  const groupLabel = groupDims.length ? groupDims.map(d => GROUP_LABELS[d]).join('+') : GROUP_LABELS.vendor;
   const container = document.getElementById('analysis-body');
   container.innerHTML = '';
   if (!season) return;
@@ -1017,7 +1025,7 @@ function renderAnalysis() {
   const rows = applyAnalysisFilters(allRows);
   const offsets = currentOffsets(season);
   const asOfDate = (sel.value === weekIds[0]) ? resolveAsOfDate(season) : week.as_of_date;
-  const stats = analysisStats(rows, asOfDate, offsets, groupBy);
+  const stats = analysisStats(rows, asOfDate, offsets, groupDims);
   const periodLabelKr = period === 'month' ? '월' : '주';
 
   // 주차별(정시) 표는 dueDateRecordsByStage/dueDateOnTimeComplianceByStage 그대로 씀(고정값, 안 바뀜).
@@ -1068,10 +1076,12 @@ function renderAnalysis() {
 
   const controlsHtml = `<label style="font-weight:700;margin-right:8px">기간 단위</label>` +
     `<select onchange="analysisPeriod=this.value;renderAnalysis()" style="margin-right:16px"><option value="week"${period === 'week' ? ' selected' : ''}>주</option><option value="month"${period === 'month' ? ' selected' : ''}>월</option></select>`;
-  const groupByHtml = `<label style="font-weight:700;margin-right:8px;font-size:12px">그룹 기준</label>` +
-    `<select onchange="analysisGroupBy=this.value;renderAnalysis()" style="margin-right:16px">` +
-    Object.entries(GROUP_LABELS).map(([k, v]) => `<option value="${k}"${groupBy === k ? ' selected' : ''}>${v}</option>`).join('') +
-    `</select>`;
+  const groupByHtml = `<span style="font-size:11px">` +
+    `<label style="font-weight:700;color:#888;display:block;margin-bottom:2px">그룹 기준(복수 선택 = 교집합)</label>` +
+    `<div style="display:inline-flex;gap:10px;border:1px solid #e5e7eb;border-radius:4px;padding:4px 8px;background:#fff">` +
+    Object.entries(GROUP_LABELS).map(([k, v]) => `<label style="white-space:nowrap;font-weight:400">` +
+      `<input type="checkbox" value="${k}"${groupDims.includes(k) ? ' checked' : ''} onchange="toggleGroupDim('${k}', this.checked)"> ${esc(v)}</label>`).join('') +
+    `</div></span>`;
 
   // 핵심 지표: 스타일 due date가 속한 기간별 "정시 승인율"(FIT/PP/TOP 각각, 주차별 + 누적). 필터도 이 표 위에 바로 붙임.
   if (season === '26FW') {
