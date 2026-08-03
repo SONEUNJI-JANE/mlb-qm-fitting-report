@@ -739,16 +739,6 @@ function effectiveConfirmDate(row, stage) {
 // 영업일수. 이전 단계가 승인 안 됐거나 다음 단계가 아직 접수 전이면 그 스타일은 그 전환에서 뺀다.
 const STAGE_TRANSITIONS = [['보정', 'FIT'], ['FIT', 'PP'], ['PP', 'TOP']];
 const WITHIN_STAGE_PIPELINE = ['보정', 'FIT', 'PP', 'TOP'];
-// 표시 순서(요청받은 순서). 여기 없는 라벨(드물게 나오는 조합, 예: 2ND FIT→4TH FIT처럼 중간 회차가
-// 통째로 빠진 경우)은 이 목록 뒤에 나오는 순서 그대로 붙는다.
-const LEAD_TIME_ORDER = [
-  '1ST 보정→2ND 보정', '보정 APPROVED→1ST FIT',
-  '1ST FIT→2ND FIT', '2ND FIT→3RD FIT', '3RD FIT→4TH FIT', '4TH FIT→5TH FIT',
-  'FIT APPROVED→1ST PP', '보정 APPROVED(FIT생략)→1ST PP',
-  '1ST PP→2ND PP', '2ND PP→3RD PP', '3RD PP→4TH PP',
-  'PP APPROVED→1ST TOP',
-  '1ST TOP→2ND TOP', '2ND TOP→3RD TOP',
-];
 
 // 회차 단위까지 전부 쪼갠 리드타임: 같은 단계 안의 회차→회차(재작업 턴어라운드) +
 // 단계 승인→다음 단계 1회차 접수(핸드오프), 보정 생략 케이스도 별도 라벨로 잡는다.
@@ -758,15 +748,6 @@ function computeAllLeadTimes(rawRows) {
 
   for (const row of rawRows) {
     if (!row.detail) continue;
-
-    WITHIN_STAGE_PIPELINE.forEach(stage => {
-      const rounds = (row.detail[stage] && row.detail[stage].rounds) || [];
-      for (let i = 0; i < rounds.length - 1; i++) {
-        const a = rounds[i], b = rounds[i + 1];
-        if (!a.confirm_date || !b.received || b.received < a.confirm_date) continue;
-        push(`${a.round} ${stage}→${b.round} ${stage}`, businessDaysSince(a.confirm_date, b.received));
-      }
-    });
 
     STAGE_TRANSITIONS.forEach(([from, to]) => {
       const fromD = row.detail[from], toD = row.detail[to];
@@ -785,6 +766,32 @@ function computeAllLeadTimes(rawRows) {
     }
   }
   return buckets;
+}
+
+// 단계별 재작업: 그 단계 안에서 회차가 넘어간 건 전부 "이전 회차가 승인이 안 됐다"는 뜻이니(승인됐으면
+// 다음 단계로 넘어가지 다음 회차로 안 넘어감), 이전 회차의 status(Rejected/Int Rej 등)와 reason(사유)
+// 별로 나눠서 몇 건에 평균 며칠 걸렸는지 잡는다. stage -> status -> reason -> [영업일,...]
+function computeReworkByReason(rawRows) {
+  const result = {};
+  WITHIN_STAGE_PIPELINE.forEach(stage => { result[stage] = {}; });
+  for (const row of rawRows) {
+    if (!row.detail) continue;
+    WITHIN_STAGE_PIPELINE.forEach(stage => {
+      const rounds = (row.detail[stage] && row.detail[stage].rounds) || [];
+      for (let i = 0; i < rounds.length - 1; i++) {
+        const a = rounds[i], b = rounds[i + 1];
+        if (!a.confirm_date || !b.received || b.received < a.confirm_date) continue;
+        const days = businessDaysSince(a.confirm_date, b.received);
+        if (days == null) continue;
+        const status = a.status || '미상';
+        const reason = a.reason || '(사유 없음)';
+        const byStatus = result[stage];
+        const byReason = byStatus[status] || (byStatus[status] = {});
+        (byReason[reason] || (byReason[reason] = [])).push(days);
+      }
+    });
+  }
+  return result;
 }
 
 // stage별 원자료: 실제 due date가 있는 건은 {duePeriod, confirmPeriod, onTime, hasRealDue:true}로,
@@ -1074,33 +1081,63 @@ function renderAnalysis() {
     sec4.className = 'analysis-section';
     sec4.innerHTML = `<div style="margin-bottom:10px">${groupByHtml}</div>` +
       `<h3>${esc(groupLabel)}별 평균 초과 영업일 (단계별)</h3><p class="sub">due date 넘겨서 승인된 건(승인일-due) + 아직 미완료인 건(${esc(asOfDate)}-due) 전부 포함한 평균 초과 영업일. 정시 승인된 건은 0이라 제외(0이면 그런 건 없음)</p>` +
-      `<div style="display:flex;gap:24px;flex-wrap:wrap">` +
-      STAGES.map(st => `<div><div style="font-weight:700;font-size:12px;color:${STAGE_COLORS[st]};margin-bottom:6px">${st}</div>` +
-        hBarChart(stageOverdueEntries[st], {unit: '일', color: STAGE_COLORS[st], width: 340, labelWidth: 90}) + `</div>`).join('') +
+      `<div style="display:flex;gap:12px;flex-wrap:nowrap">` +
+      STAGES.map(st => `<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:12px;color:${STAGE_COLORS[st]};margin-bottom:6px">${st}</div>` +
+        hBarChart(stageOverdueEntries[st], {unit: '일', color: STAGE_COLORS[st], width: 336, labelWidth: 56}) + `</div>`).join('') +
       `</div>`;
     container.appendChild(sec4);
   }
 
-  // 회차 단위 리드타임(재작업 턴어라운드 + 단계 핸드오프), 요청받은 순서대로 정렬.
+  // 단계별(보정→FIT→PP→TOP 순서) 소요일수: (a) 그 단계 승인→다음 단계 접수(핸드오프),
+  // (b) 그 단계 안 재작업 — Rejected/Int Rej 등 상태별, 사유별로 세분.
   if (season === '26FW') {
     const transitions = computeAllLeadTimes(rows);
-    const orderedLabels = Object.keys(transitions).sort((a, b) => {
-      const ia = LEAD_TIME_ORDER.indexOf(a), ib = LEAD_TIME_ORDER.indexOf(b);
-      return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib);
-    });
+    const rework = computeReworkByReason(rows);
+    const avgOf = days => days.length ? Math.round(days.reduce((a, b) => a + b, 0) / days.length * 10) / 10 : null;
+
     const sec5 = document.createElement('div');
     sec5.className = 'analysis-section';
-    sec5.innerHTML = `<h3>단계·회차 전환 평균 소요일수</h3>` +
-      `<p class="sub">같은 단계 내 회차 재작업(예: 1ST FIT→2ND FIT) + 단계 승인 후 다음 단계 1회차 접수까지, 전부 영업일 기준(체크박스 필터 반영됨)</p>` +
-      `<table style="font-size:12px;border-collapse:collapse">` +
-      `<thead><tr><th style="text-align:left;padding:4px 12px 4px 0">전환</th><th style="text-align:right;padding:4px 12px">평균 영업일</th><th style="text-align:right;padding:4px">건수</th></tr></thead><tbody>` +
-      orderedLabels.map(label => {
-        const days = transitions[label];
-        const avg = days.length ? Math.round(days.reduce((a, b) => a + b, 0) / days.length * 10) / 10 : null;
-        return `<tr><td style="padding:4px 12px 4px 0">${esc(label)}</td>` +
-          `<td style="text-align:right;padding:4px 12px;font-weight:700">${avg != null ? avg + '일' : '-'}</td>` +
-          `<td style="text-align:right;padding:4px;color:#888">${days.length}</td></tr>`;
-      }).join('') + `</tbody></table>`;
+    let html = `<h3>단계별 소요일수 (승인 핸드오프 / 재작업)</h3>` +
+      `<p class="sub">보정→FIT→PP→TOP 순서. 핸드오프 = 그 단계 승인 후 다음 단계 1회차 접수까지. 재작업 = 그 단계 안에서 회차가 다시 돈 경우, 반려 상태·사유별(전부 영업일, 체크박스 필터 반영됨)</p>`;
+
+    WITHIN_STAGE_PIPELINE.forEach(stage => {
+      const handoffLabels = Object.keys(transitions).filter(l => l.startsWith(`${stage} APPROVED`));
+      const byStatus = rework[stage] || {};
+      const statuses = Object.keys(byStatus);
+
+      html += `<div style="margin-top:16px"><div style="font-weight:700;font-size:13px;color:${STAGE_COLORS[stage] || '#1a1a2e'};margin-bottom:6px">${esc(stage)}</div>`;
+
+      if (handoffLabels.length) {
+        html += handoffLabels.map(label => {
+          const days = transitions[label];
+          const avg = avgOf(days);
+          return `<div style="font-size:12px;margin-bottom:6px">↳ 핸드오프 <b>${esc(label)}</b>: ${avg != null ? avg + '일' : '-'} (${days.length}건)</div>`;
+        }).join('');
+      }
+
+      if (statuses.length) {
+        html += `<table style="font-size:12px;border-collapse:collapse;margin-left:14px">` +
+          `<thead><tr><th style="text-align:left;padding:3px 12px 3px 0">상태</th><th style="text-align:left;padding:3px 12px 3px 0">사유</th><th style="text-align:right;padding:3px 12px">평균 영업일</th><th style="text-align:right;padding:3px">건수</th></tr></thead><tbody>` +
+          statuses.map(status => {
+            const byReason = byStatus[status];
+            const reasons = Object.keys(byReason).sort((a, b) => byReason[b].length - byReason[a].length);
+            return reasons.map((reason, i) => {
+              const days = byReason[reason];
+              const avg = avgOf(days);
+              return `<tr><td style="padding:3px 12px 3px 0">${i === 0 ? esc(status) : ''}</td>` +
+                `<td style="padding:3px 12px 3px 0;color:#555">${esc(reason)}</td>` +
+                `<td style="text-align:right;padding:3px 12px;font-weight:700">${avg != null ? avg + '일' : '-'}</td>` +
+                `<td style="text-align:right;padding:3px;color:#888">${days.length}</td></tr>`;
+            }).join('');
+          }).join('') + `</tbody></table>`;
+      } else if (!handoffLabels.length) {
+        html += `<div style="font-size:12px;color:#888">데이터 없음</div>`;
+      }
+
+      html += `</div>`;
+    });
+
+    sec5.innerHTML = html;
     container.appendChild(sec5);
   }
 }

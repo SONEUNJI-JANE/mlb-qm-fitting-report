@@ -183,6 +183,7 @@ def _all_rounds(row, stage: str) -> list[dict]:
             "received": _as_date(received),
             "status": status,
             "confirm_date": confirm_date,
+            "reason": row[cols["reason"] - 1],
         })
     return rounds
 
@@ -388,6 +389,7 @@ def read_fit_track_raw(path: str, raw_apparel_path: str = None) -> list[dict]:
                             "received": r["received"].isoformat() if r["received"] else None,
                             "status": r["status"],
                             "confirm_date": r["confirm_date"].isoformat() if r["confirm_date"] else None,
+                            "reason": r["reason"],
                         }
                         for r in d["rounds"]
                     ],
