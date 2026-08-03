@@ -74991,10 +74991,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-15",

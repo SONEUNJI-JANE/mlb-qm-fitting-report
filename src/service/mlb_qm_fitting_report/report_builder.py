@@ -1012,8 +1012,8 @@ function renderAnalysis() {
       `<option value="ALL"${analysisOverdueStage === 'ALL' ? ' selected' : ''}>전체</option>` +
       STAGES.map(st => `<option value="${st}"${analysisOverdueStage === st ? ' selected' : ''}>${st}</option>`).join('') +
       `</select>`;
-    sec4.innerHTML = `<h3>${esc(groupLabel)}별 평균 초과 영업일</h3><p class="sub">현재(${esc(asOfDate)}) 기준, 전체 스타일 중 기준일 넘겼는데 아직 미완료인 건들의 평균 초과일수(0이면 그런 건 없음)</p>` +
-      groupByHtml + stageSelectHtml +
+    sec4.innerHTML = `<div style="margin-bottom:10px">${groupByHtml}${stageSelectHtml}</div>` +
+      `<h3>${esc(groupLabel)}별 평균 초과 영업일</h3><p class="sub">현재(${esc(asOfDate)}) 기준, 전체 스타일 중 기준일 넘겼는데 아직 미완료인 건들의 평균 초과일수(0이면 그런 건 없음)</p>` +
       hBarChart(overdueEntries, {unit: '일', color: '#d9534f'});
     container.appendChild(sec4);
   }
