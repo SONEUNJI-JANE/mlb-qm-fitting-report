@@ -915,21 +915,28 @@ function renderAnalysis() {
     finalDonePct[st] = b && b.cumTotal ? {pct: Math.round(b.cumDone / b.cumTotal * 1000) / 10, done: b.cumDone, total: b.cumTotal} : null;
   });
 
-  // 단계별 Due Date 달성률: 왼쪽 = 누적 전체(완료 기준), 오른쪽 = 누적 정시 승인율(아래 표 최종 누적과 동일). 같은 행에 반씩.
+  // 주차별 정시율 단순평균(왼쪽) — 데이터 있는 주만 평균낸다.
+  const avgOnTimePct = {};
+  STAGES.forEach(st => {
+    if (!onTimeByStage) { avgOnTimePct[st] = null; return; }
+    const pcts = Object.values(onTimeByStage[st]).filter(b => b.total > 0).map(b => b.onTime / b.total * 100);
+    avgOnTimePct[st] = pcts.length ? Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length * 10) / 10 : null;
+  });
+
+  // 단계별 Due Date 달성률: 왼쪽 = 전체 기간 주차별 정시율 평균, 오른쪽 = 누적 승인율(아래 표 최종 누적과 동일). 서로 다른 개념, 다른 숫자가 정상.
   const sec1 = document.createElement('div');
   sec1.className = 'analysis-section';
-  const cumHalf = `<div><div style="font-weight:700;font-size:12px;color:#555;margin-bottom:8px">누적 완료율 (${esc(asOfDate)} 시점, "됐냐 안됐냐")</div><div style="display:flex;gap:16px">` +
+  const cumHalf = `<div><div style="font-weight:700;font-size:12px;color:#555;margin-bottom:8px">전체 기간 정시율 평균 (주차별 정시 승인율 단순평균)</div><div style="display:flex;gap:16px">` +
     STAGES.map(st => {
-      const b = stats.byStage[st];
-      const p = b.total ? Math.round(b.done / b.total * 1000) / 10 : 0;
-      return `<div>${donutSVG(p, 76)}<div style="text-align:center;font-size:11px;color:#888;margin-top:4px">${st} (${b.done}/${b.total})</div></div>`;
+      const p = avgOnTimePct[st];
+      return `<div>${donutSVG(p ?? 0, 76)}<div style="text-align:center;font-size:11px;color:#888;margin-top:4px">${st} ${p != null ? `(${p}%)` : '-'}</div></div>`;
     }).join('') + `</div></div>`;
   const avgHalf = `<div><div style="font-weight:700;font-size:12px;color:#555;margin-bottom:8px">누적 승인율 (아래 표와 동일)</div><div style="display:flex;gap:16px">` +
     STAGES.map(st => {
       const v = finalDonePct[st];
       return `<div>${donutSVG(v ? v.pct : 0, 76)}<div style="text-align:center;font-size:11px;color:#888;margin-top:4px">${st} ${v ? `(${v.done}/${v.total})` : '-'}</div></div>`;
     }).join('') + `</div></div>`;
-  sec1.innerHTML = `<h3>단계별 Due Date 달성률</h3><p class="sub">왼쪽 = 지금 완료됐는지만 보는 누적 완료율(메인탭 Due Date 기준과 동일), 오른쪽 = 아래 표의 누적 승인율(정시 개념 없이 같은 로직을 기간별로 쪼갠 것, 왼쪽과 최종 숫자 같음)</p>` +
+  sec1.innerHTML = `<h3>단계별 Due Date 달성률</h3><p class="sub">왼쪽 = 주차별 정시 승인율(그 주 due였던 것 중 due 이내 승인 비율)을 전체 기간 단순평균한 것. 오른쪽 = 아래 표의 누적 승인율(정시 개념 없이 지금까지 승인된 비율의 누적, 메인탭 Due Date 기준과 동일). 서로 다른 지표라 숫자가 다른 게 정상.</p>` +
     `<div style="display:flex;gap:40px;flex-wrap:wrap">${cumHalf}${avgHalf}</div>`;
   container.appendChild(sec1);
 
