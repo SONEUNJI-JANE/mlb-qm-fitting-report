@@ -43434,7 +43434,7 @@
               "PP": {
                 "confirm_date": "2026-07-29",
                 "first_received": "2026-07-07",
-                "reason": null,
+                "reason": "납기상CFM",
                 "round": "3RD",
                 "rounds": [
                   {
@@ -43453,7 +43453,7 @@
                   },
                   {
                     "confirm_date": "2026-07-29",
-                    "reason": null,
+                    "reason": "납기상CFM",
                     "received": "2026-07-28",
                     "round": "3RD",
                     "status": "Approved"
@@ -43462,12 +43462,20 @@
                 "status": "Approved"
               },
               "TOP": {
-                "confirm_date": null,
-                "first_received": null,
+                "confirm_date": "2026-08-03",
+                "first_received": "2026-07-31",
                 "reason": null,
-                "round": null,
-                "rounds": [],
-                "status": null
+                "round": "1ST",
+                "rounds": [
+                  {
+                    "confirm_date": "2026-08-03",
+                    "reason": null,
+                    "received": "2026-07-31",
+                    "round": "1ST",
+                    "status": "Rejected"
+                  }
+                ],
+                "status": "Rejected"
               },
               "보정": {
                 "confirm_date": "2026-02-12",
@@ -48779,7 +48787,7 @@
                     "reason": "사이즈",
                     "received": "2026-06-08",
                     "round": "2ND",
-                    "status": "Rejected--LA LOGO PLACEMENT LAYOUT FOR APPROVAL"
+                    "status": "Rejected"
                   },
                   {
                     "confirm_date": "2026-06-24",

@@ -937,6 +937,11 @@ function toggleFilterValue(dim, value, checked) {
   renderAnalysis();
 }
 
+function resetAnalysisFilters() {
+  Object.keys(analysisFilters).forEach(dim => { analysisFilters[dim] = []; });
+  renderAnalysis();
+}
+
 function filterCheckboxesHtml(rows, dim) {
   const values = [...new Set(rows.map(r => filterFieldValue(r, dim)))].sort();
   const cur = analysisFilters[dim];
@@ -956,7 +961,10 @@ function filterRowHtml(rows) {
       `<span style="font-size:11px">` +
       `<label style="font-weight:700;color:#888;display:block;margin-bottom:2px">${esc(FILTER_DIM_LABELS[dim])}</label>` +
       `<div style="min-width:110px;max-height:110px;overflow-y:auto;border:1px solid #e5e7eb;border-radius:4px;padding:4px 6px;background:#fff">${filterCheckboxesHtml(rows, dim)}</div></span>`
-    ).join('') + `</div>`;
+    ).join('') +
+    `<span style="font-size:11px;align-self:flex-end">` +
+    `<button class="btn" onclick="resetAnalysisFilters()">필터 초기화</button></span>` +
+    `</div>`;
 }
 
 function applyAnalysisFilters(rows) {
@@ -1024,18 +1032,17 @@ function renderAnalysis() {
   // 단계별 Due Date 달성률: 왼쪽 = 전체 기간 주차별 정시율 평균, 오른쪽 = 주차별 누적 승인율의 평균. 서로 다른 개념, 다른 숫자가 정상.
   const sec1 = document.createElement('div');
   sec1.className = 'analysis-section';
-  const cumHalf = `<div><div style="font-weight:700;font-size:12px;color:#555;margin-bottom:8px">주차별 Due Date 준수율</div><div style="display:flex;gap:16px">` +
+  const cumHalf = `<div><div style="font-weight:700;font-size:14px;color:#555;margin-bottom:8px">주차별 Due Date 준수율</div><div style="display:flex;gap:16px">` +
     STAGES.map(st => {
       const p = avgOnTimePct[st];
       return `<div>${donutSVG(p ?? 0, 76)}<div style="text-align:center;font-size:11px;color:#888;margin-top:4px">${st} ${p != null ? `(${p}%)` : '-'}</div></div>`;
     }).join('') + `</div></div>`;
-  const avgHalf = `<div><div style="font-weight:700;font-size:12px;color:#555;margin-bottom:8px">누적 Due Date 준수율</div><div style="display:flex;gap:16px">` +
+  const avgHalf = `<div><div style="font-weight:700;font-size:14px;color:#555;margin-bottom:8px">누적 Due Date 준수율</div><div style="display:flex;gap:16px">` +
     STAGES.map(st => {
       const v = finalDonePct[st];
       return `<div>${donutSVG(v ?? 0, 76)}<div style="text-align:center;font-size:11px;color:#888;margin-top:4px">${st} ${v != null ? `(${v}%)` : '-'}</div></div>`;
     }).join('') + `</div></div>`;
-  sec1.innerHTML = `<h3>단계별 Due Date 달성률</h3>` +
-    `<div style="display:flex;gap:40px;flex-wrap:wrap">${cumHalf}${avgHalf}</div>`;
+  sec1.innerHTML = `<div style="display:flex;gap:40px;flex-wrap:wrap">${cumHalf}${avgHalf}</div>`;
   container.appendChild(sec1);
 
   const controlsHtml = `<div style="margin-bottom:10px">` +
@@ -1146,9 +1153,9 @@ function renderAnalysis() {
         `<h4 style="color:${STAGE_COLORS[stage] || '#1a1a2e'};margin:0 0 4px;font-size:12px">${esc(stage)}` +
         (stageAllDays.length ? ` <span style="font-weight:400;color:#888;font-size:10px">평균 ${avgOf(stageAllDays)}일(${stageAllDays.length})</span>` : '') +
         `</h4>` +
-        `<table style="width:100%;font-size:11px;border-collapse:collapse">` +
-        `<thead><tr><th style="text-align:left;padding:3px 4px 3px 0">상태</th><th style="text-align:left;padding:3px 4px">다음</th>` +
-        `<th style="text-align:right;padding:3px 4px">평균</th><th style="text-align:right;padding:3px 0">건수</th></tr></thead><tbody>`;
+        `<table style="width:100%;font-size:11px;border-collapse:collapse;text-align:center">` +
+        `<thead><tr><th style="padding:3px 4px">상태</th><th style="padding:3px 4px">다음</th>` +
+        `<th style="padding:3px 4px">평균</th><th style="padding:3px 4px">건수</th></tr></thead><tbody>`;
 
       if (!statuses.length) {
         html += `<tr><td colspan="4" style="padding:6px;color:#888">데이터 없음</td></tr>`;
@@ -1159,10 +1166,10 @@ function renderAnalysis() {
         // 목적지는 단계명만 표시(회차 생략), 여러 단계로 갈리면 제일 많은 걸 대표로.
         const nextLabel = Object.entries(bucket.next).sort((a, b) => b[1] - a[1])[0][0];
         html += `<tr>` +
-          `<td style="padding:3px 4px 3px 0;font-weight:700;border-top:1px solid #eee">${esc(status)}</td>` +
-          `<td style="padding:3px 4px;border-top:1px solid #eee;color:#4a65a9;font-size:11px">${esc(nextLabel)}</td>` +
-          `<td style="text-align:right;padding:3px 4px;font-weight:700;border-top:1px solid #eee">${avgOf(bucket.days)}일</td>` +
-          `<td style="text-align:right;padding:3px 0;color:#888;border-top:1px solid #eee">${bucket.days.length}</td></tr>`;
+          `<td style="padding:3px 4px;border-top:1px solid #eee">${esc(status)}</td>` +
+          `<td style="padding:3px 4px;border-top:1px solid #eee;color:#555;font-size:11px">${esc(nextLabel)}</td>` +
+          `<td style="padding:3px 4px;font-weight:700;border-top:1px solid #eee">${avgOf(bucket.days)}일</td>` +
+          `<td style="padding:3px 4px;color:#888;border-top:1px solid #eee">${bucket.days.length}</td></tr>`;
       });
       html += `</tbody></table></div>`;
     });
