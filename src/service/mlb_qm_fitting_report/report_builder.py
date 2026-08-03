@@ -1143,7 +1143,10 @@ function renderAnalysis() {
       }
       statuses.forEach(status => {
         const bucket = byStatus[status];
-        const nextLabel = Object.entries(bucket.next).sort((a, b) => b[1] - a[1])[0][0];
+        // 그 상태에서 일어난 모든 회차 전환(1st→2nd, 2nd→3rd, ...)이 평균/건수에 다 포함된다 —
+        // 뱃지는 그중 제일 많은 목적지를 대표로 보여주고, 목적지가 여러 개면 "+N개"를 붙여 알려준다.
+        const nextEntries = Object.entries(bucket.next).sort((a, b) => b[1] - a[1]);
+        const nextLabel = nextEntries[0][0] + (nextEntries.length > 1 ? ` 외${nextEntries.length - 1}` : '');
         html += `<tr>` +
           `<td style="padding:3px 4px 3px 0;font-weight:700;border-top:1px solid #eee">${esc(status)}</td>` +
           `<td style="padding:3px 4px;border-top:1px solid #eee">` +
