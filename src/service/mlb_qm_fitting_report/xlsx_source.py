@@ -164,6 +164,29 @@ def _first_received(row, stage: str):
     return None
 
 
+def _all_rounds(row, stage: str) -> list[dict]:
+    """그 stage에서 실제 데이터(접수일/전달일/status) 있는 회차들을 순서대로 전부 반환.
+    회차 간 소요일수(1ST FIT→2ND FIT 등)를 재려면 최신/첫 회차만으론 안 되고 전체가 필요하다."""
+    blocks = _ROUND_BLOCK_COLS[stage]
+    rounds = []
+    for i, cols in enumerate(blocks):
+        received = row[cols["received"] - 1]
+        delivered = row[cols["delivered"] - 1]
+        status = row[cols["status"] - 1]
+        if not (isinstance(received, datetime) or isinstance(delivered, datetime) or status):
+            continue
+        confirm_date = _as_date(delivered)
+        if confirm_date is None and status == "Approved":
+            confirm_date = _as_date(row[cols["fitting"] - 1])
+        rounds.append({
+            "round": _ROUND_LABELS[i],
+            "received": _as_date(received),
+            "status": status,
+            "confirm_date": confirm_date,
+        })
+    return rounds
+
+
 def _latest_round(row, stage: str) -> dict:
     """그 stage에서 실제 데이터(접수일/전달일/status) 있는 마지막 회차의 status/전달일/사유.
     접수 칸엔 "전 회차 승인 완료" 같은 안내 텍스트만, fitting 칸엔 "넥목업" 같은 메모만 들어있고
@@ -201,6 +224,8 @@ def _stage_details(row) -> dict:
     보정에서 FIT 안 거치고 바로 PP로 넘어간 경우 FIT은 '접수 전'이 아니라 '생략'으로 구분한다
     (PP에 접수 기록이 있으면 그렇게 판단)."""
     details = {stage: _latest_round(row, stage) for stage in _PIPELINE_STAGES}
+    for stage in _PIPELINE_STAGES:
+        details[stage]["rounds"] = _all_rounds(row, stage)
     if details["FIT"]["round"] is None and details["PP"]["round"] is not None:
         details["FIT"]["status"] = "생략(보정→PP 직행)"
     return details
@@ -357,6 +382,15 @@ def read_fit_track_raw(path: str, raw_apparel_path: str = None) -> list[dict]:
                     "confirm_date": d["confirm_date"].isoformat() if d["confirm_date"] else None,
                     "reason": d["reason"],
                     "first_received": d["first_received"].isoformat() if d["first_received"] else None,
+                    "rounds": [
+                        {
+                            "round": r["round"],
+                            "received": r["received"].isoformat() if r["received"] else None,
+                            "status": r["status"],
+                            "confirm_date": r["confirm_date"].isoformat() if r["confirm_date"] else None,
+                        }
+                        for r in d["rounds"]
+                    ],
                 }
                 for stage, d in track["detail"].items()
             },
