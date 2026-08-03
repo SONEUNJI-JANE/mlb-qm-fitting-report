@@ -755,8 +755,8 @@ const WITHIN_STAGE_PIPELINE = ['보정', 'FIT', 'PP', 'TOP'];
 // 회차 단위 리드타임: 각 회차의 status(Approved/Rejected/Int Rej 등)가 확정된 시점(confirm_date)부터
 // "다음 이벤트"까지 영업일수. 다음 이벤트는 같은 단계의 다음 회차 접수일이거나(재작업), 그 회차가
 // 그 단계의 마지막 Approved 회차면 다음 단계 1회차 접수일(핸드오프, 보정→FIT 생략 시 PP로 직행).
-// stage -> status -> round -> {days:[...], reasons:{reason:[...]}}
-const ROUND_ORDER = ['1ST', '2ND', '3RD', '4TH', '5TH'];
+// 회차 단위로 계산은 하되, 표에는 회차 구분 없이 스테이지·상태 단위로 뭉쳐서 보여준다.
+// stage -> status -> reason -> [영업일,...]
 const NEXT_STAGE_OF = {'보정': 'FIT', 'FIT': 'PP', 'PP': 'TOP', 'TOP': null};
 
 function computeRoundLeadTimes(rawRows) {
@@ -770,32 +770,23 @@ function computeRoundLeadTimes(rawRows) {
       rounds.forEach((r, i) => {
         if (!r.confirm_date) return;
         let nextDate = null;
-        let nextLabel = null;
         if (i < rounds.length - 1) {
           // 같은 단계 안에서 다음 회차로 넘어간 재작업.
           nextDate = rounds[i + 1].received;
-          nextLabel = `${stage} ${rounds[i + 1].round || '다음회차'}`;
         } else if (r.status === 'Approved') {
           // 그 단계의 마지막 승인 회차 → 다음 단계로 핸드오프(보정→FIT 생략 시 PP로 직행).
           let nextStage = NEXT_STAGE_OF[stage];
           let nextDetail = nextStage ? row.detail[nextStage] : null;
           if (nextStage === 'FIT' && nextDetail && nextDetail.round == null) { nextDetail = row.detail['PP']; nextStage = 'PP'; }
-          if (nextStage) {
-            nextDate = nextDetail && nextDetail.first_received;
-            const nextRound = (nextDetail && nextDetail.rounds && nextDetail.rounds[0] && nextDetail.rounds[0].round) || '1ST';
-            nextLabel = `${nextStage} ${nextRound}`;
-          }
+          nextDate = nextStage ? (nextDetail && nextDetail.first_received) : null;
         }
-        if (!nextDate || nextDate < r.confirm_date || !nextLabel) return;
+        if (!nextDate || nextDate < r.confirm_date) return;
         const days = businessDaysSince(r.confirm_date, nextDate);
         if (days == null) return;
         const status = r.status || '미상';
-        const round = r.round || '기타';
         const reason = r.reason || '(사유 없음)';
         const byStatus = result[stage][status] || (result[stage][status] = {});
-        const byRound = byStatus[round] || (byStatus[round] = {next: {}, reasons: {}});
-        byRound.next[nextLabel] = (byRound.next[nextLabel] || 0) + 1;
-        (byRound.reasons[reason] || (byRound.reasons[reason] = [])).push(days);
+        (byStatus[reason] || (byStatus[reason] = [])).push(days);
       });
     });
   }
@@ -1121,12 +1112,11 @@ function renderAnalysis() {
   if (season === '26FW') {
     const roundLead = computeRoundLeadTimes(rows);
     const avgOf = days => days.length ? Math.round(days.reduce((a, b) => a + b, 0) / days.length * 10) / 10 : null;
-    const roundIdx = round => { const i = ROUND_ORDER.indexOf(round); return i === -1 ? 99 : i; };
 
     const sec5 = document.createElement('div');
     sec5.className = 'analysis-section';
-    let html = `<h3>단계별 소요일수 (상태 → 회차별)</h3>` +
-      `<p class="sub">그 회차의 status 확정일부터 "다음" 뱃지가 가리키는 시점(같은 단계 다음 회차 접수 or 다음 단계 1회차 접수)까지 걸린 평균 소요일</p>` +
+    let html = `<h3>단계별 소요일수 (상태별, 회차 통합)</h3>` +
+      `<p class="sub">회차 구분 없이 그 단계·상태에서 다음 이벤트(재작업이면 같은 단계 다음 회차 접수, 최종 승인이면 다음 단계 접수)까지 걸린 평균 소요일을 다 합쳐서 표시</p>` +
       `<div style="display:flex;gap:12px;flex-wrap:wrap">`;
 
     const stages = leadTimeStageFilter === 'ALL' ? WITHIN_STAGE_PIPELINE : [leadTimeStageFilter];
@@ -1137,42 +1127,31 @@ function renderAnalysis() {
         if (b === 'Approved') return 1;
         return a.localeCompare(b, 'ko');
       });
-      html += `<div style="flex:1;min-width:280px">` +
-        `<h4 style="color:${STAGE_COLORS[stage] || '#1a1a2e'};margin:0 0 6px">${esc(stage)}</h4>` +
+      const stageAllDays = statuses.flatMap(status => Object.values(byStatus[status]).flat());
+
+      html += `<div style="flex:1;min-width:260px">` +
+        `<h4 style="color:${STAGE_COLORS[stage] || '#1a1a2e'};margin:0 0 6px">${esc(stage)}` +
+        (stageAllDays.length ? ` <span style="font-weight:400;color:#888;font-size:11px">전체 평균 ${avgOf(stageAllDays)}일 (${stageAllDays.length}건)</span>` : '') +
+        `</h4>` +
         `<table style="width:100%;font-size:12px;border-collapse:collapse">` +
-        `<thead><tr><th style="text-align:left;padding:4px 8px 4px 0">상태</th><th style="text-align:left;padding:4px 8px 4px 0">회차</th>` +
-        `<th style="text-align:left;padding:4px 8px 4px 0">다음</th><th style="text-align:left;padding:4px 8px 4px 0">사유</th>` +
+        `<thead><tr><th style="text-align:left;padding:4px 8px 4px 0">상태</th><th style="text-align:left;padding:4px 8px 4px 0">사유</th>` +
         `<th style="text-align:right;padding:4px 8px">평균 소요일</th><th style="text-align:right;padding:4px 0">건수</th></tr></thead><tbody>`;
 
       if (!statuses.length) {
-        html += `<tr><td colspan="6" style="padding:8px;color:#888">데이터 없음</td></tr>`;
+        html += `<tr><td colspan="4" style="padding:8px;color:#888">데이터 없음</td></tr>`;
       }
       statuses.forEach(status => {
-        const byRound = byStatus[status];
-        const roundsPresent = Object.keys(byRound).sort((a, b) => roundIdx(a) - roundIdx(b));
-        let statusRowspan = 0;
-        roundsPresent.forEach(rd => { statusRowspan += Object.keys(byRound[rd].reasons).length; });
-        let firstRow = true;
-        roundsPresent.forEach(rd => {
-          // 다음 단계/회차 라벨 — 같은 (상태, 회차) 안에서 여러 값이 섞여 있으면 제일 많이 등장한 걸 대표로.
-          const nextLabel = Object.entries(byRound[rd].next).sort((a, b) => b[1] - a[1])[0][0];
-          const reasons = Object.keys(byRound[rd].reasons);
-          reasons.forEach((reason, ri) => {
-            const days = byRound[rd].reasons[reason];
-            html += `<tr>`;
-            if (firstRow) {
-              html += `<td rowspan="${statusRowspan}" style="padding:4px 8px 4px 0;font-weight:700;vertical-align:top;border-top:1px solid #eee">${esc(status)}</td>`;
-              firstRow = false;
-            }
-            if (ri === 0) {
-              html += `<td rowspan="${reasons.length}" style="padding:4px 8px 4px 0;vertical-align:top">${esc(rd)}</td>` +
-                `<td rowspan="${reasons.length}" style="padding:4px 8px 4px 0;vertical-align:top">` +
-                `<span style="background:#eef1fa;color:#4a65a9;border-radius:4px;padding:1px 6px;font-size:11px;white-space:nowrap">→ ${esc(nextLabel)}</span></td>`;
-            }
-            html += `<td style="padding:4px 8px 4px 0;color:#555">${status === 'Approved' ? '-' : esc(reason)}</td>` +
-              `<td style="text-align:right;padding:4px 8px;font-weight:700">${avgOf(days)}일</td>` +
-              `<td style="text-align:right;padding:4px 0;color:#888">${days.length}</td></tr>`;
-          });
+        const byReason = byStatus[status];
+        const reasons = Object.keys(byReason);
+        reasons.forEach((reason, ri) => {
+          const days = byReason[reason];
+          html += `<tr>`;
+          if (ri === 0) {
+            html += `<td rowspan="${reasons.length}" style="padding:4px 8px 4px 0;font-weight:700;vertical-align:top;border-top:1px solid #eee">${esc(status)}</td>`;
+          }
+          html += `<td style="padding:4px 8px 4px 0;color:#555">${status === 'Approved' ? '-' : esc(reason)}</td>` +
+            `<td style="text-align:right;padding:4px 8px;font-weight:700">${avgOf(days)}일</td>` +
+            `<td style="text-align:right;padding:4px 0;color:#888">${days.length}</td></tr>`;
         });
       });
       html += `</tbody></table></div>`;
