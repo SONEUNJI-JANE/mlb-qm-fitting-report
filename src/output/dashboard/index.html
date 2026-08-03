@@ -1130,25 +1130,32 @@ function renderAnalysis() {
         (stageAllDays.length ? ` <span style="font-weight:400;color:#888;font-size:11px">전체 평균 ${avgOf(stageAllDays)}일 (${stageAllDays.length}건)</span>` : '') +
         `</h4>` +
         `<table style="width:100%;font-size:12px;border-collapse:collapse">` +
-        `<thead><tr><th style="text-align:left;padding:4px 8px 4px 0">상태</th><th style="text-align:left;padding:4px 8px 4px 0">사유</th>` +
+        `<thead><tr><th style="text-align:left;padding:4px 8px 4px 0">상태</th>` +
         `<th style="text-align:right;padding:4px 8px">평균 소요일</th><th style="text-align:right;padding:4px 0">건수</th></tr></thead><tbody>`;
 
       if (!statuses.length) {
-        html += `<tr><td colspan="4" style="padding:8px;color:#888">데이터 없음</td></tr>`;
+        html += `<tr><td colspan="3" style="padding:8px;color:#888">데이터 없음</td></tr>`;
       }
       statuses.forEach(status => {
         const byReason = byStatus[status];
         const reasons = Object.keys(byReason);
-        reasons.forEach((reason, ri) => {
-          const days = byReason[reason];
-          html += `<tr>`;
-          if (ri === 0) {
-            html += `<td rowspan="${reasons.length}" style="padding:4px 8px 4px 0;font-weight:700;vertical-align:top;border-top:1px solid #eee">${esc(status)}</td>`;
-          }
-          html += `<td style="padding:4px 8px 4px 0;color:#555">${status === 'Approved' ? '-' : esc(reason)}</td>` +
-            `<td style="text-align:right;padding:4px 8px;font-weight:700">${avgOf(days)}일</td>` +
-            `<td style="text-align:right;padding:4px 0;color:#888">${days.length}</td></tr>`;
-        });
+        const statusDays = Object.values(byReason).flat();
+        const detailId = `leadtime-${stage}-${status}`.replace(/[^\w-]/g, '_');
+        html += `<tr style="cursor:pointer" onclick="toggleOverdue('${detailId}')">` +
+          `<td style="padding:4px 8px 4px 0;font-weight:700;border-top:1px solid #eee">${esc(status)} <span style="color:#aaa;font-weight:400">▾</span></td>` +
+          `<td style="text-align:right;padding:4px 8px;font-weight:700;border-top:1px solid #eee">${avgOf(statusDays)}일</td>` +
+          `<td style="text-align:right;padding:4px 0;color:#888;border-top:1px solid #eee">${statusDays.length}</td></tr>`;
+        if (status !== 'Approved') {
+          html += `<tr><td colspan="3" style="padding:0"><div id="${detailId}" style="display:none;padding:4px 8px 8px 16px;background:#fafbfe">` +
+            `<table style="width:100%;font-size:11px;border-collapse:collapse">` +
+            reasons.map(reason => {
+              const days = byReason[reason];
+              return `<tr><td style="padding:2px 8px 2px 0;color:#555">${esc(reason)}</td>` +
+                `<td style="text-align:right;padding:2px 8px;color:#333">${avgOf(days)}일</td>` +
+                `<td style="text-align:right;padding:2px 0;color:#888">${days.length}건</td></tr>`;
+            }).join('') +
+            `</table></div></td></tr>`;
+        }
       });
       html += `</tbody></table></div>`;
     });
