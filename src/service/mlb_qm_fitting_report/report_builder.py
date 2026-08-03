@@ -1035,7 +1035,6 @@ function renderAnalysis() {
   const season = seasonSelect.value || weekSeasonsAll[0];
   const period = analysisPeriod;
   const groupBy = analysisGroupBy;
-  const groupLabel = GROUP_LABELS[groupBy];
   const container = document.getElementById('analysis-body');
   container.innerHTML = '';
   if (!season) return;
@@ -1126,7 +1125,7 @@ function renderAnalysis() {
       `</select>`;
     const secOnTime = document.createElement('div');
     secOnTime.className = 'analysis-section';
-    secOnTime.innerHTML = `<h3>주차별 Due Date 준수율</h3>` +
+    secOnTime.innerHTML = `<h3>주차별 일정 준수 현황</h3>` +
       filterRowHtml(allRows) +
       controlsHtml +
       chartStageSelectHtml +
@@ -1151,7 +1150,7 @@ function renderAnalysis() {
   } else {
     const stub = document.createElement('div');
     stub.className = 'analysis-section';
-    stub.innerHTML = `<h3>주차별 Due Date 준수율</h3>` + filterRowHtml(allRows) + controlsHtml +
+    stub.innerHTML = `<h3>주차별 일정 준수 현황</h3>` + filterRowHtml(allRows) + controlsHtml +
       `<p class="sub">${esc(season)} 상세 분석은 추후 추가 예정(레이아웃만 26FW와 동일하게 자리 잡아둠).</p>`;
     container.appendChild(stub);
   }
@@ -1172,7 +1171,7 @@ function renderAnalysis() {
     const sec4 = document.createElement('div');
     sec4.className = 'analysis-section';
     sec4.innerHTML = `<div style="margin-bottom:10px">${groupByHtml}</div>` +
-      `<h3>${esc(groupLabel)}별 평균 초과 영업일 (단계별)</h3>` +
+      `<h3>평균 Due Date 초과일 수 (영업일 기준)</h3>` +
       `<div style="display:flex;gap:12px;flex-wrap:nowrap">` +
       STAGES.map(st => `<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:12px;color:${STAGE_COLORS[st]};margin-bottom:6px">${st}</div>` +
         hBarChart(stageOverdueEntries[st], {unit: '일', color: STAGE_COLORS[st], width: 336, labelWidth: 80, barHeight: 14, gap: 4}) + `</div>`).join('') +
