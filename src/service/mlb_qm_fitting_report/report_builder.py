@@ -570,7 +570,7 @@ function donutSVG(pct, size, color, subLabel) {
     <circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="${col}" stroke-width="${stroke}"
       stroke-dasharray="${circumference.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}"
       stroke-linecap="round" transform="rotate(-90 ${c} ${c})"/>
-    <text x="${c}" y="${subLabel ? c - 4 : c}" text-anchor="middle" dominant-baseline="central" font-size="${size * 0.22}" font-weight="700" fill="#1a1a2e">${Math.round(p)}%</text>
+    <text x="${c}" y="${subLabel ? c - 4 : c}" text-anchor="middle" dominant-baseline="central" font-size="${size * 0.22}" font-weight="700" fill="#1a1a2e">${Math.round(pct)}%</text>
     ${subLabel ? `<text x="${c}" y="${c + size * 0.18}" text-anchor="middle" dominant-baseline="central" font-size="${size * 0.11}" fill="#999">${escSvg(subLabel)}</text>` : ''}
   </svg>`;
 }
@@ -621,7 +621,7 @@ function groupedBarChart(periods, series, opts) {
     series.forEach((s, si) => {
       const v = s.values[gi];
       if (v == null) return;
-      const bh = Math.max(0, (v / 100) * chartH);
+      const bh = Math.max(0, (Math.min(v, 100) / 100) * chartH);
       const x = gx + si * barW + 1;
       const y = padT + chartH - bh;
       out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1, barW - 1).toFixed(1)}" height="${bh.toFixed(1)}" fill="${s.color}" opacity="${s.opacity != null ? s.opacity : 1}"/>`;
@@ -848,36 +848,43 @@ function dueDateOnTimeComplianceByStage(records) {
   return byStagePeriod;
 }
 
-// 누적용 원자료: due 기간별로 묶되, "정시냐"가 아니라 "지금 됐냐"만 본다(메인탭 Due Date 기준과
-// 동일한 isDue/isDone 판정). due 없이 이미 완료된 건(라벨/ETD 누락)은 주차별 표를 오염시키면
-// 안 되니 기준일 기간에만 합류.
-function cumulativeDoneRecordsByStage(rawRows, offsets, todayIso, period) {
-  const records = {FIT: [], PP: [], TOP: []};
+// 누적은 분자/분모가 서로 다른 시계로 따로 쌓인다(사용자 확정 정의):
+//   분모(cumTotal) = 그 기간까지 due였던 것의 누적 개수 — "이때까지 끝났어야 하는 것"
+//   분자(cumDone)  = 그 기간까지 실제 승인이 일어난 것의 누적 개수 — "이때까지 실제 끝난 것",
+//                    승인일 기준으로 쌓이므로 자기 due보다 먼저 끝난 조기완료 건도 그 승인 시점에 바로 잡힘
+// 그래서 분자가 분모를 앞지르는 것도(조기완료 많으면) 정상이고, 반대로 밀리면 분자가 계속 뒤처진 채로
+// 간다. 100%는 시즌이 실제로 다 끝났을 때만 자연스럽게 나온다(중간에 인위적으로 100% 안 뜸).
+function cumulativeDueAndDoneRecords(rawRows, offsets, todayIso, period) {
+  const due = {FIT: [], PP: [], TOP: []};
+  const done = {FIT: [], PP: [], TOP: []};
   for (const row of rawRows) {
     for (const stage of STAGES) {
-      const due = resolveDue(row, stage, offsets);
+      const dueDate = resolveDue(row, stage, offsets);
       const isDone = row[`${stage.toLowerCase()}_done`];
-      if (due) {
-        if (due > todayIso) continue;
-        records[stage].push({period: periodLabel(due, period), done: isDone});
+      if (dueDate) {
+        if (dueDate <= todayIso) due[stage].push({period: periodLabel(dueDate, period)});
       } else if (isDone) {
-        records[stage].push({period: periodLabel(todayIso, period), done: true});
+        due[stage].push({period: periodLabel(todayIso, period)});
+      }
+      if (isDone) {
+        const confirmDate = effectiveConfirmDate(row, stage);
+        done[stage].push({period: periodLabel(confirmDate || todayIso, period)});
       }
     }
   }
-  return records;
+  return {due, done};
 }
 
-// 기간 순서대로 단순 런닝 합계(누적). confirm_date 비교(정시 여부) 없이 그냥 "됐냐"만 쌓는다.
-function withCumulativeDone(records, sortedPeriods) {
+// 기간 순서대로 분모/분자 각자의 시계로 런닝 합계.
+function withIndependentCumulative(dueAndDone, sortedPeriods) {
+  const {due, done} = dueAndDone;
   const result = {};
   STAGES.forEach(st => {
     result[st] = {};
-    let cumDone = 0, cumTotal = 0;
+    let cumTotal = 0, cumDone = 0;
     sortedPeriods.forEach(p => {
-      const inPeriod = records[st].filter(r => r.period === p);
-      cumDone += inPeriod.filter(r => r.done).length;
-      cumTotal += inPeriod.length;
+      cumTotal += due[st].filter(r => r.period === p).length;
+      cumDone += done[st].filter(r => r.period === p).length;
       result[st][p] = {cumDone, cumTotal};
     });
   });
@@ -981,16 +988,16 @@ function renderAnalysis() {
   // 주차별(정시) 표는 dueDateRecordsByStage/dueDateOnTimeComplianceByStage 그대로 씀(고정값, 안 바뀜).
   const dueRecords = season === '26FW' ? dueDateRecordsByStage(rows, offsets, asOfDate, period) : null;
   const onTimeByStage = dueRecords ? dueDateOnTimeComplianceByStage(dueRecords) : null;
-  // 누적은 "정시" 개념을 빼고, 메인탭 Due Date 기준과 동일한 isDue/isDone 로직을 기간별로 누적 합산.
-  const doneRecords = season === '26FW' ? cumulativeDoneRecordsByStage(rows, offsets, asOfDate, period) : null;
+  // 누적은 분모(due 누적)/분자(실제 승인 누적)가 서로 다른 시계로 쌓인다 — 아래 함수 주석 참고.
+  const dueAndDone = season === '26FW' ? cumulativeDueAndDoneRecords(rows, offsets, asOfDate, period) : null;
   const allPeriods = onTimeByStage
     ? [...new Set([
         ...STAGES.flatMap(st => Object.keys(onTimeByStage[st])),
-        ...(doneRecords ? STAGES.flatMap(st => doneRecords[st].map(r => r.period)) : []),
+        ...(dueAndDone ? STAGES.flatMap(st => [...dueAndDone.due[st], ...dueAndDone.done[st]].map(r => r.period)) : []),
         periodLabel(asOfDate, period),
       ])].sort()
     : [];
-  const doneCum = doneRecords ? withCumulativeDone(doneRecords, allPeriods) : null;
+  const doneCum = dueAndDone ? withIndependentCumulative(dueAndDone, allPeriods) : null;
   // 아래 "주별 승인율" 표의 맨 마지막(최신) 누적 행이랑 완전히 같은 숫자를 쓴다 — 위 요약 도넛과
   // 아래 상세표 숫자가 서로 다르게 보이면 안 되니까, 별도 계산 없이 그 표의 최종 누적을 그대로 씀.
   // 이 값은 메인탭 "Due Date 기준" 값과도 100% 같아야 정상(같은 isDue/isDone 로직을 기간별로 쪼갠 것뿐).
