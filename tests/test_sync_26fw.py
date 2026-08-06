@@ -87,10 +87,58 @@ def test_map_fitting_records_skips_rounds_without_any_date():
     assert records == []
 
 
+def test_map_fitting_records_done_flag_overrides_last_round_status():
+    # 엑셀 완료 체크는 True인데 회차 로그의 마지막 status가 Rejected로 남아있는(기록 지연) 케이스.
+    raw_row = {
+        "style_code": "S4",
+        "fit_done": True,
+        "detail": {
+            "FIT": {"rounds": [
+                {"round": "1ST", "received": "2026-01-01", "status": "Rejected", "confirm_date": "2026-01-05", "reason": "핏변경"},
+                {"round": "2ND", "received": "2026-01-10", "status": "Rejected", "confirm_date": "2026-01-15", "reason": "봉제"},
+            ]},
+        },
+    }
+    records = map_fitting_records(raw_row)
+    assert len(records) == 2
+    last = next(r for r in records if r["round"] == 2)
+    assert last["status"] == "Approved"
+    first = next(r for r in records if r["round"] == 1)
+    assert first["status"] == "Rejected"  # 마지막 회차만 덮어씀
+
+
+def test_map_fitting_records_done_flag_with_zero_rounds_falls_back_to_due_date():
+    # 완료 체크는 돼있는데 회차 로그 자체가 아예 없는 케이스(실제 데이터에서 52건 발견됨).
+    raw_row = {
+        "style_code": "S5",
+        "fit_done": True,
+        "fit_due": "2026-05-01",
+        "etd": "2026-08-01",
+        "detail": {"FIT": {"rounds": []}},
+    }
+    records = map_fitting_records(raw_row)
+    assert len(records) == 1
+    assert records[0]["status"] == "Approved"
+    assert records[0]["round"] == 1
+    assert records[0]["updated_at"] == "2026-05-01T00:00:00+00:00"
+
+
+def test_map_fitting_records_not_done_and_zero_rounds_produces_nothing():
+    raw_row = {
+        "style_code": "S6",
+        "fit_done": False,
+        "detail": {"FIT": {"rounds": []}},
+    }
+    assert map_fitting_records(raw_row) == []
+
+
 if __name__ == "__main__":
     test_map_style_row()
     test_map_fitting_records_converts_round_label_to_number()
     test_map_fitting_records_skips_empty_stages()
     test_map_fitting_records_falls_back_to_received_date()
     test_map_fitting_records_skips_rounds_without_any_date()
+    test_map_fitting_records_done_flag_overrides_last_round_status()
+    test_map_fitting_records_done_flag_with_zero_rounds_falls_back_to_due_date()
+    test_map_fitting_records_not_done_and_zero_rounds_produces_nothing()
     print("OK: test_sync_26fw")
