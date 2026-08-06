@@ -37079,15 +37079,15 @@
           "QA": {
             "PP": {
               "baseline_all": 392,
-              "baseline_done": 379,
+              "baseline_done": 380,
               "total_all": 427,
-              "total_done": 411
+              "total_done": 414
             },
             "TOP": {
               "baseline_all": 254,
-              "baseline_done": 239,
+              "baseline_done": 240,
               "total_all": 427,
-              "total_done": 330
+              "total_done": 334
             }
           },
           "TD": {
@@ -37104,13 +37104,13 @@
             "PP": {
               "baseline_all": 0,
               "baseline_done": 0,
-              "total_all": 547,
+              "total_all": 564,
               "total_done": 0
             },
             "TOP": {
               "baseline_all": 0,
               "baseline_done": 0,
-              "total_all": 547,
+              "total_all": 564,
               "total_done": 0
             }
           },
@@ -37118,7 +37118,7 @@
             "FIT": {
               "baseline_all": 0,
               "baseline_done": 0,
-              "total_all": 547,
+              "total_all": 564,
               "total_done": 0
             }
           }
@@ -39462,10 +39462,10 @@
                 "status": "Approved"
               },
               "PP": {
-                "confirm_date": "2026-07-16",
+                "confirm_date": "2026-08-06",
                 "first_received": "2026-07-15",
-                "reason": "봉제",
-                "round": "1ST",
+                "reason": null,
+                "round": "2ND",
                 "rounds": [
                   {
                     "confirm_date": "2026-07-16",
@@ -39473,9 +39473,16 @@
                     "received": "2026-07-15",
                     "round": "1ST",
                     "status": "Rejected"
+                  },
+                  {
+                    "confirm_date": "2026-08-06",
+                    "reason": null,
+                    "received": "2026-08-05",
+                    "round": "2ND",
+                    "status": "Approved"
                   }
                 ],
-                "status": "Rejected"
+                "status": "Approved"
               },
               "TOP": {
                 "confirm_date": null,
@@ -39507,7 +39514,7 @@
             "fit_due": "2026-06-05",
             "item": "DJ",
             "label": "WOVEN논워싱일반",
-            "pp_done": false,
+            "pp_done": true,
             "pp_due": "2026-06-25",
             "qa": "주현정",
             "quarter": "Main TS",
@@ -39936,12 +39943,20 @@
                 "status": "Approved"
               },
               "TOP": {
-                "confirm_date": null,
-                "first_received": null,
+                "confirm_date": "2026-08-06",
+                "first_received": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "rounds": [],
-                "status": null
+                "round": "1ST",
+                "rounds": [
+                  {
+                    "confirm_date": "2026-08-06",
+                    "reason": null,
+                    "received": "2026-08-05",
+                    "round": "1ST",
+                    "status": "Approved"
+                  }
+                ],
+                "status": "Approved"
               },
               "보정": {
                 "confirm_date": "2026-02-20",
@@ -39971,7 +39986,7 @@
             "quarter": "Main TS",
             "style_code": "3FDJB2666",
             "td": "김은정",
-            "top_done": false,
+            "top_done": true,
             "top_due": null,
             "vendor": "티피나디아㈜"
           },
@@ -43743,10 +43758,10 @@
                 "status": "Approved"
               },
               "TOP": {
-                "confirm_date": "2026-07-28",
+                "confirm_date": "2026-08-04",
                 "first_received": "2026-07-27",
-                "reason": "지시불이행",
-                "round": "1ST",
+                "reason": null,
+                "round": "2ND",
                 "rounds": [
                   {
                     "confirm_date": "2026-07-28",
@@ -43754,9 +43769,16 @@
                     "received": "2026-07-27",
                     "round": "1ST",
                     "status": "Rejected"
+                  },
+                  {
+                    "confirm_date": "2026-08-04",
+                    "reason": null,
+                    "received": "2026-08-03",
+                    "round": "2ND",
+                    "status": "Approved"
                   }
                 ],
-                "status": "Rejected"
+                "status": "Approved"
               },
               "보정": {
                 "confirm_date": "2026-02-26",
@@ -43786,7 +43808,7 @@
             "quarter": "Main TS",
             "style_code": "3AJPB0464",
             "td": "권수빈",
-            "top_done": false,
+            "top_done": true,
             "top_due": null,
             "vendor": "ITOCHU TEXTILE(CHINA)CO.,LTD."
           },
@@ -56736,10 +56758,10 @@
                 "status": "Approved"
               },
               "TOP": {
-                "confirm_date": "2026-07-27",
+                "confirm_date": "2026-08-04",
                 "first_received": "2026-07-24",
-                "reason": "봉제",
-                "round": "1ST",
+                "reason": null,
+                "round": "2ND",
                 "rounds": [
                   {
                     "confirm_date": "2026-07-27",
@@ -56747,9 +56769,16 @@
                     "received": "2026-07-24",
                     "round": "1ST",
                     "status": "Rejected"
+                  },
+                  {
+                    "confirm_date": "2026-08-04",
+                    "reason": null,
+                    "received": "2026-08-03",
+                    "round": "2ND",
+                    "status": "Approved"
                   }
                 ],
-                "status": "Rejected"
+                "status": "Approved"
               },
               "보정": {
                 "confirm_date": "2026-02-20",
@@ -56779,7 +56808,7 @@
             "quarter": "Main TS",
             "style_code": "3ATRB0366",
             "td": "지수현",
-            "top_done": false,
+            "top_done": true,
             "top_due": null,
             "vendor": "㈜노브랜드"
           },
@@ -57941,12 +57970,20 @@
                 "status": "Approved"
               },
               "PP": {
-                "confirm_date": null,
-                "first_received": null,
-                "reason": null,
-                "round": null,
-                "rounds": [],
-                "status": null
+                "confirm_date": "2026-08-04",
+                "first_received": "2026-07-24",
+                "reason": "납기상CFM",
+                "round": "1ST",
+                "rounds": [
+                  {
+                    "confirm_date": "2026-08-04",
+                    "reason": "납기상CFM",
+                    "received": "2026-07-24",
+                    "round": "1ST",
+                    "status": "Approved"
+                  }
+                ],
+                "status": "Approved"
               },
               "TOP": {
                 "confirm_date": null,
@@ -57978,7 +58015,7 @@
             "fit_due": null,
             "item": "TR",
             "label": "KNIT논워싱3천장이하",
-            "pp_done": false,
+            "pp_done": true,
             "pp_due": null,
             "qa": "주현정",
             "quarter": "2nd TS",
@@ -58302,12 +58339,20 @@
                 "status": "Approved"
               },
               "TOP": {
-                "confirm_date": null,
-                "first_received": null,
+                "confirm_date": "2026-08-04",
+                "first_received": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "rounds": [],
-                "status": null
+                "round": "1ST",
+                "rounds": [
+                  {
+                    "confirm_date": "2026-08-04",
+                    "reason": null,
+                    "received": "2026-08-03",
+                    "round": "1ST",
+                    "status": "Rejected"
+                  }
+                ],
+                "status": "Rejected"
               },
               "보정": {
                 "confirm_date": "2026-02-09",
@@ -60444,12 +60489,20 @@
                 "status": "Approved"
               },
               "TOP": {
-                "confirm_date": null,
-                "first_received": null,
-                "reason": null,
-                "round": null,
-                "rounds": [],
-                "status": null
+                "confirm_date": "2026-08-04",
+                "first_received": "2026-08-04",
+                "reason": "봉제",
+                "round": "1ST",
+                "rounds": [
+                  {
+                    "confirm_date": "2026-08-04",
+                    "reason": "봉제",
+                    "received": "2026-08-04",
+                    "round": "1ST",
+                    "status": "Int Rej"
+                  }
+                ],
+                "status": "Int Rej"
               },
               "보정": {
                 "confirm_date": "2026-04-22",
@@ -64207,12 +64260,20 @@
                 "status": "Approved"
               },
               "TOP": {
-                "confirm_date": null,
-                "first_received": null,
+                "confirm_date": "2026-08-04",
+                "first_received": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "rounds": [],
-                "status": null
+                "round": "1ST",
+                "rounds": [
+                  {
+                    "confirm_date": "2026-08-04",
+                    "reason": null,
+                    "received": "2026-08-03",
+                    "round": "1ST",
+                    "status": "Approved"
+                  }
+                ],
+                "status": "Approved"
               },
               "보정": {
                 "confirm_date": "2026-02-11",
@@ -64242,7 +64303,7 @@
             "quarter": "Main TS",
             "style_code": "3APTB0366",
             "td": "지수현",
-            "top_done": false,
+            "top_done": true,
             "top_due": null,
             "vendor": "㈜노브랜드"
           },
@@ -64990,16 +65051,23 @@
                 "status": "Approved"
               },
               "PP": {
-                "confirm_date": "2026-06-09",
+                "confirm_date": "2026-08-04",
                 "first_received": "2026-06-08",
                 "reason": null,
-                "round": "1ST",
+                "round": "2ND",
                 "rounds": [
                   {
                     "confirm_date": "2026-06-09",
                     "reason": null,
                     "received": "2026-06-08",
                     "round": "1ST",
+                    "status": "Approved"
+                  },
+                  {
+                    "confirm_date": "2026-08-04",
+                    "reason": null,
+                    "received": "2026-08-03",
+                    "round": "2ND",
                     "status": "Approved"
                   }
                 ],
@@ -66848,10 +66916,10 @@
                 "status": "Approved"
               },
               "PP": {
-                "confirm_date": "2026-07-23",
+                "confirm_date": "2026-08-06",
                 "first_received": "2026-07-22",
-                "reason": "봉제",
-                "round": "1ST",
+                "reason": null,
+                "round": "3RD",
                 "rounds": [
                   {
                     "confirm_date": "2026-07-23",
@@ -66859,9 +66927,23 @@
                     "received": "2026-07-22",
                     "round": "1ST",
                     "status": "int rej"
+                  },
+                  {
+                    "confirm_date": "2026-07-30",
+                    "reason": "봉제",
+                    "received": "2026-07-29",
+                    "round": "2ND",
+                    "status": "Rejected"
+                  },
+                  {
+                    "confirm_date": "2026-08-06",
+                    "reason": null,
+                    "received": "2026-08-05",
+                    "round": "3RD",
+                    "status": "Approved"
                   }
                 ],
-                "status": "int rej"
+                "status": "Approved"
               },
               "TOP": {
                 "confirm_date": null,
@@ -66893,7 +66975,7 @@
             "fit_due": null,
             "item": "PT",
             "label": "KNIT논워싱3천장이하",
-            "pp_done": false,
+            "pp_done": true,
             "pp_due": null,
             "qa": "주현정",
             "quarter": "2nd TS",
@@ -74695,10 +74777,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-25",
@@ -74737,10 +74819,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-01",
@@ -74779,10 +74861,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-02-26",
@@ -74821,10 +74903,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-02-26",
@@ -75073,10 +75155,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-02-26",
@@ -75115,10 +75197,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-29",
@@ -75409,10 +75491,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-11-28",
@@ -75535,10 +75617,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-11-08",
@@ -75577,10 +75659,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-11-08",
@@ -75619,10 +75701,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-16",
@@ -75661,10 +75743,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-24",
@@ -75703,10 +75785,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-11-17",
@@ -75745,10 +75827,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-11-08",
@@ -75871,10 +75953,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-11-08",
@@ -75913,10 +75995,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-01",
@@ -75955,10 +76037,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-01",
@@ -75997,10 +76079,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-11-27",
@@ -76165,10 +76247,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-11-08",
@@ -77402,7 +77484,7 @@
             "td": "김은정",
             "top_done": false,
             "top_due": null,
-            "vendor": ""
+            "vendor": "㈜노브랜드"
           },
           {
             "detail": {
@@ -77444,7 +77526,7 @@
             "td": "김은정",
             "top_done": false,
             "top_due": null,
-            "vendor": ""
+            "vendor": "㈜노브랜드"
           },
           {
             "detail": {
@@ -77635,10 +77717,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-03",
@@ -77803,10 +77885,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-11-28",
@@ -77887,10 +77969,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-11-28",
@@ -77929,7 +78011,7 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": "2026-08-03",
+                "confirm_date": "2026-08-05",
                 "reason": null,
                 "round": 1,
                 "status": "Go to FIT"
@@ -77971,10 +78053,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-11-28",
@@ -78013,10 +78095,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-12",
@@ -78055,10 +78137,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-06",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-12",
@@ -78097,10 +78179,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-03",
@@ -78181,10 +78263,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-11-28",
@@ -78391,10 +78473,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-13",
@@ -78439,19 +78521,19 @@
                 "status": null
               }
             },
-            "etd": "2027-01-26",
+            "etd": "2027-01-17",
             "fit_done": false,
-            "fit_due": "2026-11-12",
+            "fit_due": "2026-11-03",
             "item": "SM",
             "label": "WOVEN논워싱일반",
             "pp_done": false,
-            "pp_due": "2026-12-02",
+            "pp_due": "2026-11-23",
             "qa": "",
             "quarter": "Main TS",
             "style_code": "3ASMA7273",
             "td": "권수빈",
             "top_done": false,
-            "top_due": "2027-01-09",
+            "top_due": "2026-12-31",
             "vendor": "주식회사 거림씨앤에프"
           },
           {
@@ -78523,19 +78605,19 @@
                 "status": null
               }
             },
-            "etd": "2027-02-03",
+            "etd": "2027-01-24",
             "fit_done": false,
-            "fit_due": "2026-11-20",
+            "fit_due": "2026-11-10",
             "item": "SM",
             "label": "WOVEN논워싱일반",
             "pp_done": false,
-            "pp_due": "2026-12-10",
+            "pp_due": "2026-11-30",
             "qa": "",
             "quarter": "Main TS",
             "style_code": "3ASMD0173",
             "td": "권수빈",
             "top_done": false,
-            "top_due": "2027-01-17",
+            "top_due": "2027-01-07",
             "vendor": "주식회사 거림씨앤에프"
           },
           {
@@ -79147,10 +79229,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-18",
@@ -79189,10 +79271,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-02-10",
@@ -79315,10 +79397,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-06",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-26",
@@ -79399,10 +79481,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-02-09",
@@ -79418,7 +79500,7 @@
             "td": "지수현",
             "top_done": false,
             "top_due": "2027-01-30",
-            "vendor": "(주) 약진통상"
+            "vendor": "주식회사 거림씨앤에프"
           },
           {
             "detail": {
@@ -79567,10 +79649,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-02-10",
@@ -79819,10 +79901,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-06",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-02-03",
@@ -79945,10 +80027,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-01",
@@ -79987,10 +80069,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-11-28",
@@ -80239,10 +80321,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-08",
@@ -80323,10 +80405,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-08",
@@ -80575,10 +80657,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-06",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-12",
@@ -81163,10 +81245,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-08",
@@ -81247,10 +81329,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-15",
@@ -81289,10 +81371,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-16",
@@ -81331,10 +81413,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-06",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-06",
@@ -81429,7 +81511,7 @@
             "pp_done": false,
             "pp_due": "2027-01-04",
             "qa": "",
-            "quarter": "AFTER TS",
+            "quarter": "After TS",
             "style_code": "3ATSM0573",
             "td": "김서진",
             "top_done": false,
@@ -81793,10 +81875,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-08",
@@ -81877,10 +81959,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-06",
@@ -82003,10 +82085,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Approved"
               }
             },
             "etd": "2026-11-03",
@@ -82087,10 +82169,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Approved"
               }
             },
             "etd": "2026-11-03",
@@ -82213,10 +82295,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-11-27",
@@ -82255,10 +82337,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-11-27",
@@ -83660,7 +83742,7 @@
             "td": "김은정",
             "top_done": false,
             "top_due": "2027-01-16",
-            "vendor": ""
+            "vendor": "(주)포마트코퍼레이션"
           },
           {
             "detail": {
@@ -84117,7 +84199,7 @@
             "pp_done": false,
             "pp_due": "2026-12-09",
             "qa": "",
-            "quarter": "AFTER TS",
+            "quarter": "After TS",
             "style_code": "3AWJO1173",
             "td": "김은정",
             "top_done": false,
@@ -84901,10 +84983,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-11-22",
@@ -84985,10 +85067,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-06",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-13",
@@ -85130,7 +85212,7 @@
             "td": "김서진",
             "top_done": false,
             "top_due": null,
-            "vendor": ""
+            "vendor": "㈜노브랜드(우븐)"
           },
           {
             "detail": {
@@ -85195,10 +85277,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-11-22",
@@ -85363,10 +85445,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-25",
@@ -85405,10 +85487,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-01",
@@ -85447,10 +85529,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-06",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-25",
@@ -85573,10 +85655,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-11",
@@ -86539,10 +86621,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-11-24",
@@ -88771,6 +88853,48 @@
                 "status": null
               }
             },
+            "etd": "",
+            "fit_done": false,
+            "fit_due": null,
+            "item": "OP",
+            "label": "KNIT논워싱3천장이하",
+            "pp_done": false,
+            "pp_due": null,
+            "qa": "",
+            "quarter": "2nd TS",
+            "style_code": "3FOPA1973",
+            "td": "김은정",
+            "top_done": false,
+            "top_due": null,
+            "vendor": ""
+          },
+          {
+            "detail": {
+              "FIT": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "PP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "TOP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "보정": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              }
+            },
             "etd": "2027-02-03",
             "fit_done": false,
             "fit_due": "2026-11-20",
@@ -90193,10 +90317,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-02-10",
@@ -90277,10 +90401,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-02-10",
@@ -90361,10 +90485,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-20",
@@ -90403,10 +90527,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-26",
@@ -90445,10 +90569,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-26",
@@ -90529,10 +90653,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-11",
@@ -90577,6 +90701,48 @@
                 "status": null
               }
             },
+            "etd": "",
+            "fit_done": false,
+            "fit_due": null,
+            "item": "SK",
+            "label": "WOVEN워싱일반",
+            "pp_done": false,
+            "pp_due": null,
+            "qa": "",
+            "quarter": "2nd TS",
+            "style_code": "3FSKA9173",
+            "td": "손은지",
+            "top_done": false,
+            "top_due": null,
+            "vendor": "원전교역"
+          },
+          {
+            "detail": {
+              "FIT": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "PP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "TOP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "보정": {
+                "confirm_date": "2026-08-04",
+                "reason": null,
+                "round": 1,
+                "status": "Go to FIT"
+              }
+            },
             "etd": "2026-12-08",
             "fit_done": false,
             "fit_due": "2026-09-24",
@@ -90613,10 +90779,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-02-10",
@@ -90655,10 +90821,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-02-03",
@@ -90697,10 +90863,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-16",
@@ -90739,10 +90905,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-02-03",
@@ -90801,6 +90967,132 @@
             "top_done": false,
             "top_due": "2027-01-24",
             "vendor": "(주)포마트코퍼레이션"
+          },
+          {
+            "detail": {
+              "FIT": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "PP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "TOP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "보정": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              }
+            },
+            "etd": "",
+            "fit_done": false,
+            "fit_due": null,
+            "item": "SK",
+            "label": "WOVEN논워싱일반",
+            "pp_done": false,
+            "pp_due": null,
+            "qa": "",
+            "quarter": "2nd TS",
+            "style_code": "3FSKS9273",
+            "td": "손은지",
+            "top_done": false,
+            "top_due": null,
+            "vendor": "Hongying garment CO., LTD"
+          },
+          {
+            "detail": {
+              "FIT": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "PP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "TOP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "보정": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              }
+            },
+            "etd": "",
+            "fit_done": false,
+            "fit_due": null,
+            "item": "SK",
+            "label": "WOVEN워싱일반",
+            "pp_done": false,
+            "pp_due": null,
+            "qa": "",
+            "quarter": "2nd TS",
+            "style_code": "3FSKS9373",
+            "td": "손은지",
+            "top_done": false,
+            "top_due": null,
+            "vendor": "(주)포마트코퍼레이션"
+          },
+          {
+            "detail": {
+              "FIT": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "PP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "TOP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "보정": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              }
+            },
+            "etd": "",
+            "fit_done": false,
+            "fit_due": null,
+            "item": "SK",
+            "label": "WOVEN논워싱일반",
+            "pp_done": false,
+            "pp_due": null,
+            "qa": "",
+            "quarter": "2nd TS",
+            "style_code": "3FSKS9473",
+            "td": "손은지",
+            "top_done": false,
+            "top_due": null,
+            "vendor": "원전교역"
           },
           {
             "detail": {
@@ -91123,6 +91415,174 @@
                 "status": null
               }
             },
+            "etd": "",
+            "fit_done": false,
+            "fit_due": null,
+            "item": "SM",
+            "label": "WOVEN워싱일반",
+            "pp_done": false,
+            "pp_due": null,
+            "qa": "",
+            "quarter": "2nd TS",
+            "style_code": "3FSMA9073",
+            "td": "권수빈",
+            "top_done": false,
+            "top_due": null,
+            "vendor": "원전교역"
+          },
+          {
+            "detail": {
+              "FIT": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "PP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "TOP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "보정": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              }
+            },
+            "etd": "",
+            "fit_done": false,
+            "fit_due": null,
+            "item": "SM",
+            "label": "WOVEN논워싱일반",
+            "pp_done": false,
+            "pp_due": null,
+            "qa": "",
+            "quarter": "2nd TS",
+            "style_code": "3FSMA9173",
+            "td": "권수빈",
+            "top_done": false,
+            "top_due": null,
+            "vendor": "(주)기도산업"
+          },
+          {
+            "detail": {
+              "FIT": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "PP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "TOP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "보정": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              }
+            },
+            "etd": "",
+            "fit_done": false,
+            "fit_due": null,
+            "item": "SM",
+            "label": "WOVEN논워싱일반",
+            "pp_done": false,
+            "pp_due": null,
+            "qa": "",
+            "quarter": "2nd TS",
+            "style_code": "3FSMA9273",
+            "td": "권수빈",
+            "top_done": false,
+            "top_due": null,
+            "vendor": "(주)기도산업"
+          },
+          {
+            "detail": {
+              "FIT": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "PP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "TOP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "보정": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              }
+            },
+            "etd": "",
+            "fit_done": false,
+            "fit_due": null,
+            "item": "SM",
+            "label": "WOVEN논워싱일반",
+            "pp_done": false,
+            "pp_due": null,
+            "qa": "",
+            "quarter": "2nd TS",
+            "style_code": "3FSMA9373",
+            "td": "권수빈",
+            "top_done": false,
+            "top_due": null,
+            "vendor": "(주)기도산업"
+          },
+          {
+            "detail": {
+              "FIT": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "PP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "TOP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "보정": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              }
+            },
             "etd": "2027-02-01",
             "fit_done": false,
             "fit_due": "2026-11-18",
@@ -91221,6 +91681,174 @@
             "top_done": false,
             "top_due": "2027-02-17",
             "vendor": "ITOCHU TEXTILE(CHINA)CO.,LTD."
+          },
+          {
+            "detail": {
+              "FIT": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "PP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "TOP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "보정": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              }
+            },
+            "etd": "",
+            "fit_done": false,
+            "fit_due": null,
+            "item": "SM",
+            "label": "WOVEN워싱일반",
+            "pp_done": false,
+            "pp_due": null,
+            "qa": "",
+            "quarter": "2nd TS",
+            "style_code": "3FSMS9473",
+            "td": "권수빈",
+            "top_done": false,
+            "top_due": null,
+            "vendor": "티피나디아㈜"
+          },
+          {
+            "detail": {
+              "FIT": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "PP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "TOP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "보정": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              }
+            },
+            "etd": "",
+            "fit_done": false,
+            "fit_due": null,
+            "item": "SM",
+            "label": "WOVEN논워싱일반",
+            "pp_done": false,
+            "pp_due": null,
+            "qa": "",
+            "quarter": "2nd TS",
+            "style_code": "3FSMS9573",
+            "td": "권수빈",
+            "top_done": false,
+            "top_due": null,
+            "vendor": "Hongying garment CO., LTD"
+          },
+          {
+            "detail": {
+              "FIT": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "PP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "TOP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "보정": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              }
+            },
+            "etd": "",
+            "fit_done": false,
+            "fit_due": null,
+            "item": "SM",
+            "label": "WOVEN논워싱일반",
+            "pp_done": false,
+            "pp_due": null,
+            "qa": "",
+            "quarter": "2nd TS",
+            "style_code": "3FSMS9673",
+            "td": "권수빈",
+            "top_done": false,
+            "top_due": null,
+            "vendor": "티피나디아㈜"
+          },
+          {
+            "detail": {
+              "FIT": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "PP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "TOP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "보정": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              }
+            },
+            "etd": "",
+            "fit_done": false,
+            "fit_due": null,
+            "item": "SM",
+            "label": "WOVEN논워싱일반",
+            "pp_done": false,
+            "pp_due": null,
+            "qa": "",
+            "quarter": "2nd TS",
+            "style_code": "3FSMS9773",
+            "td": "권수빈",
+            "top_done": false,
+            "top_due": null,
+            "vendor": "원전교역"
           },
           {
             "detail": {
@@ -92140,6 +92768,48 @@
             "pp_due": "2027-01-29",
             "qa": "",
             "quarter": "2nd TS",
+            "style_code": "3FTOA1973",
+            "td": "지수현",
+            "top_done": false,
+            "top_due": "2027-02-28",
+            "vendor": ""
+          },
+          {
+            "detail": {
+              "FIT": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "PP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "TOP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "보정": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              }
+            },
+            "etd": "2027-03-10",
+            "fit_done": false,
+            "fit_due": "2026-12-25",
+            "item": "TO",
+            "label": "KNIT논워싱3천장이하",
+            "pp_done": false,
+            "pp_due": "2027-01-29",
+            "qa": "",
+            "quarter": "2nd TS",
             "style_code": "3FTOS0273",
             "td": "지수현",
             "top_done": false,
@@ -92293,10 +92963,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-11",
@@ -92335,10 +93005,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-03",
@@ -92419,10 +93089,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-15",
@@ -92461,10 +93131,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-12",
@@ -92503,10 +93173,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-12",
@@ -92593,6 +93263,48 @@
                 "status": null
               }
             },
+            "etd": "",
+            "fit_done": false,
+            "fit_due": null,
+            "item": "TR",
+            "label": "KNIT논워싱3천장이하",
+            "pp_done": false,
+            "pp_due": null,
+            "qa": "",
+            "quarter": "2nd TS",
+            "style_code": "3FTRA0573",
+            "td": "지수현",
+            "top_done": false,
+            "top_due": null,
+            "vendor": ""
+          },
+          {
+            "detail": {
+              "FIT": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "PP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "TOP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "보정": {
+                "confirm_date": "2026-08-03",
+                "reason": null,
+                "round": 1,
+                "status": "Go to FIT"
+              }
+            },
             "etd": "2026-12-01",
             "fit_done": false,
             "fit_due": "2026-09-17",
@@ -92629,10 +93341,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-11-24",
@@ -92671,10 +93383,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-01",
@@ -92755,10 +93467,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-12",
@@ -92797,10 +93509,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-06",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-12",
@@ -92839,10 +93551,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-12",
@@ -92881,10 +93593,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-16",
@@ -92923,10 +93635,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Holding"
               }
             },
             "etd": "2027-01-23",
@@ -92965,10 +93677,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-16",
@@ -93049,10 +93761,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-12",
@@ -93091,10 +93803,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-23",
@@ -93175,10 +93887,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-16",
@@ -93217,10 +93929,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-02-23",
@@ -93301,10 +94013,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Holding"
               }
             },
             "etd": "2027-01-23",
@@ -93343,10 +94055,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-15",
@@ -93385,10 +94097,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-23",
@@ -93553,10 +94265,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-12",
@@ -93595,10 +94307,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-23",
@@ -93679,10 +94391,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-23",
@@ -93721,10 +94433,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-29",
@@ -93847,10 +94559,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Holding"
               }
             },
             "etd": "2027-02-23",
@@ -93889,10 +94601,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Holding"
               }
             },
             "etd": "2027-02-20",
@@ -94057,10 +94769,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Holding"
               }
             },
             "etd": "2027-02-02",
@@ -94099,10 +94811,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-26",
@@ -94141,10 +94853,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-03-09",
@@ -94365,7 +95077,7 @@
             "pp_done": false,
             "pp_due": "2027-01-14",
             "qa": "",
-            "quarter": "AFTER TS",
+            "quarter": "After TS",
             "style_code": "3FTSD0373",
             "td": "손은지",
             "top_done": false,
@@ -94435,10 +95147,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-26",
@@ -94477,10 +95189,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Holding"
               }
             },
             "etd": "2027-02-23",
@@ -94491,7 +95203,7 @@
             "pp_done": false,
             "pp_due": "2027-01-04",
             "qa": "",
-            "quarter": "AFTER TS",
+            "quarter": "After TS",
             "style_code": "3FTSM0573",
             "td": "손은지",
             "top_done": false,
@@ -94519,10 +95231,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-12",
@@ -94561,10 +95273,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-03-03",
@@ -94687,10 +95399,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Holding"
               }
             },
             "etd": "2027-02-17",
@@ -94729,10 +95441,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Holding"
               }
             },
             "etd": "2027-02-23",
@@ -94743,7 +95455,7 @@
             "pp_done": false,
             "pp_due": "2027-01-04",
             "qa": "",
-            "quarter": "AFTER TS",
+            "quarter": "After TS",
             "style_code": "3FTSS0573",
             "td": "손은지",
             "top_done": false,
@@ -94771,10 +95483,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-11-12",
@@ -94813,10 +95525,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-02-20",
@@ -94855,10 +95567,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Holding"
               }
             },
             "etd": "2027-03-05",
@@ -94897,10 +95609,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": "2026-08-03",
+                "confirm_date": "2026-08-04",
                 "reason": null,
                 "round": 1,
-                "status": "Holding"
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-02-23",
@@ -94939,10 +95651,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-02-23",
@@ -94981,10 +95693,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-02-09",
@@ -95065,10 +95777,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-04",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Holding"
               }
             },
             "etd": "2027-02-05",
@@ -96218,7 +96930,7 @@
             "td": "김은정",
             "top_done": false,
             "top_due": "2027-01-16",
-            "vendor": ""
+            "vendor": "(주)기도산업"
           },
           {
             "detail": {
@@ -96260,7 +96972,7 @@
             "td": "김은정",
             "top_done": false,
             "top_due": "2027-01-16",
-            "vendor": ""
+            "vendor": "(주)기도산업"
           },
           {
             "detail": {
@@ -97003,6 +97715,90 @@
                 "status": null
               }
             },
+            "etd": "",
+            "fit_done": false,
+            "fit_due": null,
+            "item": "WP",
+            "label": "WOVEN논워싱일반",
+            "pp_done": false,
+            "pp_due": null,
+            "qa": "",
+            "quarter": "2nd TS",
+            "style_code": "3FWPA9173",
+            "td": "권수빈",
+            "top_done": false,
+            "top_due": null,
+            "vendor": "(주)기도산업"
+          },
+          {
+            "detail": {
+              "FIT": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "PP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "TOP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "보정": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              }
+            },
+            "etd": "",
+            "fit_done": false,
+            "fit_due": null,
+            "item": "WP",
+            "label": "WOVEN논워싱일반",
+            "pp_done": false,
+            "pp_due": null,
+            "qa": "",
+            "quarter": "2nd TS",
+            "style_code": "3FWPA9273",
+            "td": "권수빈",
+            "top_done": false,
+            "top_due": null,
+            "vendor": "Hongying garment CO., LTD"
+          },
+          {
+            "detail": {
+              "FIT": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "PP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "TOP": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              },
+              "보정": {
+                "confirm_date": null,
+                "reason": null,
+                "round": null,
+                "status": null
+              }
+            },
             "etd": "2026-12-29",
             "fit_done": false,
             "fit_due": "2026-10-15",
@@ -97339,19 +98135,19 @@
                 "status": null
               }
             },
-            "etd": "2027-01-19",
+            "etd": "2027-01-11",
             "fit_done": false,
-            "fit_due": "2026-11-05",
+            "fit_due": "2026-10-28",
             "item": "WP",
             "label": "WOVEN논워싱일반",
             "pp_done": false,
-            "pp_due": "2026-11-25",
+            "pp_due": "2026-11-17",
             "qa": "",
             "quarter": "Main TS",
             "style_code": "3FWPS1773",
             "td": "권수빈",
             "top_done": false,
-            "top_due": "2027-01-02",
+            "top_due": "2026-12-25",
             "vendor": "주식회사 거림씨앤에프"
           },
           {
@@ -97520,7 +98316,7 @@
             "td": "김서진",
             "top_done": false,
             "top_due": null,
-            "vendor": ""
+            "vendor": "㈜노브랜드(우븐)"
           },
           {
             "detail": {
@@ -97562,7 +98358,7 @@
             "td": "김서진",
             "top_done": false,
             "top_due": null,
-            "vendor": ""
+            "vendor": "㈜노브랜드(우븐)"
           },
           {
             "detail": {
@@ -97627,10 +98423,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-03",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-11",
