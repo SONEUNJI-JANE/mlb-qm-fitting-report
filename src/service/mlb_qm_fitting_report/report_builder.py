@@ -65,11 +65,11 @@ th.grp-a,th.grp-th:first-of-type{border-left:1px solid #e5e7eb}
 <body>
 <div class="hdr">
   <h1>MLB QM Weekly Analysis</h1>
+  <select id="week-select" onchange="onWeekChange()"></select>
   <div class="tabs">
     <button class="tab-btn active" id="tab-btn-main" onclick="switchTab('main')">요약</button>
     <button class="tab-btn" id="tab-btn-analysis" onclick="switchTab('analysis')">분석</button>
   </div>
-  <select id="week-select" onchange="onWeekChange()"></select>
 </div>
 <div id="main-tab">
 <div style="max-width:1100px;margin:16px auto 0;display:flex;justify-content:flex-end">
