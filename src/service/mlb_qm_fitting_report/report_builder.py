@@ -1051,10 +1051,10 @@ function renderAnalysis() {
   const periodLabelKr = period === 'month' ? '월' : '주';
 
   // 주차별(정시) 표는 dueDateRecordsByStage/dueDateOnTimeComplianceByStage 그대로 씀(고정값, 안 바뀜).
-  const dueRecords = season === '26FW' ? dueDateRecordsByStage(rows, offsets, asOfDate, period) : null;
+  const dueRecords = dueDateRecordsByStage(rows, offsets, asOfDate, period);
   const onTimeByStage = dueRecords ? dueDateOnTimeComplianceByStage(dueRecords) : null;
   // 누적은 분모(due 누적)/분자(실제 승인 누적)가 서로 다른 시계로 쌓인다 — 아래 함수 주석 참고.
-  const dueAndDone = season === '26FW' ? cumulativeDueAndDoneRecords(rows, offsets, asOfDate, period) : null;
+  const dueAndDone = cumulativeDueAndDoneRecords(rows, offsets, asOfDate, period);
   const allPeriods = onTimeByStage
     ? [...new Set([
         ...STAGES.flatMap(st => Object.keys(onTimeByStage[st])),
@@ -1104,7 +1104,7 @@ function renderAnalysis() {
     `</select>`;
 
   // 핵심 지표: 스타일 due date가 속한 기간별 "정시 승인율"(FIT/PP/TOP 각각, 주차별 + 누적). 필터도 이 표 위에 바로 붙임.
-  if (season === '26FW') {
+  {
     const chartStages = complianceChartStage === 'ALL' ? STAGES : [complianceChartStage];
     const barSeries = [];
     chartStages.forEach(st => {
@@ -1147,12 +1147,6 @@ function renderAnalysis() {
           return `<td style="text-align:right;padding:4px;color:${curColor}">${cur}</td><td style="text-align:right;padding:4px;color:${cumColor}">${cum}</td>`;
         }).join('') + `</tr>`).join('') + `</tbody></table>`;
     container.appendChild(secOnTime);
-  } else {
-    const stub = document.createElement('div');
-    stub.className = 'analysis-section';
-    stub.innerHTML = `<h3>주차별 일정 준수 현황</h3>` + filterRowHtml(allRows) + controlsHtml +
-      `<p class="sub">${esc(season)} 상세 분석은 추후 추가 예정(레이아웃만 26FW와 동일하게 자리 잡아둠).</p>`;
-    container.appendChild(stub);
   }
 
   // 그룹별 평균 초과일수 — 초과 없는 그룹도 0으로 다 보여준다. FIT/PP/TOP 한 화면에 나란히, 단계별 색 다르게.
@@ -1181,7 +1175,7 @@ function renderAnalysis() {
 
   // 단계별(보정/FIT/PP/TOP) 소요일수: 단계마다 표를 따로 만들고, 그 안에서 상태(APPROVED가
   // 맨 위, 나머지는 이름순) → 회차(1ST/2ND/3RD/4TH/5TH) 순으로 묶어서 보여준다.
-  if (season === '26FW') {
+  {
     const roundLead = computeRoundLeadTimes(rows);
     const avgOf = days => days.length ? Math.round(days.reduce((a, b) => a + b, 0) / days.length * 10) / 10 : null;
 

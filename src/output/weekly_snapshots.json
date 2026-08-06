@@ -47189,12 +47189,12 @@
               "TOP": {
                 "confirm_date": "2026-08-06",
                 "first_received": "2026-08-05",
-                "reason": null,
+                "reason": "납기상CFM",
                 "round": "1ST",
                 "rounds": [
                   {
                     "confirm_date": "2026-08-06",
-                    "reason": null,
+                    "reason": "납기상CFM",
                     "received": "2026-08-05",
                     "round": "1ST",
                     "status": "Approved"
@@ -75415,10 +75415,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-06",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-01",
@@ -80371,10 +80371,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-06",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2027-01-26",
@@ -84319,10 +84319,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-06",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-15",
@@ -84949,10 +84949,10 @@
                 "status": null
               },
               "보정": {
-                "confirm_date": null,
+                "confirm_date": "2026-08-06",
                 "reason": null,
-                "round": null,
-                "status": null
+                "round": 1,
+                "status": "Go to FIT"
               }
             },
             "etd": "2026-12-01",
