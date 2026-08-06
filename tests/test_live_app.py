@@ -71,8 +71,15 @@ STYLES_FIXTURE = [
         "washed": None, "qty_kr": 100, "qty_cn": 0, "earliest_etd": "2026-04-01",
     },
     {
-        # 다른 시즌은 27SS 응답에 섞이면 안 됨
+        # 26FW도 SEASONS에 들어있으니 같이 나와야 함
         "style_code": "S2", "item": "DK", "quarter": "Main TS", "season": "26FW",
+        "td": "김철수", "qa": "박영희", "co": None, "qc_due": "2026-01-01",
+        "pp_due": "2026-02-01", "top_due": "2026-03-01", "vendor": "V1",
+        "washed": None, "qty_kr": 100, "qty_cn": 0, "earliest_etd": "2026-04-01",
+    },
+    {
+        # SEASONS에 없는 시즌은 섞이면 안 됨
+        "style_code": "S3", "item": "DK", "quarter": "Main TS", "season": "25FW",
         "td": "김철수", "qa": "박영희", "co": None, "qc_due": "2026-01-01",
         "pp_due": "2026-02-01", "top_due": "2026-03-01", "vendor": "V1",
         "washed": None, "qty_kr": 100, "qty_cn": 0, "earliest_etd": "2026-04-01",
@@ -83,7 +90,7 @@ RECORDS_FIXTURE = [
 ]
 
 
-def test_build_snapshot_payload_filters_to_27ss():
+def test_build_snapshot_payload_includes_27ss_and_26fw_only():
     from src.service.mlb_qm_fitting_report.live_app import build_snapshot_payload
 
     settings = {"supabase_url": "http://x", "supabase_anon_key": "k"}
@@ -96,10 +103,10 @@ def test_build_snapshot_payload_filters_to_27ss():
     assert len(weeks) == 1
     week = next(iter(weeks.values()))
     assert week["as_of_date"] == "2026-08-06"
-    assert list(week["progress"].keys()) == ["27SS"]
-    assert list(week["raw"].keys()) == ["27SS"]
-    assert len(week["raw"]["27SS"]) == 1  # 26FW(S2)는 안 들어옴
+    assert set(week["progress"].keys()) == {"27SS", "26FW"}
+    assert set(week["raw"].keys()) == {"27SS", "26FW"}
     assert week["raw"]["27SS"][0]["style_code"] == "S1"
+    assert week["raw"]["26FW"][0]["style_code"] == "S2"
 
 
 def test_root_endpoint_returns_html():
@@ -120,6 +127,6 @@ if __name__ == "__main__":
     test_cache_returns_fresh_value_within_ttl()
     test_cache_falls_back_to_stale_on_fetch_error()
     test_cache_raises_when_no_prior_success()
-    test_build_snapshot_payload_filters_to_27ss()
+    test_build_snapshot_payload_includes_27ss_and_26fw_only()
     test_root_endpoint_returns_html()
     print("OK: test_live_app")

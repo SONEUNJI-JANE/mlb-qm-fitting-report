@@ -9,7 +9,7 @@ from src.service.mlb_qm_fitting_report.supabase_client import fetch_styles, fetc
 from src.service.mlb_qm_fitting_report.aggregate import compute_progress, build_raw_rows
 from src.service.mlb_qm_fitting_report.report_builder import build_report_html
 
-SEASON = "27SS"
+SEASONS = ["27SS", "26FW"]
 
 app = FastAPI()
 
@@ -39,11 +39,13 @@ class SnapshotCache:
 
 
 def build_snapshot_payload(settings: dict) -> dict:
-    """27SS만 걸러서 report_builder.build_report_html이 기대하는 snapshots shape으로 만든다."""
+    """Supabase 시즌(27SS/26FW)만 걸러서 report_builder.build_report_html이 기대하는
+    snapshots shape으로 만든다. compute_progress/build_raw_rows가 이미 season별로
+    그룹핑해서 반환하므로, 여기선 SEASONS에 속하는 스타일만 넘기면 나머지는 그대로 재사용된다."""
     as_of_date = resolve_as_of_date(settings, run_date=date.today())
     week_id = week_id_for(as_of_date)
 
-    styles = [s for s in fetch_styles(settings) if s.get("season") == SEASON]
+    styles = [s for s in fetch_styles(settings) if s.get("season") in SEASONS]
     records = fetch_fitting_records(settings)
     style_codes = {s["style_code"] for s in styles}
     records = [r for r in records if r["style_code"] in style_codes]
