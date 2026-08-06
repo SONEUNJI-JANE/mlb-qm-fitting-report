@@ -27,15 +27,16 @@ MLB QM Fitting 대시보드는 지금 정적 HTML 한 장(`report_builder.py`가
 ## Architecture
 
 ```
-[브라우저] --fetch--> [FastAPI 백엔드] --REST--> [Supabase: styles, fitting_records]
+[브라우저] --GET /--> [FastAPI 백엔드: 요청마다 build_report_html() 호출] --REST--> [Supabase: styles, fitting_records]
 ```
 
 - **백엔드**: Python FastAPI. `src/service/mlb_qm_fitting_report/`의 기존
-  `supabase_client.py`, `aggregate.py`, `config.py`를 그대로 import해서 재사용한다
-  (새로 안 만듦 — 검증된 로직 그대로 씀).
-- **프론트**: 지금 `report_builder.py`가 만드는 HTML/CSS/JS를 거의 그대로 가져오되,
-  `__SNAPSHOT_JSON__`을 파일에 굽는 대신 페이지 로드 시 `fetch('/api/summary?...')`로
-  받아온다. 시즌 선택은 27SS 고정(드롭다운 없앰).
+  `supabase_client.py`, `aggregate.py`, `config.py`, **`report_builder.py`**를 그대로
+  import해서 재사용한다(새로 안 만듦 — 검증된 로직 그대로 씀).
+- **프론트**: 새로 안 만든다. 백엔드가 매 요청마다 27SS 데이터로 `snapshots` dict를
+  만들어 기존 `build_report_html(snapshots, settings)`에 넘기고, 그 결과 HTML을 그대로
+  응답으로 내려준다 — 기존 HTML/CSS/JS 템플릿은 한 글자도 안 바뀐다. 자세한 이유는
+  아래 "API" 섹션 참고.
 
 ## Data flow — 스냅샷 저장을 없애는 이유
 
@@ -53,35 +54,34 @@ MLB QM Fitting 대시보드는 지금 정적 HTML 한 장(`report_builder.py`가
   기존 `resolve_as_of_date` 로직 그대로 재사용)
 - cron/스케줄 자체가 필요 없어짐 — 매 요청이 항상 최신
 
-## API
+## API — SSR로 단순화 (fetch 기반 JSON API 대신)
+
+처음엔 `GET /api/summary`가 JSON을 반환하고 프론트 JS가 `fetch()`로 받아오는 구조를
+생각했지만, 계획 단계에서 더 단순하고 안전한 방식으로 바꿨다: 백엔드가 매 요청마다
+`build_report_html(snapshots, settings)`(기존 `report_builder.py` 함수, **그대로 재사용**)를
+호출해서 완성된 HTML을 직접 내려준다.
 
 ```
-GET /api/summary?as_of=YYYY-MM-DD
+GET /  →  build_report_html()이 만든 HTML 그대로 반환 (프론트 JS/CSS 전혀 안 건드림)
+GET /healthz  →  {"status": "ok"}
 ```
 
-응답 형태는 지금 프론트 JS가 기대하는 `week.raw['27SS']` / `week.progress['27SS']`와
-동일한 shape으로 맞춘다(프론트 JS 로직을 최대한 안 건드리기 위해).
-
-```json
-{
-  "as_of_date": "2026-08-06",
-  "progress": { "TD": {...}, "QA": {...} },
-  "raw": [ {...}, {...} ]
-}
-```
-
-- `as_of` 파라미터 생략 시 기존 `resolve_as_of_date(settings, run_date=today)` 로직으로
-  기본값 계산.
-- 잘못된 날짜 포맷 → 400 + 에러 메시지.
+- `snapshots` dict는 매 요청마다 새로 만든다: `{"weeks": {week_id: {as_of_date, progress, warnings: [], raw}}}`
+  — `run_weekly.py`가 만드는 것과 완전히 같은 shape, 시즌은 27SS만.
+- `as_of_date`는 기존 `resolve_as_of_date(settings, run_date=date.today())` 그대로 사용
+  (사용자가 날짜를 고를 필요 없음 — 항상 "지금 기준"만 보여줌. 과거 특정 날짜 조회는
+  이번 범위에 넣지 않는다 — 나중에 필요해지면 쿼리 파라미터로 추가).
+- 이 방식의 장점: 프론트엔드 코드를 한 줄도 안 바꿔도 되고(기존 JS/CSS 그대로 재사용),
+  "지금 로직 안 깨지게" 요구사항을 가장 확실하게 만족한다.
 
 ## Error handling
 
 - Supabase 호출 실패(네트워크/타임아웃/5xx): 마지막 성공 응답을 짧게(예: 5분)
-  in-memory 캐시해뒀다가 그대로 반환 + 응답에 `"stale": true` 플래그. 완전히 빈 화면
+  in-memory 캐시해뒀다가 그대로 반환 + 응답 헤더에 `X-Data-Stale: true`. 완전히 빈 화면
   대신 "몇 분 전 데이터"를 보여줘서 서비스 다운을 피한다.
-- 캐시도 없는 첫 요청에서 Supabase 실패 시: 502 + 프론트에 에러 메시지 표시(빈 표
-  대신 명확한 안내).
-- 프론트에서 fetch 실패 시 재시도 1회 후 에러 배너 표시.
+- 캐시도 없는 첫 요청에서 Supabase 실패 시: 예외가 그대로 올라와 FastAPI가 500을
+  반환한다(첫 배포 직후처럼 캐시가 비어있는 극히 드문 경우에만 해당 — 그 다음 요청부터는
+  재시도한 Supabase 호출이 성공하면 정상화됨).
 
 ## Deployment
 
