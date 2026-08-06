@@ -37085,9 +37085,9 @@
             },
             "TOP": {
               "baseline_all": 254,
-              "baseline_done": 240,
+              "baseline_done": 241,
               "total_all": 427,
-              "total_done": 334
+              "total_done": 335
             }
           },
           "TD": {
@@ -47187,12 +47187,20 @@
                 "status": "Rejected"
               },
               "TOP": {
-                "confirm_date": null,
-                "first_received": null,
+                "confirm_date": "2026-08-06",
+                "first_received": "2026-08-05",
                 "reason": null,
-                "round": null,
-                "rounds": [],
-                "status": null
+                "round": "1ST",
+                "rounds": [
+                  {
+                    "confirm_date": "2026-08-06",
+                    "reason": null,
+                    "received": "2026-08-05",
+                    "round": "1ST",
+                    "status": "Approved"
+                  }
+                ],
+                "status": "Approved"
               },
               "보정": {
                 "confirm_date": "2026-02-13",
@@ -47222,7 +47230,7 @@
             "quarter": "Main TS",
             "style_code": "3AWJB0664",
             "td": "김은정",
-            "top_done": false,
+            "top_done": true,
             "top_due": null,
             "vendor": "(주)기도산업"
           },

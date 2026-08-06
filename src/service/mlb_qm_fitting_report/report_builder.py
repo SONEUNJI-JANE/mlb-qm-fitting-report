@@ -48,7 +48,7 @@ th.grp-a,th.grp-th:first-of-type{border-left:1px solid #e5e7eb}
 .th-table th{color:#888;font-weight:700}
 .th-table td:first-child{color:#555}
 .th-table input{width:36px;text-align:right}
-.tabs{display:flex;gap:4px;margin-left:auto}
+.tabs{display:flex;gap:4px}
 .tab-btn{padding:6px 16px;border-radius:6px 6px 0 0;border:none;background:rgba(255,255,255,0.12);color:#fff;font-size:12px;font-weight:700;cursor:pointer}
 .tab-btn.active{background:#f0f1f4;color:#1a1a2e}
 .analysis-section{background:#fff;border-radius:8px;padding:16px 20px;margin-bottom:16px}
@@ -69,10 +69,12 @@ th.grp-a,th.grp-th:first-of-type{border-left:1px solid #e5e7eb}
     <button class="tab-btn active" id="tab-btn-main" onclick="switchTab('main')">메인</button>
     <button class="tab-btn" id="tab-btn-analysis" onclick="switchTab('analysis')">분석</button>
   </div>
-  <select id="week-select" onchange="onWeekChange()"></select>
-  <button class="settings-btn" style="margin-left:auto" onclick="switchTab('settings')">⚙ 설정</button>
+  <select id="week-select" onchange="onWeekChange()" style="margin-left:auto"></select>
 </div>
 <div id="main-tab">
+<div style="max-width:1100px;margin:16px auto 0;display:flex;justify-content:flex-end">
+  <button class="settings-btn" onclick="switchTab('settings')">⚙ 설정</button>
+</div>
 <div class="content" id="seasons"></div>
 <div class="override-bar" id="override-bar">
   <span id="override-count"></span>
