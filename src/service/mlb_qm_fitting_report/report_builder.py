@@ -410,8 +410,24 @@ async function loadOverridesForWeek(week) {
   document.getElementById('override-count').textContent = count ? `수정 ${count}건 적용됨` : '';
 }
 
+async function refreshRemarksForWeek(weekId) {
+  // 비고는 서버 응답 캐시(5분)에 갇히면 방금 저장한 값이 새로고침 시 안 보일 수 있어서,
+  // 화면 그리기 직전에 항상 Supabase에서 직접 최신값을 받아온다(진행률/raw는 그대로 캐시된 값 사용).
+  if (!DATA.weeks[weekId]) return;
+  try {
+    const resp = await fetch(`${SETTINGS.supabase_url}/rest/v1/settings?select=value&key=eq.${remarkSettingsKey(weekId)}`, {
+      headers: {'apikey': SETTINGS.supabase_anon_key, 'Authorization': `Bearer ${SETTINGS.supabase_anon_key}`},
+    });
+    const rows = await resp.json();
+    DATA.weeks[weekId].remarks = (rows[0] && rows[0].value) ? JSON.parse(rows[0].value) : {};
+  } catch (e) {
+    // 실패해도 페이지 로드 자체를 막을 필요는 없음 — 서버가 같이 내려준 값 그대로 둔다.
+  }
+}
+
 async function onWeekChange() {
   await loadOverridesForWeek(sel.value);
+  await refreshRemarksForWeek(sel.value);
   refresh();
 }
 
