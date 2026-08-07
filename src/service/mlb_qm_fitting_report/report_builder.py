@@ -24,7 +24,6 @@ th{background:#f8f9fa;color:#555;font-weight:700}
 .stage-col{width:64px;text-align:center}
 .act-col{width:60px;text-align:center}
 .remark-col{width:280px;text-align:center;vertical-align:middle;padding:6px}
-.remark-col .btn{white-space:nowrap;flex-shrink:0}
 .grp-a{background:#eef3fc}
 .grp-b{background:#f4f1fb}
 th.grp-a,th.grp-th:first-of-type{border-left:1px solid #e5e7eb}
@@ -213,13 +212,18 @@ function currentOffsets(season) {
 function remarkKey(season, owner, stage) { return `${season}|${owner}|${stage}`; }
 function remarkSettingsKey(weekId) { return `mlb_qm_remark_${weekId}`; }
 
+function unlockRemark(domId) {
+  const input = document.getElementById(domId);
+  input.readOnly = false;
+  input.focus();
+  input.select();
+}
+
 async function saveRemark(weekId, season, owner, stage) {
   const domId = `remark-${weekId}-${season}-${owner}-${stage}`.replace(/[^\\w-]/g, '_');
   const input = document.getElementById(domId);
-  const btn = document.getElementById(`${domId}-btn`);
+  if (input.readOnly) return; // dblclick으로 잠금 해제 안 한 상태에서 blur만 지나가는 경우
   const text = input.value;
-  const prevLabel = btn.textContent;
-  btn.textContent = '...';
   try {
     // 같은 주의 다른 칸 비고를 덮어쓰지 않게, 저장된 값을 먼저 읽어와서 이 칸만 바꿔 합친다.
     const readResp = await fetch(`${SETTINGS.supabase_url}/rest/v1/settings?select=value&key=eq.${remarkSettingsKey(weekId)}`, {
@@ -240,10 +244,10 @@ async function saveRemark(weekId, season, owner, stage) {
     });
     if (!saveResp.ok) throw new Error(await saveResp.text());
     if (DATA.weeks[weekId]) DATA.weeks[weekId].remarks = current;
-    btn.textContent = text ? '수정' : '저장';
   } catch (e) {
-    btn.textContent = prevLabel;
     alert('비고 저장 실패: ' + e.message);
+  } finally {
+    input.readOnly = true;
   }
 }
 
@@ -1321,9 +1325,10 @@ function render() {
         row.innerHTML = `<td class="owner-col">${esc(owner)}</td><td class="stage-col">${esc(stage)}</td>` +
           `<td class="num-td pct grp-a" id="cell-${key}">${pct(m.total_done, m.total_all)}%</td><td class="num-td grp-a">${m.total_done}</td><td class="num-td grp-a">${m.total_all}</td>` +
           `<td class="num-td pct grp-b">${pct(m.baseline_done, m.baseline_all)}%</td><td class="num-td grp-b">${m.baseline_done}</td><td class="num-td grp-b">${m.baseline_all}</td>` +
-          `<td class="remark-col" style="display:flex;gap:4px;align-items:center;justify-content:center">` +
-          `<input type="text" id="${remarkDomId}" value="${esc(remarkText)}" style="width:170px;font-size:11px;padding:2px 4px;text-align:left">` +
-          `<button class="btn" id="${remarkDomId}-btn" onclick="saveRemark('${weekId}','${season}','${owner}','${stage}')">${remarkText ? '수정' : '저장'}</button>` +
+          `<td class="remark-col" style="display:flex;align-items:center;justify-content:center">` +
+          `<input type="text" id="${remarkDomId}" value="${esc(remarkText)}" readonly ` +
+          `ondblclick="unlockRemark('${remarkDomId}')" onblur="saveRemark('${weekId}','${season}','${owner}','${stage}')" ` +
+          `style="width:220px;font-size:11px;padding:2px 4px;text-align:left" title="더블클릭해서 수정">` +
           `</td>`;
         tbody.appendChild(row);
 
