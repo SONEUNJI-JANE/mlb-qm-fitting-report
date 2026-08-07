@@ -93,6 +93,10 @@ def _snapshot_setting_key(week_id: str) -> str:
     return f"mlb_qm_snapshot_{week_id}"
 
 
+def _remark_setting_key(week_id: str) -> str:
+    return f"mlb_qm_remark_{week_id}"
+
+
 def build_snapshot_payload(settings: dict) -> dict:
     """매주 금요일 기준으로 주차를 나눈다. 이번 주(금요일 지나기 전)는 요청마다 실시간
     재계산하고, 지난 주는 한 번 계산한 값을 Supabase settings 테이블에 얼려서 저장해두고
@@ -129,6 +133,12 @@ def build_snapshot_payload(settings: dict) -> dict:
             weeks[week_id] = json.loads(frozen_json)
 
     weeks[current_week_id] = _compute_week_data(settings, current_as_of)
+
+    # 비고는 얼린 스냅샷 안에 같이 저장하지 않는다 — 얼린 뒤에도 계속 수정할 수 있어야 하므로
+    # (브라우저가 직접 저장하는 값이라) 매번 최신값을 따로 붙여준다.
+    for week_id, week_data in weeks.items():
+        remarks_raw = fetch_setting(settings, _remark_setting_key(week_id))
+        week_data["remarks"] = json.loads(remarks_raw) if remarks_raw else {}
 
     return {"weeks": weeks}
 

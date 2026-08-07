@@ -23,6 +23,7 @@ th{background:#f8f9fa;color:#555;font-weight:700}
 .owner-col{width:64px;text-align:center}
 .stage-col{width:64px;text-align:center}
 .act-col{width:60px;text-align:center}
+.remark-col{width:160px;text-align:left;vertical-align:top;padding:6px}
 .grp-a{background:#eef3fc}
 .grp-b{background:#f4f1fb}
 th.grp-a,th.grp-th:first-of-type{border-left:1px solid #e5e7eb}
@@ -206,6 +207,41 @@ function currentOffsets(season) {
     m[tr.dataset.label] = e;
   });
   return m;
+}
+
+function remarkKey(season, owner, stage) { return `${season}|${owner}|${stage}`; }
+function remarkSettingsKey(weekId) { return `mlb_qm_remark_${weekId}`; }
+
+async function saveRemark(weekId, season, owner, stage) {
+  const domId = `remark-${weekId}-${season}-${owner}-${stage}`.replace(/[^\\w-]/g, '_');
+  const textarea = document.getElementById(domId);
+  const statusEl = document.getElementById(`${domId}-status`);
+  const text = textarea.value;
+  statusEl.textContent = '저장 중...';
+  try {
+    // 같은 주의 다른 칸 비고를 덮어쓰지 않게, 저장된 값을 먼저 읽어와서 이 칸만 바꿔 합친다.
+    const readResp = await fetch(`${SETTINGS.supabase_url}/rest/v1/settings?select=value&key=eq.${remarkSettingsKey(weekId)}`, {
+      headers: {'apikey': SETTINGS.supabase_anon_key, 'Authorization': `Bearer ${SETTINGS.supabase_anon_key}`},
+    });
+    const rows = await readResp.json();
+    const current = (rows[0] && rows[0].value) ? JSON.parse(rows[0].value) : {};
+    current[remarkKey(season, owner, stage)] = text;
+    const saveResp = await fetch(`${SETTINGS.supabase_url}/rest/v1/settings`, {
+      method: 'POST',
+      headers: {
+        'apikey': SETTINGS.supabase_anon_key,
+        'Authorization': `Bearer ${SETTINGS.supabase_anon_key}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates',
+      },
+      body: JSON.stringify({key: remarkSettingsKey(weekId), value: JSON.stringify(current)}),
+    });
+    if (!saveResp.ok) throw new Error(await saveResp.text());
+    if (DATA.weeks[weekId]) DATA.weeks[weekId].remarks = current;
+    statusEl.textContent = '저장됨';
+  } catch (e) {
+    statusEl.textContent = '저장 실패: ' + e.message;
+  }
 }
 
 async function applyDueOffsets(season) {
@@ -1242,10 +1278,13 @@ function render() {
     title.textContent = season;
     container.appendChild(title);
 
+    const weekId = sel.value;
+    const remarks = week.remarks || {};
     const table = document.createElement('table');
     table.innerHTML = `<thead>
       <tr><th class="owner-col" rowspan="2">담당</th><th class="stage-col" rowspan="2">단계</th>
         <th class="grp-th grp-a" colspan="3">전체 스타일 수 기준</th><th class="grp-th grp-b" colspan="3">Due Date 기준</th>
+        <th class="remark-col" rowspan="2">비고</th>
         ${isLatest ? '<th class="act-col" rowspan="2"></th>' : ''}</tr>
       <tr><th class="num-th grp-a">비율</th><th class="num-th grp-a">승인</th><th class="num-th grp-a">전체</th>
         <th class="num-th grp-b">비율</th><th class="num-th grp-b">승인</th><th class="num-th grp-b">전체</th></tr>
@@ -1258,16 +1297,21 @@ function render() {
         if (edits[key]) m = {...m, total_done: edits[key].override_numerator, total_all: edits[key].override_denominator};
         const overdue = m.overdue || [];
         const overdueId = `overdue-${key}`.replace(/[^\\w-]/g, '_');
+        const remarkDomId = `remark-${weekId}-${season}-${owner}-${stage}`.replace(/[^\\w-]/g, '_');
+        const remarkText = remarks[remarkKey(season, owner, stage)] || '';
         const row = document.createElement('tr');
         row.innerHTML = `<td class="owner-col">${esc(owner)}</td><td class="stage-col">${esc(stage)}</td>` +
           `<td class="num-td pct grp-a" id="cell-${key}">${pct(m.total_done, m.total_all)}%</td><td class="num-td grp-a">${m.total_done}</td><td class="num-td grp-a">${m.total_all}</td>` +
           `<td class="num-td pct grp-b">${pct(m.baseline_done, m.baseline_all)}%</td><td class="num-td grp-b">${m.baseline_done}</td><td class="num-td grp-b">${m.baseline_all}</td>` +
+          `<td class="remark-col"><textarea id="${remarkDomId}" rows="2" style="width:150px;font-size:11px;resize:vertical">${esc(remarkText)}</textarea><br>` +
+          `<button class="btn" onclick="saveRemark('${weekId}','${season}','${owner}','${stage}')">저장</button> ` +
+          `<span id="${remarkDomId}-status" style="font-size:10px;color:#888"></span></td>` +
           (isLatest ? `<td class="act-col"><button class="btn" onclick="startEdit('${season}','${owner}','${stage}',${m.total_done},${m.total_all})">수정</button></td>` : '');
         tbody.appendChild(row);
 
         if (overdue.length) {
           const detailRow = document.createElement('tr');
-          const colspan = isLatest ? 9 : 8;
+          const colspan = isLatest ? 10 : 9;
           detailRow.innerHTML = `<td colspan="${colspan}" style="background:#fafbfe;padding:0">` +
             `<div style="padding:4px 10px"><a href="#" onclick="toggleOverdue('${overdueId}');return false" style="font-size:11px;color:#4a65a9">미완료 ${overdue.length}건 상세 ▾</a></div>` +
             `<div id="${overdueId}" style="display:none;padding:0 10px 8px">` +
