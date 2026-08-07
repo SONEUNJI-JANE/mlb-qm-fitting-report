@@ -214,10 +214,11 @@ function remarkSettingsKey(weekId) { return `mlb_qm_remark_${weekId}`; }
 
 async function saveRemark(weekId, season, owner, stage) {
   const domId = `remark-${weekId}-${season}-${owner}-${stage}`.replace(/[^\\w-]/g, '_');
-  const textarea = document.getElementById(domId);
-  const statusEl = document.getElementById(`${domId}-status`);
-  const text = textarea.value;
-  statusEl.textContent = '저장 중...';
+  const input = document.getElementById(domId);
+  const btn = document.getElementById(`${domId}-btn`);
+  const text = input.value;
+  const prevLabel = btn.textContent;
+  btn.textContent = '...';
   try {
     // 같은 주의 다른 칸 비고를 덮어쓰지 않게, 저장된 값을 먼저 읽어와서 이 칸만 바꿔 합친다.
     const readResp = await fetch(`${SETTINGS.supabase_url}/rest/v1/settings?select=value&key=eq.${remarkSettingsKey(weekId)}`, {
@@ -238,9 +239,10 @@ async function saveRemark(weekId, season, owner, stage) {
     });
     if (!saveResp.ok) throw new Error(await saveResp.text());
     if (DATA.weeks[weekId]) DATA.weeks[weekId].remarks = current;
-    statusEl.textContent = '저장됨';
+    btn.textContent = text ? '수정' : '저장';
   } catch (e) {
-    statusEl.textContent = '저장 실패: ' + e.message;
+    btn.textContent = prevLabel;
+    alert('비고 저장 실패: ' + e.message);
   }
 }
 
@@ -1284,8 +1286,8 @@ function render() {
     table.innerHTML = `<thead>
       <tr><th class="owner-col" rowspan="2">담당</th><th class="stage-col" rowspan="2">단계</th>
         <th class="grp-th grp-a" colspan="3">전체 스타일 수 기준</th><th class="grp-th grp-b" colspan="3">Due Date 기준</th>
-        <th class="remark-col" rowspan="2">비고</th>
-        ${isLatest ? '<th class="act-col" rowspan="2"></th>' : ''}</tr>
+        ${isLatest ? '<th class="act-col" rowspan="2"></th>' : ''}
+        <th class="remark-col" rowspan="2">비고</th></tr>
       <tr><th class="num-th grp-a">비율</th><th class="num-th grp-a">승인</th><th class="num-th grp-a">전체</th>
         <th class="num-th grp-b">비율</th><th class="num-th grp-b">승인</th><th class="num-th grp-b">전체</th></tr>
       </thead><tbody></tbody>`;
@@ -1303,10 +1305,11 @@ function render() {
         row.innerHTML = `<td class="owner-col">${esc(owner)}</td><td class="stage-col">${esc(stage)}</td>` +
           `<td class="num-td pct grp-a" id="cell-${key}">${pct(m.total_done, m.total_all)}%</td><td class="num-td grp-a">${m.total_done}</td><td class="num-td grp-a">${m.total_all}</td>` +
           `<td class="num-td pct grp-b">${pct(m.baseline_done, m.baseline_all)}%</td><td class="num-td grp-b">${m.baseline_done}</td><td class="num-td grp-b">${m.baseline_all}</td>` +
-          `<td class="remark-col"><textarea id="${remarkDomId}" rows="2" style="width:150px;font-size:11px;resize:vertical">${esc(remarkText)}</textarea><br>` +
-          `<button class="btn" onclick="saveRemark('${weekId}','${season}','${owner}','${stage}')">저장</button> ` +
-          `<span id="${remarkDomId}-status" style="font-size:10px;color:#888"></span></td>` +
-          (isLatest ? `<td class="act-col"><button class="btn" onclick="startEdit('${season}','${owner}','${stage}',${m.total_done},${m.total_all})">수정</button></td>` : '');
+          (isLatest ? `<td class="act-col"><button class="btn" onclick="startEdit('${season}','${owner}','${stage}',${m.total_done},${m.total_all})">수정</button></td>` : '') +
+          `<td class="remark-col" style="display:flex;gap:4px;align-items:center">` +
+          `<input type="text" id="${remarkDomId}" value="${esc(remarkText)}" style="width:110px;font-size:11px;padding:2px 4px">` +
+          `<button class="btn" id="${remarkDomId}-btn" onclick="saveRemark('${weekId}','${season}','${owner}','${stage}')">${remarkText ? '수정' : '저장'}</button>` +
+          `</td>`;
         tbody.appendChild(row);
 
         if (overdue.length) {
