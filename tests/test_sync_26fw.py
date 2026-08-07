@@ -138,6 +138,39 @@ def test_map_fitting_records_done_flag_no_dates_at_all_falls_back_to_today():
     assert records[0]["updated_at"].endswith("T00:00:00+00:00")
 
 
+def test_map_fitting_records_fit_skip_uses_prep_confirm_date_not_future_due():
+    # 보정 승인 후 FIT 생략(보정->PP 직행)된 케이스. FIT 회차 로그는 없지만 fit_done=True.
+    # 진짜 날짜는 보정 승인일이어야 한다 - due/etd(미래일 수 있음)를 쓰면 안 됨.
+    raw_row = {
+        "style_code": "S8",
+        "fit_done": True,
+        "fit_due": None,
+        "etd": "2026-09-16",  # 미래 shipping 날짜 - 이게 confirm_date로 쓰이면 안 됨
+        "detail": {
+            "보정": {"confirm_date": "2026-05-07", "rounds": []},
+            "FIT": {"rounds": []},
+        },
+    }
+    records = map_fitting_records(raw_row)
+    assert len(records) == 1
+    assert records[0]["status"] == "Approved"
+    assert records[0]["updated_at"] == "2026-05-07T00:00:00+00:00"
+
+
+def test_map_fitting_records_future_fallback_date_capped_at_today():
+    from datetime import date
+    raw_row = {
+        "style_code": "S9",
+        "fit_done": True,
+        "fit_due": "2099-01-01",  # 미래
+        "etd": None,
+        "detail": {"FIT": {"rounds": []}},
+    }
+    records = map_fitting_records(raw_row)
+    assert len(records) == 1
+    assert records[0]["updated_at"] == f"{date.today().isoformat()}T00:00:00+00:00"
+
+
 def test_map_fitting_records_not_done_and_zero_rounds_produces_nothing():
     raw_row = {
         "style_code": "S6",
@@ -156,5 +189,7 @@ if __name__ == "__main__":
     test_map_fitting_records_done_flag_overrides_last_round_status()
     test_map_fitting_records_done_flag_with_zero_rounds_falls_back_to_due_date()
     test_map_fitting_records_done_flag_no_dates_at_all_falls_back_to_today()
+    test_map_fitting_records_fit_skip_uses_prep_confirm_date_not_future_due()
+    test_map_fitting_records_future_fallback_date_capped_at_today()
     test_map_fitting_records_not_done_and_zero_rounds_produces_nothing()
     print("OK: test_sync_26fw")

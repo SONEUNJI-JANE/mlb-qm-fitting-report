@@ -36,11 +36,14 @@ def map_fitting_records(raw_row: dict) -> list[dict]:
     다르면(기록이 늦게 올라오는 경우 등) 체크 컬럼을 우선해서 마지막 회차 status를 Approved로
     맞춰준다 — 안 그러면 live_app이 회차 로그만 보고 완료율을 실제보다 낮게 계산하게 된다.
     회차 로그가 아예 없는데(접수/확정일 기록 자체가 없음) 완료 체크만 돼있는 케이스도 있어서,
-    그런 스타일은 due date(없으면 etd, 그것도 없으면 오늘)를 confirm_date 대용으로 써서
-    최소한 완료 건수 카운트는 맞춘다(on-time 여부 같은 날짜 기반 지표는 이 대용값 때문에
-    부정확할 수 있음 — 알려진 한계)."""
+    그런 스타일은 confirm_date 대용 날짜가 필요하다. FIT은 대부분 "보정 승인 후 FIT 생략
+    (보정→PP 직행)"이라 그런 경우라 보정 승인일이 진짜 날짜다 — 그게 없을 때만 due
+    date(없으면 etd, 그것도 없으면 오늘)로 폴백한다. due/etd는 미래 날짜일 수 있어서
+    (아직 도래 안 한 마감일) 최후 수단으로만 쓴다(on-time 여부 같은 날짜 기반 지표는
+    이 대용값 때문에 부정확할 수 있음 — 알려진 한계)."""
     records = []
     style_code = raw_row["style_code"]
+    prep_confirm_date = (raw_row.get("detail", {}).get("보정") or {}).get("confirm_date")
     for stage, detail in raw_row["detail"].items():
         stage_records = []
         for r in detail["rounds"]:
@@ -61,7 +64,16 @@ def map_fitting_records(raw_row: dict) -> list[dict]:
             stage_records[-1]["status"] = "Approved"
         elif is_done and not stage_records:
             due_field = _DUE_FIELD_FOR_STAGE.get(stage)
-            fallback_date = raw_row.get(due_field) or raw_row.get("etd") or date.today().isoformat()
+            fit_skip_fallback = prep_confirm_date if stage == "FIT" else None
+            today_iso = date.today().isoformat()
+            fallback_date = (
+                fit_skip_fallback
+                or raw_row.get(due_field)
+                or raw_row.get("etd")
+                or today_iso
+            )
+            # due/etd는 미래 날짜일 수 있다 — "완료됐다"면서 확정일이 미래일 순 없으니 오늘로 캡.
+            fallback_date = min(fallback_date, today_iso)
             stage_records.append({
                 "style_code": style_code,
                 "stage": stage,
