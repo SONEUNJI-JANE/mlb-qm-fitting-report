@@ -240,7 +240,7 @@ async function saveRemark(weekId, season, owner, stage) {
     });
     if (!saveResp.ok) throw new Error(await saveResp.text());
     if (DATA.weeks[weekId]) DATA.weeks[weekId].remarks = current;
-    btn.textContent = '저장';
+    btn.textContent = text ? '수정' : '저장';
   } catch (e) {
     btn.textContent = prevLabel;
     alert('비고 저장 실패: ' + e.message);
@@ -1323,7 +1323,7 @@ function render() {
           `<td class="num-td pct grp-b">${pct(m.baseline_done, m.baseline_all)}%</td><td class="num-td grp-b">${m.baseline_done}</td><td class="num-td grp-b">${m.baseline_all}</td>` +
           `<td class="remark-col" style="display:flex;gap:4px;align-items:center;justify-content:center">` +
           `<input type="text" id="${remarkDomId}" value="${esc(remarkText)}" style="width:170px;font-size:11px;padding:2px 4px;text-align:left">` +
-          `<button class="btn" id="${remarkDomId}-btn" onclick="saveRemark('${weekId}','${season}','${owner}','${stage}')">저장</button>` +
+          `<button class="btn" id="${remarkDomId}-btn" onclick="saveRemark('${weekId}','${season}','${owner}','${stage}')">${remarkText ? '수정' : '저장'}</button>` +
           `</td>`;
         tbody.appendChild(row);
 
