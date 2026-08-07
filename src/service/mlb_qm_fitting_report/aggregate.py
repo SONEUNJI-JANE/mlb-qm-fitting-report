@@ -26,6 +26,27 @@ def _latest_status_by_style_and_stage(records: list[dict]) -> dict:
     return latest
 
 
+_ROUND_LABELS = ["1ST", "2ND", "3RD", "4TH", "5TH"]
+
+
+def _round_label(round_num) -> str | None:
+    if round_num is None:
+        return None
+    if 1 <= round_num <= len(_ROUND_LABELS):
+        return _ROUND_LABELS[round_num - 1]
+    return f"{round_num}TH"
+
+
+def _all_records_by_style_and_stage(records: list[dict]) -> dict:
+    """(style_code, stage) -> 그 스타일·단계의 모든 record, round 오름차순 정렬."""
+    grouped: dict = {}
+    for r in records:
+        grouped.setdefault((r["style_code"], r["stage"]), []).append(r)
+    for recs in grouped.values():
+        recs.sort(key=lambda r: (r["round"], r["updated_at"]))
+    return grouped
+
+
 def compute_progress(styles: list[dict], records: list[dict], as_of_date: date) -> dict:
     latest = _latest_status_by_style_and_stage(records)
     result: dict = {}
@@ -66,7 +87,22 @@ def build_raw_rows(styles: list[dict], records: list[dict]) -> dict:
     우선 쓰고, 없을 때만 label(구분+워시+수량)+etd로 대시보드 DUE DATE 설정 기준표를 적용해 계산한다
     (26FW의 DUE_DATA(2) 우선 + ETD/오프셋 폴백 구조와 동일)."""
     latest = _latest_status_by_style_and_stage(records)
+    all_records = _all_records_by_style_and_stage(records)
     result: dict = {}
+
+    def _rounds_list(style_code: str, stage: str) -> list[dict]:
+        # updated_at만 있고 별도 접수일(received) 컬럼은 없어서, received도 confirm_date와
+        # 같은 값을 쓴다(회차→회차 리드타임 계산이 그나마 뭔가 값을 갖도록 하기 위한 근사치).
+        return [
+            {
+                "round": _round_label(r["round"]),
+                "received": r["updated_at"][:10],
+                "status": r["status"],
+                "confirm_date": r["updated_at"][:10],
+                "reason": None,
+            }
+            for r in all_records.get((style_code, stage), [])
+        ]
 
     for style in styles:
         if style.get("co") == "DROP":
@@ -87,21 +123,27 @@ def build_raw_rows(styles: list[dict], records: list[dict]) -> dict:
         for stage in STAGES:
             due = _parse_date(style.get(DUE_FIELD_BY_STAGE[stage]))
             record = latest.get((style["style_code"], stage))
+            rounds = _rounds_list(style["style_code"], stage)
             row[f"{stage.lower()}_due"] = due.isoformat() if due else None
             row[f"{stage.lower()}_done"] = bool(record and record["status"] == "Approved")
             row["detail"][stage] = {
-                "round": record["round"] if record else None,
+                "round": _round_label(record["round"]) if record else None,
                 "status": record["status"] if record else None,
                 "confirm_date": record["updated_at"][:10] if record else None,
                 "reason": None,
+                "first_received": rounds[0]["received"] if rounds else None,
+                "rounds": rounds,
             }
         # 보정은 집계 대상 stage는 아니지만, FIT이 아직 시작 전일 때 "이전 단계" 상세로 보여준다.
         prep_record = latest.get((style["style_code"], "보정"))
+        prep_rounds = _rounds_list(style["style_code"], "보정")
         row["detail"]["보정"] = {
-            "round": prep_record["round"] if prep_record else None,
+            "round": _round_label(prep_record["round"]) if prep_record else None,
             "status": prep_record["status"] if prep_record else None,
             "confirm_date": prep_record["updated_at"][:10] if prep_record else None,
             "reason": None,
+            "first_received": prep_rounds[0]["received"] if prep_rounds else None,
+            "rounds": prep_rounds,
         }
         if row["detail"]["FIT"]["round"] is None and row["detail"]["PP"]["round"] is not None:
             row["detail"]["FIT"]["status"] = "생략(보정→PP 직행)"
