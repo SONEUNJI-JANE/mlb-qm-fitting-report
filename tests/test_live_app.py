@@ -1,3 +1,4 @@
+import json
 import sys
 from datetime import date
 from unittest.mock import patch
@@ -97,48 +98,105 @@ RECORDS_FIXTURE = [
 ]
 
 
-def test_build_snapshot_payload_includes_27ss_and_26fw_only():
+def _fake_settings_store(initial: dict = None):
+    """fetch_setting/upsert_setting을 실제 상태처럼 흉내내는 인메모리 store."""
+    store = dict(initial or {})
+
+    def fake_fetch(settings, key):
+        return store.get(key)
+
+    def fake_upsert(settings, key, value):
+        store[key] = value
+
+    return store, fake_fetch, fake_upsert
+
+
+def test_current_live_as_of_on_friday_uses_today():
+    from src.service.mlb_qm_fitting_report.live_app import current_live_as_of
+    friday = date(2026, 8, 7)  # 실제로 금요일
+    assert current_live_as_of(friday) == friday
+
+
+def test_current_live_as_of_on_weekday_uses_last_friday():
+    from src.service.mlb_qm_fitting_report.live_app import current_live_as_of
+    monday = date(2026, 8, 10)
+    assert current_live_as_of(monday) == date(2026, 8, 7)  # 지난주 금요일
+
+
+def test_friday_of_week_id():
+    from src.service.mlb_qm_fitting_report.live_app import friday_of_week_id
+    assert friday_of_week_id("2026-W32") == date(2026, 8, 7)
+
+
+def test_build_snapshot_payload_first_visit_only_creates_current_week():
     from src.service.mlb_qm_fitting_report.live_app import build_snapshot_payload
 
+    store, fake_fetch, fake_upsert = _fake_settings_store()
     settings = {"supabase_url": "http://x", "supabase_anon_key": "k"}
     with patch("src.service.mlb_qm_fitting_report.live_app.fetch_styles", return_value=STYLES_FIXTURE), \
          patch("src.service.mlb_qm_fitting_report.live_app.fetch_fitting_records", return_value=RECORDS_FIXTURE), \
-         patch("src.service.mlb_qm_fitting_report.live_app.fetch_setting", return_value='["S2"]'), \
-         patch("src.service.mlb_qm_fitting_report.live_app.resolve_as_of_date", return_value=date(2026, 8, 6)):
+         patch("src.service.mlb_qm_fitting_report.live_app.fetch_setting", side_effect=fake_fetch), \
+         patch("src.service.mlb_qm_fitting_report.live_app.upsert_setting", side_effect=fake_upsert), \
+         patch("src.service.mlb_qm_fitting_report.live_app.current_live_as_of", return_value=date(2026, 8, 7)):
+        payload = build_snapshot_payload(settings)
+
+    assert list(payload["weeks"].keys()) == ["2026-W32"]
+    week = payload["weeks"]["2026-W32"]
+    assert week["as_of_date"] == "2026-08-07"
+    assert set(week["raw"].keys()) == {"27SS", "26FW"}
+    assert len(week["raw"]["26FW"]) == 2  # valid 목록 없어서 필터 없이 다 나옴(fail open): S2, S4
+
+
+def test_build_snapshot_payload_freezes_previous_week_on_rollover():
+    from src.service.mlb_qm_fitting_report.live_app import build_snapshot_payload
+
+    # 지난주(2026-W31)까지 이미 라이브였던 상태로 시작.
+    store, fake_fetch, fake_upsert = _fake_settings_store({"mlb_qm_live_week_id": "2026-W31"})
+    settings = {"supabase_url": "http://x", "supabase_anon_key": "k"}
+    with patch("src.service.mlb_qm_fitting_report.live_app.fetch_styles", return_value=STYLES_FIXTURE), \
+         patch("src.service.mlb_qm_fitting_report.live_app.fetch_fitting_records", return_value=RECORDS_FIXTURE), \
+         patch("src.service.mlb_qm_fitting_report.live_app.fetch_setting", side_effect=fake_fetch), \
+         patch("src.service.mlb_qm_fitting_report.live_app.upsert_setting", side_effect=fake_upsert), \
+         patch("src.service.mlb_qm_fitting_report.live_app.current_live_as_of", return_value=date(2026, 8, 7)):
         payload = build_snapshot_payload(settings)
 
     weeks = payload["weeks"]
-    assert len(weeks) == 1
-    week = next(iter(weeks.values()))
-    assert week["as_of_date"] == "2026-08-06"
-    assert set(week["progress"].keys()) == {"27SS", "26FW"}
-    assert set(week["raw"].keys()) == {"27SS", "26FW"}
-    assert week["raw"]["27SS"][0]["style_code"] == "S1"
-    assert len(week["raw"]["26FW"]) == 1
-    assert week["raw"]["26FW"][0]["style_code"] == "S2"  # S4는 valid 목록에 없어서 빠짐
+    assert set(weeks.keys()) == {"2026-W31", "2026-W32"}
+    assert weeks["2026-W31"]["as_of_date"] == "2026-07-31"  # 얼려진 지난주
+    assert weeks["2026-W32"]["as_of_date"] == "2026-08-07"  # 이번주(라이브)
+    assert store["mlb_qm_live_week_id"] == "2026-W32"
+    assert "mlb_qm_snapshot_2026-W31" in store  # 얼린 스냅샷이 저장됨
 
 
-def test_build_snapshot_payload_no_valid_list_keeps_all_26fw():
-    """settings에 아직 목록이 없으면(첫 배포 등) 필터 없이 다 보여준다(fail open)."""
+def test_build_snapshot_payload_does_not_recompute_already_frozen_week():
     from src.service.mlb_qm_fitting_report.live_app import build_snapshot_payload
 
+    frozen_payload = json.dumps({"as_of_date": "2026-07-31", "progress": {}, "warnings": [], "raw": {"FROZEN": True}})
+    store, fake_fetch, fake_upsert = _fake_settings_store({
+        "mlb_qm_live_week_id": "2026-W31",
+        "mlb_qm_snapshot_2026-W31": frozen_payload,
+        "mlb_qm_known_week_ids": '["2026-W31"]',
+    })
     settings = {"supabase_url": "http://x", "supabase_anon_key": "k"}
     with patch("src.service.mlb_qm_fitting_report.live_app.fetch_styles", return_value=STYLES_FIXTURE), \
          patch("src.service.mlb_qm_fitting_report.live_app.fetch_fitting_records", return_value=RECORDS_FIXTURE), \
-         patch("src.service.mlb_qm_fitting_report.live_app.fetch_setting", return_value=None), \
-         patch("src.service.mlb_qm_fitting_report.live_app.resolve_as_of_date", return_value=date(2026, 8, 6)):
+         patch("src.service.mlb_qm_fitting_report.live_app.fetch_setting", side_effect=fake_fetch), \
+         patch("src.service.mlb_qm_fitting_report.live_app.upsert_setting", side_effect=fake_upsert), \
+         patch("src.service.mlb_qm_fitting_report.live_app.current_live_as_of", return_value=date(2026, 8, 7)):
         payload = build_snapshot_payload(settings)
 
-    week = next(iter(payload["weeks"].values()))
-    assert len(week["raw"]["26FW"]) == 2  # S2, S4 둘 다
+    # 이미 얼려진 주는 그 값(FROZEN 마커) 그대로 재사용, 새로 계산 안 함
+    assert payload["weeks"]["2026-W31"]["raw"] == {"FROZEN": True}
 
 
 def test_root_endpoint_returns_html():
     from src.service.mlb_qm_fitting_report.live_app import app as live_app
 
+    store, fake_fetch, fake_upsert = _fake_settings_store()
     with patch("src.service.mlb_qm_fitting_report.live_app.fetch_styles", return_value=STYLES_FIXTURE), \
          patch("src.service.mlb_qm_fitting_report.live_app.fetch_fitting_records", return_value=RECORDS_FIXTURE), \
-         patch("src.service.mlb_qm_fitting_report.live_app.fetch_setting", return_value=None):
+         patch("src.service.mlb_qm_fitting_report.live_app.fetch_setting", side_effect=fake_fetch), \
+         patch("src.service.mlb_qm_fitting_report.live_app.upsert_setting", side_effect=fake_upsert):
         client = TestClient(live_app)
         resp = client.get("/")
 
@@ -152,7 +210,11 @@ if __name__ == "__main__":
     test_cache_returns_fresh_value_within_ttl()
     test_cache_falls_back_to_stale_on_fetch_error()
     test_cache_raises_when_no_prior_success()
-    test_build_snapshot_payload_includes_27ss_and_26fw_only()
-    test_build_snapshot_payload_no_valid_list_keeps_all_26fw()
+    test_current_live_as_of_on_friday_uses_today()
+    test_current_live_as_of_on_weekday_uses_last_friday()
+    test_friday_of_week_id()
+    test_build_snapshot_payload_first_visit_only_creates_current_week()
+    test_build_snapshot_payload_freezes_previous_week_on_rollover()
+    test_build_snapshot_payload_does_not_recompute_already_frozen_week()
     test_root_endpoint_returns_html()
     print("OK: test_live_app")
