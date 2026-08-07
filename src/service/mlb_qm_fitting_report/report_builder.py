@@ -23,7 +23,8 @@ th{background:#f8f9fa;color:#555;font-weight:700}
 .owner-col{width:64px;text-align:center}
 .stage-col{width:64px;text-align:center}
 .act-col{width:60px;text-align:center}
-.remark-col{width:160px;text-align:left;vertical-align:top;padding:6px}
+.remark-col{width:220px;text-align:left;vertical-align:top;padding:6px}
+.remark-col .btn{white-space:nowrap;flex-shrink:0}
 .grp-a{background:#eef3fc}
 .grp-b{background:#f4f1fb}
 th.grp-a,th.grp-th:first-of-type{border-left:1px solid #e5e7eb}
@@ -212,6 +213,21 @@ function currentOffsets(season) {
 function remarkKey(season, owner, stage) { return `${season}|${owner}|${stage}`; }
 function remarkSettingsKey(weekId) { return `mlb_qm_remark_${weekId}`; }
 
+// 버튼이 "수정"이면 입력창만 편집 가능하게 풀어주고 "저장"으로 바뀐다(아직 저장 안 함).
+// 버튼이 "저장"이면 그때 실제로 저장하고 다시 잠근 뒤 "수정"으로 바뀐다.
+function remarkButtonClick(weekId, season, owner, stage) {
+  const domId = `remark-${weekId}-${season}-${owner}-${stage}`.replace(/[^\\w-]/g, '_');
+  const input = document.getElementById(domId);
+  const btn = document.getElementById(`${domId}-btn`);
+  if (btn.textContent === '수정') {
+    input.disabled = false;
+    input.focus();
+    btn.textContent = '저장';
+    return;
+  }
+  saveRemark(weekId, season, owner, stage);
+}
+
 async function saveRemark(weekId, season, owner, stage) {
   const domId = `remark-${weekId}-${season}-${owner}-${stage}`.replace(/[^\\w-]/g, '_');
   const input = document.getElementById(domId);
@@ -239,6 +255,7 @@ async function saveRemark(weekId, season, owner, stage) {
     });
     if (!saveResp.ok) throw new Error(await saveResp.text());
     if (DATA.weeks[weekId]) DATA.weeks[weekId].remarks = current;
+    input.disabled = !!text;
     btn.textContent = text ? '수정' : '저장';
   } catch (e) {
     btn.textContent = prevLabel;
@@ -1307,8 +1324,8 @@ function render() {
           `<td class="num-td pct grp-b">${pct(m.baseline_done, m.baseline_all)}%</td><td class="num-td grp-b">${m.baseline_done}</td><td class="num-td grp-b">${m.baseline_all}</td>` +
           (isLatest ? `<td class="act-col"><button class="btn" onclick="startEdit('${season}','${owner}','${stage}',${m.total_done},${m.total_all})">수정</button></td>` : '') +
           `<td class="remark-col" style="display:flex;gap:4px;align-items:center">` +
-          `<input type="text" id="${remarkDomId}" value="${esc(remarkText)}" style="width:110px;font-size:11px;padding:2px 4px">` +
-          `<button class="btn" id="${remarkDomId}-btn" onclick="saveRemark('${weekId}','${season}','${owner}','${stage}')">${remarkText ? '수정' : '저장'}</button>` +
+          `<input type="text" id="${remarkDomId}" value="${esc(remarkText)}" ${remarkText ? 'disabled' : ''} style="width:110px;font-size:11px;padding:2px 4px">` +
+          `<button class="btn" id="${remarkDomId}-btn" onclick="remarkButtonClick('${weekId}','${season}','${owner}','${stage}')">${remarkText ? '수정' : '저장'}</button>` +
           `</td>`;
         tbody.appendChild(row);
 
