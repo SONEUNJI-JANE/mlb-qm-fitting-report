@@ -95,6 +95,27 @@ def upsert_fitting_records(settings: dict, rows: list[dict]) -> None:
         resp.raise_for_status()
 
 
+def fetch_setting(settings: dict, key: str) -> str | None:
+    """settings 테이블의 key -> value(문자열). 없으면 None."""
+    url = f"{settings['supabase_url']}/rest/v1/settings"
+    resp = requests.get(url, headers=_headers(settings), params={"select": "value", "key": f"eq.{key}"}, timeout=30)
+    resp.raise_for_status()
+    rows = resp.json()
+    if not rows or not rows[0]["value"]:
+        return None
+    return rows[0]["value"]
+
+
+def upsert_setting(settings: dict, key: str, value: str) -> None:
+    """settings 테이블에 key/value upsert(key 유니크, merge-duplicates)."""
+    headers = _headers(settings)
+    headers["Content-Type"] = "application/json"
+    headers["Prefer"] = "resolution=merge-duplicates,return=minimal"
+    url = f"{settings['supabase_url']}/rest/v1/settings"
+    resp = requests.post(url, headers=headers, json={"key": key, "value": value}, timeout=30)
+    resp.raise_for_status()
+
+
 def fetch_overrides(settings: dict, week_id: str) -> list[dict]:
     """대시보드 셀 수정 [적용] 버튼이 settings 테이블에 써놓은 해당 주차 오버라이드 목록. 없으면 빈 리스트."""
     url = f"{settings['supabase_url']}/rest/v1/settings"

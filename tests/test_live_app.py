@@ -84,6 +84,13 @@ STYLES_FIXTURE = [
         "pp_due": "2026-02-01", "top_due": "2026-03-01", "vendor": "V1",
         "washed": None, "qty_kr": 100, "qty_cn": 0, "earliest_etd": "2026-04-01",
     },
+    {
+        # 26FW인데 sync_26fw가 저장한 "실제 엑셀 목록"엔 없는 스타일(다른 시스템이 얹어놓은 것) -> 빠져야 함
+        "style_code": "S4", "item": "DK", "quarter": "Main TS", "season": "26FW",
+        "td": "김철수", "qa": "박영희", "co": None, "qc_due": "2026-01-01",
+        "pp_due": "2026-02-01", "top_due": "2026-03-01", "vendor": "V1",
+        "washed": None, "qty_kr": 100, "qty_cn": 0, "earliest_etd": "2026-04-01",
+    },
 ]
 RECORDS_FIXTURE = [
     {"style_code": "S1", "stage": "FIT", "round": 1, "status": "Approved", "updated_at": "2026-01-01T00:00:00"},
@@ -96,6 +103,7 @@ def test_build_snapshot_payload_includes_27ss_and_26fw_only():
     settings = {"supabase_url": "http://x", "supabase_anon_key": "k"}
     with patch("src.service.mlb_qm_fitting_report.live_app.fetch_styles", return_value=STYLES_FIXTURE), \
          patch("src.service.mlb_qm_fitting_report.live_app.fetch_fitting_records", return_value=RECORDS_FIXTURE), \
+         patch("src.service.mlb_qm_fitting_report.live_app.fetch_setting", return_value='["S2"]'), \
          patch("src.service.mlb_qm_fitting_report.live_app.resolve_as_of_date", return_value=date(2026, 8, 6)):
         payload = build_snapshot_payload(settings)
 
@@ -106,14 +114,31 @@ def test_build_snapshot_payload_includes_27ss_and_26fw_only():
     assert set(week["progress"].keys()) == {"27SS", "26FW"}
     assert set(week["raw"].keys()) == {"27SS", "26FW"}
     assert week["raw"]["27SS"][0]["style_code"] == "S1"
-    assert week["raw"]["26FW"][0]["style_code"] == "S2"
+    assert len(week["raw"]["26FW"]) == 1
+    assert week["raw"]["26FW"][0]["style_code"] == "S2"  # S4는 valid 목록에 없어서 빠짐
+
+
+def test_build_snapshot_payload_no_valid_list_keeps_all_26fw():
+    """settings에 아직 목록이 없으면(첫 배포 등) 필터 없이 다 보여준다(fail open)."""
+    from src.service.mlb_qm_fitting_report.live_app import build_snapshot_payload
+
+    settings = {"supabase_url": "http://x", "supabase_anon_key": "k"}
+    with patch("src.service.mlb_qm_fitting_report.live_app.fetch_styles", return_value=STYLES_FIXTURE), \
+         patch("src.service.mlb_qm_fitting_report.live_app.fetch_fitting_records", return_value=RECORDS_FIXTURE), \
+         patch("src.service.mlb_qm_fitting_report.live_app.fetch_setting", return_value=None), \
+         patch("src.service.mlb_qm_fitting_report.live_app.resolve_as_of_date", return_value=date(2026, 8, 6)):
+        payload = build_snapshot_payload(settings)
+
+    week = next(iter(payload["weeks"].values()))
+    assert len(week["raw"]["26FW"]) == 2  # S2, S4 둘 다
 
 
 def test_root_endpoint_returns_html():
     from src.service.mlb_qm_fitting_report.live_app import app as live_app
 
     with patch("src.service.mlb_qm_fitting_report.live_app.fetch_styles", return_value=STYLES_FIXTURE), \
-         patch("src.service.mlb_qm_fitting_report.live_app.fetch_fitting_records", return_value=RECORDS_FIXTURE):
+         patch("src.service.mlb_qm_fitting_report.live_app.fetch_fitting_records", return_value=RECORDS_FIXTURE), \
+         patch("src.service.mlb_qm_fitting_report.live_app.fetch_setting", return_value=None):
         client = TestClient(live_app)
         resp = client.get("/")
 
@@ -128,5 +153,6 @@ if __name__ == "__main__":
     test_cache_falls_back_to_stale_on_fetch_error()
     test_cache_raises_when_no_prior_success()
     test_build_snapshot_payload_includes_27ss_and_26fw_only()
+    test_build_snapshot_payload_no_valid_list_keeps_all_26fw()
     test_root_endpoint_returns_html()
     print("OK: test_live_app")

@@ -123,6 +123,21 @@ def test_map_fitting_records_done_flag_with_zero_rounds_falls_back_to_due_date()
     assert records[0]["updated_at"] == "2026-05-01T00:00:00+00:00"
 
 
+def test_map_fitting_records_done_flag_no_dates_at_all_falls_back_to_today():
+    # due도 etd도 없는 극단 케이스(실제 데이터에서 4건 발견됨) - 그래도 완료로는 잡혀야 함.
+    raw_row = {
+        "style_code": "S7",
+        "fit_done": True,
+        "fit_due": None,
+        "etd": None,
+        "detail": {"FIT": {"rounds": []}},
+    }
+    records = map_fitting_records(raw_row)
+    assert len(records) == 1
+    assert records[0]["status"] == "Approved"
+    assert records[0]["updated_at"].endswith("T00:00:00+00:00")
+
+
 def test_map_fitting_records_not_done_and_zero_rounds_produces_nothing():
     raw_row = {
         "style_code": "S6",
@@ -140,5 +155,6 @@ if __name__ == "__main__":
     test_map_fitting_records_skips_rounds_without_any_date()
     test_map_fitting_records_done_flag_overrides_last_round_status()
     test_map_fitting_records_done_flag_with_zero_rounds_falls_back_to_due_date()
+    test_map_fitting_records_done_flag_no_dates_at_all_falls_back_to_today()
     test_map_fitting_records_not_done_and_zero_rounds_produces_nothing()
     print("OK: test_sync_26fw")
