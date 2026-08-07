@@ -1303,8 +1303,8 @@ function render() {
     table.innerHTML = `<thead>
       <tr><th class="owner-col" rowspan="2">담당</th><th class="stage-col" rowspan="2">단계</th>
         <th class="grp-th grp-a" colspan="3">전체 스타일 수 기준</th><th class="grp-th grp-b" colspan="3">Due Date 기준</th>
-        ${isLatest ? '<th class="act-col" rowspan="2"></th>' : ''}
-        <th class="remark-col" rowspan="2">비고</th></tr>
+        <th class="remark-col" rowspan="2">비고</th>
+        ${isLatest ? '<th class="act-col" rowspan="2"></th>' : ''}</tr>
       <tr><th class="num-th grp-a">비율</th><th class="num-th grp-a">승인</th><th class="num-th grp-a">전체</th>
         <th class="num-th grp-b">비율</th><th class="num-th grp-b">승인</th><th class="num-th grp-b">전체</th></tr>
       </thead><tbody></tbody>`;
@@ -1322,11 +1322,11 @@ function render() {
         row.innerHTML = `<td class="owner-col">${esc(owner)}</td><td class="stage-col">${esc(stage)}</td>` +
           `<td class="num-td pct grp-a" id="cell-${key}">${pct(m.total_done, m.total_all)}%</td><td class="num-td grp-a">${m.total_done}</td><td class="num-td grp-a">${m.total_all}</td>` +
           `<td class="num-td pct grp-b">${pct(m.baseline_done, m.baseline_all)}%</td><td class="num-td grp-b">${m.baseline_done}</td><td class="num-td grp-b">${m.baseline_all}</td>` +
-          (isLatest ? `<td class="act-col"><button class="btn" onclick="startEdit('${season}','${owner}','${stage}',${m.total_done},${m.total_all})">수정</button></td>` : '') +
           `<td class="remark-col" style="display:flex;gap:4px;align-items:center">` +
           `<input type="text" id="${remarkDomId}" value="${esc(remarkText)}" ${remarkText ? 'disabled' : ''} style="width:110px;font-size:11px;padding:2px 4px">` +
           `<button class="btn" id="${remarkDomId}-btn" onclick="remarkButtonClick('${weekId}','${season}','${owner}','${stage}')">${remarkText ? '수정' : '저장'}</button>` +
-          `</td>`;
+          `</td>` +
+          (isLatest ? `<td class="act-col"><button class="btn" onclick="startEdit('${season}','${owner}','${stage}',${m.total_done},${m.total_all})">수정</button></td>` : '');
         tbody.appendChild(row);
 
         if (overdue.length) {
