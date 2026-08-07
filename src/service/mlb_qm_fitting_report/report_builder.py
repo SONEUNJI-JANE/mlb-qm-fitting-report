@@ -24,6 +24,8 @@ th{background:#f8f9fa;color:#555;font-weight:700}
 .stage-col{width:64px;text-align:center}
 .act-col{width:60px;text-align:center}
 .remark-col{width:280px;text-align:center;vertical-align:middle;padding:6px}
+.remark-input{border:1px solid transparent;background:transparent}
+.remark-input:not([readonly]){border-color:#c7c9d9;background:#fff}
 .grp-a{background:#eef3fc}
 .grp-b{background:#f4f1fb}
 th.grp-a,th.grp-th:first-of-type{border-left:1px solid #e5e7eb}
@@ -1326,7 +1328,7 @@ function render() {
           `<td class="num-td pct grp-a" id="cell-${key}">${pct(m.total_done, m.total_all)}%</td><td class="num-td grp-a">${m.total_done}</td><td class="num-td grp-a">${m.total_all}</td>` +
           `<td class="num-td pct grp-b">${pct(m.baseline_done, m.baseline_all)}%</td><td class="num-td grp-b">${m.baseline_done}</td><td class="num-td grp-b">${m.baseline_all}</td>` +
           `<td class="remark-col" style="display:flex;align-items:center;justify-content:center">` +
-          `<input type="text" id="${remarkDomId}" value="${esc(remarkText)}" readonly ` +
+          `<input type="text" class="remark-input" id="${remarkDomId}" value="${esc(remarkText)}" readonly ` +
           `ondblclick="unlockRemark('${remarkDomId}')" onblur="saveRemark('${weekId}','${season}','${owner}','${stage}')" ` +
           `style="width:220px;font-size:11px;padding:2px 4px;text-align:left" title="더블클릭해서 수정">` +
           `</td>`;
