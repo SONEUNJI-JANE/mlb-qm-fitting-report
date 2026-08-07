@@ -23,7 +23,7 @@ th{background:#f8f9fa;color:#555;font-weight:700}
 .owner-col{width:64px;text-align:center}
 .stage-col{width:64px;text-align:center}
 .act-col{width:60px;text-align:center}
-.remark-col{width:220px;text-align:left;vertical-align:top;padding:6px}
+.remark-col{width:220px;text-align:center;vertical-align:middle;padding:6px}
 .remark-col .btn{white-space:nowrap;flex-shrink:0}
 .grp-a{background:#eef3fc}
 .grp-b{background:#f4f1fb}
@@ -1321,8 +1321,8 @@ function render() {
         row.innerHTML = `<td class="owner-col">${esc(owner)}</td><td class="stage-col">${esc(stage)}</td>` +
           `<td class="num-td pct grp-a" id="cell-${key}">${pct(m.total_done, m.total_all)}%</td><td class="num-td grp-a">${m.total_done}</td><td class="num-td grp-a">${m.total_all}</td>` +
           `<td class="num-td pct grp-b">${pct(m.baseline_done, m.baseline_all)}%</td><td class="num-td grp-b">${m.baseline_done}</td><td class="num-td grp-b">${m.baseline_all}</td>` +
-          `<td class="remark-col" style="display:flex;gap:4px;align-items:center">` +
-          `<input type="text" id="${remarkDomId}" value="${esc(remarkText)}" style="width:110px;font-size:11px;padding:2px 4px">` +
+          `<td class="remark-col" style="display:flex;gap:4px;align-items:center;justify-content:center">` +
+          `<input type="text" id="${remarkDomId}" value="${esc(remarkText)}" style="width:110px;font-size:11px;padding:2px 4px;text-align:center">` +
           `<button class="btn" id="${remarkDomId}-btn" onclick="saveRemark('${weekId}','${season}','${owner}','${stage}')">저장</button>` +
           `</td>`;
         tbody.appendChild(row);
