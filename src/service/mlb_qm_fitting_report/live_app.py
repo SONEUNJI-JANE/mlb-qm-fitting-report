@@ -63,7 +63,12 @@ def _compute_week_data(settings: dict, as_of_date: date) -> dict:
 
     styles 테이블은 26FW 쪽을 다른 시스템(PLM)도 같이 쓰고 있어서 엑셀에 없는 스타일이
     섞여 들어올 수 있다 — sync_26fw.py가 저장해둔 "실제 엑셀에 있던 정확한 목록"으로
-    26FW만 한 번 더 걸러서 항상 엑셀 기준 숫자와 일치하게 한다."""
+    26FW만 한 번 더 걸러서 항상 엑셀 기준 숫자와 일치하게 한다.
+
+    fitting_records는 updated_at(그 상태가 확정된 시점)이 as_of_date보다 나중인 건
+    "그 시점엔 아직 일어나지 않은 일"이라 제외한다 — 안 그러면 과거 주차를 얼려도
+    "그 날짜 기준 실제 상태"가 아니라 항상 "지금 상태"가 저장돼서 지난 주/이번 주가
+    똑같이 보이는 문제가 생긴다."""
     styles = [s for s in fetch_styles(settings) if s.get("season") in SEASONS]
 
     valid_26fw = fetch_setting(settings, STYLE_CODES_SETTING_KEY)
@@ -73,7 +78,8 @@ def _compute_week_data(settings: dict, as_of_date: date) -> dict:
 
     records = fetch_fitting_records(settings)
     style_codes = {s["style_code"] for s in styles}
-    records = [r for r in records if r["style_code"] in style_codes]
+    as_of_iso = as_of_date.isoformat()
+    records = [r for r in records if r["style_code"] in style_codes and r["updated_at"][:10] <= as_of_iso]
 
     return {
         "as_of_date": as_of_date.isoformat(),

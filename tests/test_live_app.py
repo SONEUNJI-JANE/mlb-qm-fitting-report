@@ -128,6 +128,32 @@ def test_friday_of_week_id():
     assert friday_of_week_id("2026-W32") == date(2026, 8, 7)
 
 
+def test_compute_week_data_excludes_records_after_as_of_date():
+    """과거 주차를 얼릴 때, 그 날짜 이후에 확정된 상태는 반영되면 안 된다(그래야 지난주/이번주가
+    실제로 다르게 나옴 — 안 그러면 항상 '지금 상태'로만 계산돼서 둘이 똑같아 보이는 버그가 남)."""
+    from src.service.mlb_qm_fitting_report.live_app import _compute_week_data
+
+    styles = [{
+        "style_code": "S1", "item": "DK", "quarter": "Main TS", "season": "27SS",
+        "td": "김철수", "qa": "박영희", "co": None, "qc_due": "2026-01-01",
+        "pp_due": "2026-02-01", "top_due": "2026-03-01", "vendor": "V1",
+        "washed": None, "qty_kr": 100, "qty_cn": 0, "earliest_etd": "2026-04-01",
+    }]
+    records = [
+        {"style_code": "S1", "stage": "FIT", "round": 1, "status": "Rejected", "updated_at": "2026-07-25T00:00:00"},
+        {"style_code": "S1", "stage": "FIT", "round": 2, "status": "Approved", "updated_at": "2026-08-05T00:00:00"},
+    ]
+    settings = {"supabase_url": "http://x", "supabase_anon_key": "k"}
+    with patch("src.service.mlb_qm_fitting_report.live_app.fetch_styles", return_value=styles), \
+         patch("src.service.mlb_qm_fitting_report.live_app.fetch_fitting_records", return_value=records), \
+         patch("src.service.mlb_qm_fitting_report.live_app.fetch_setting", return_value=None):
+        past_week = _compute_week_data(settings, date(2026, 7, 31))  # 2ND(8/5)는 아직 안 일어남
+        current_week = _compute_week_data(settings, date(2026, 8, 7))  # 2ND(8/5)까지 반영됨
+
+    assert past_week["progress"]["27SS"]["TD"]["FIT"]["total_done"] == 0  # 아직 Rejected 상태였음
+    assert current_week["progress"]["27SS"]["TD"]["FIT"]["total_done"] == 1  # 지금은 Approved
+
+
 def test_build_snapshot_payload_first_visit_only_creates_current_week():
     from src.service.mlb_qm_fitting_report.live_app import build_snapshot_payload
 
@@ -213,6 +239,7 @@ if __name__ == "__main__":
     test_current_live_as_of_on_friday_uses_today()
     test_current_live_as_of_on_weekday_uses_last_friday()
     test_friday_of_week_id()
+    test_compute_week_data_excludes_records_after_as_of_date()
     test_build_snapshot_payload_first_visit_only_creates_current_week()
     test_build_snapshot_payload_freezes_previous_week_on_rollover()
     test_build_snapshot_payload_does_not_recompute_already_frozen_week()
