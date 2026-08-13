@@ -132,7 +132,10 @@ def build_snapshot_payload(settings: dict) -> dict:
         if frozen_json:
             weeks[week_id] = json.loads(frozen_json)
 
-    weeks[current_week_id] = _compute_week_data(settings, current_as_of)
+    # current_as_of(지난 금요일 또는 오늘)는 week_id 계산(=주 구간 판별)용일 뿐,
+    # 아직 얼리지 않은 이번 주 데이터는 실제 오늘 날짜까지 실시간으로 다 보여줘야 한다.
+    # current_as_of를 그대로 쓰면 월~목 사이엔 지난 금요일 이후 데이터가 필터링돼 누락된다.
+    weeks[current_week_id] = _compute_week_data(settings, date.today())
 
     # 비고는 얼린 스냅샷 안에 같이 저장하지 않는다 — 얼린 뒤에도 계속 수정할 수 있어야 하므로
     # (브라우저가 직접 저장하는 값이라) 매번 최신값을 따로 붙여준다.

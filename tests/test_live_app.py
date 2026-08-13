@@ -98,6 +98,15 @@ RECORDS_FIXTURE = [
 ]
 
 
+class _FrozenDate(date):
+    """live_app.py의 date.today() 호출을 고정 날짜로 흉내내는 용도(테스트 실행일과 무관하게)."""
+    _fixed = date(2026, 8, 7)
+
+    @classmethod
+    def today(cls):
+        return cls._fixed
+
+
 def _fake_settings_store(initial: dict = None):
     """fetch_setting/upsert_setting을 실제 상태처럼 흉내내는 인메모리 store."""
     store = dict(initial or {})
@@ -163,7 +172,8 @@ def test_build_snapshot_payload_first_visit_only_creates_current_week():
          patch("src.service.mlb_qm_fitting_report.live_app.fetch_fitting_records", return_value=RECORDS_FIXTURE), \
          patch("src.service.mlb_qm_fitting_report.live_app.fetch_setting", side_effect=fake_fetch), \
          patch("src.service.mlb_qm_fitting_report.live_app.upsert_setting", side_effect=fake_upsert), \
-         patch("src.service.mlb_qm_fitting_report.live_app.current_live_as_of", return_value=date(2026, 8, 7)):
+         patch("src.service.mlb_qm_fitting_report.live_app.current_live_as_of", return_value=date(2026, 8, 7)), \
+         patch("src.service.mlb_qm_fitting_report.live_app.date", _FrozenDate):
         payload = build_snapshot_payload(settings)
 
     assert list(payload["weeks"].keys()) == ["2026-W32"]
@@ -183,7 +193,8 @@ def test_build_snapshot_payload_freezes_previous_week_on_rollover():
          patch("src.service.mlb_qm_fitting_report.live_app.fetch_fitting_records", return_value=RECORDS_FIXTURE), \
          patch("src.service.mlb_qm_fitting_report.live_app.fetch_setting", side_effect=fake_fetch), \
          patch("src.service.mlb_qm_fitting_report.live_app.upsert_setting", side_effect=fake_upsert), \
-         patch("src.service.mlb_qm_fitting_report.live_app.current_live_as_of", return_value=date(2026, 8, 7)):
+         patch("src.service.mlb_qm_fitting_report.live_app.current_live_as_of", return_value=date(2026, 8, 7)), \
+         patch("src.service.mlb_qm_fitting_report.live_app.date", _FrozenDate):
         payload = build_snapshot_payload(settings)
 
     weeks = payload["weeks"]
@@ -208,7 +219,8 @@ def test_build_snapshot_payload_does_not_recompute_already_frozen_week():
          patch("src.service.mlb_qm_fitting_report.live_app.fetch_fitting_records", return_value=RECORDS_FIXTURE), \
          patch("src.service.mlb_qm_fitting_report.live_app.fetch_setting", side_effect=fake_fetch), \
          patch("src.service.mlb_qm_fitting_report.live_app.upsert_setting", side_effect=fake_upsert), \
-         patch("src.service.mlb_qm_fitting_report.live_app.current_live_as_of", return_value=date(2026, 8, 7)):
+         patch("src.service.mlb_qm_fitting_report.live_app.current_live_as_of", return_value=date(2026, 8, 7)), \
+         patch("src.service.mlb_qm_fitting_report.live_app.date", _FrozenDate):
         payload = build_snapshot_payload(settings)
 
     # 이미 얼려진 주는 그 값(FROZEN 마커) 그대로 재사용, 새로 계산 안 함
