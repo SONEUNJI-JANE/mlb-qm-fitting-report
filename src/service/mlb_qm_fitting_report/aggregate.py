@@ -63,6 +63,10 @@ def compute_progress(styles: list[dict], records: list[dict], as_of_date: date) 
             due = _parse_date(style.get(due_field))
             record = latest.get((style["style_code"], stage))
             is_done = bool(record and record["status"] == "Approved")
+            if stage == "FIT" and not is_done:
+                # 보정 승인 = FIT 승인(보정 통과하면 FIT 생략하고 PP로 직행하는 경우가 많음).
+                prep_record = latest.get((style["style_code"], "보정"))
+                is_done = bool(prep_record and prep_record["status"] == "Approved")
             is_due = bool(due and due <= as_of_date)
 
             owner_type = OWNER_BY_STAGE[stage]
@@ -120,12 +124,19 @@ def build_raw_rows(styles: list[dict], records: list[dict]) -> dict:
             "etd": style.get("earliest_etd"),
             "detail": {},
         }
+        prep_record = latest.get((style["style_code"], "보정"))
+        prep_rounds = _rounds_list(style["style_code"], "보정")
+        prep_approved = bool(prep_record and prep_record["status"] == "Approved")
+
         for stage in STAGES:
             due = _parse_date(style.get(DUE_FIELD_BY_STAGE[stage]))
             record = latest.get((style["style_code"], stage))
             rounds = _rounds_list(style["style_code"], stage)
             row[f"{stage.lower()}_due"] = due.isoformat() if due else None
-            row[f"{stage.lower()}_done"] = bool(record and record["status"] == "Approved")
+            is_done = bool(record and record["status"] == "Approved")
+            if stage == "FIT" and not is_done:
+                is_done = prep_approved  # 보정 승인 = FIT 승인(FIT 생략하고 PP로 직행)
+            row[f"{stage.lower()}_done"] = is_done
             row["detail"][stage] = {
                 "round": _round_label(record["round"]) if record else None,
                 "status": record["status"] if record else None,
@@ -135,8 +146,6 @@ def build_raw_rows(styles: list[dict], records: list[dict]) -> dict:
                 "rounds": rounds,
             }
         # 보정은 집계 대상 stage는 아니지만, FIT이 아직 시작 전일 때 "이전 단계" 상세로 보여준다.
-        prep_record = latest.get((style["style_code"], "보정"))
-        prep_rounds = _rounds_list(style["style_code"], "보정")
         row["detail"]["보정"] = {
             "round": _round_label(prep_record["round"]) if prep_record else None,
             "status": prep_record["status"] if prep_record else None,
@@ -145,7 +154,7 @@ def build_raw_rows(styles: list[dict], records: list[dict]) -> dict:
             "first_received": prep_rounds[0]["received"] if prep_rounds else None,
             "rounds": prep_rounds,
         }
-        if row["detail"]["FIT"]["round"] is None and row["detail"]["PP"]["round"] is not None:
+        if row["detail"]["FIT"]["round"] is None and prep_approved:
             row["detail"]["FIT"]["status"] = "생략(보정→PP 직행)"
         result.setdefault(season, []).append(row)
 
