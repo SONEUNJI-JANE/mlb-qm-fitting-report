@@ -4,6 +4,9 @@
   "legacy_xlsx_sources": {
     "26FW": "C:\\Users\\AC1005\\F&F\\F ML MLB 26F GTM - 301 QM - Technical Design , QA\\26FW FITTING 현황.xlsx"
   },
+  "due_date_sources": {
+    "27SS": "C:\\Users\\AC1005\\F&F\\F SO MLB 소싱팀 - 27SS\\27SS_QC,PP,TOP DUE(FABRIC,TRIM INC)\\27SS_QC_PP_TOP_DUE 소싱.xlsx"
+  },
   "raw_apparel_sources": {
     "26FW": "C:\\Users\\AC1005\\F&F\\F ML MLB 26F GTM - 002 상품구성(RAW) 및 전략, Item Strategy\\MLB_26FW_RAW Ver 2.0의 복사본.xlsm"
   },

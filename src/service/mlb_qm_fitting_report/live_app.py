@@ -12,6 +12,7 @@ from src.service.mlb_qm_fitting_report.supabase_client import (
 from src.service.mlb_qm_fitting_report.aggregate import compute_progress, build_raw_rows
 from src.service.mlb_qm_fitting_report.report_builder import build_report_html
 from src.service.mlb_qm_fitting_report.sync_26fw import STYLE_CODES_SETTING_KEY
+from src.service.mlb_qm_fitting_report.sync_27ss_due import DUE_OVERRIDE_SETTING_KEY
 
 SEASONS = ["27SS", "26FW"]
 LIVE_WEEK_SETTING_KEY = "mlb_qm_live_week_id"
@@ -75,6 +76,14 @@ def _compute_week_data(settings: dict, as_of_date: date) -> dict:
     if valid_26fw:
         valid_26fw_codes = set(json.loads(valid_26fw))
         styles = [s for s in styles if s.get("season") != "26FW" or s["style_code"] in valid_26fw_codes]
+
+    due_overrides_raw = fetch_setting(settings, DUE_OVERRIDE_SETTING_KEY)
+    if due_overrides_raw:
+        due_overrides = json.loads(due_overrides_raw)
+        for s in styles:
+            override = due_overrides.get(s["style_code"])
+            if override:
+                s.update(override)
 
     records = fetch_fitting_records(settings)
     style_codes = {s["style_code"] for s in styles}
