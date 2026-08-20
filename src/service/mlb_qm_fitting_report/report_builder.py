@@ -1303,10 +1303,7 @@ function normalizeQuarter(raw) {
 
 function statusTextHtml(m) {
   const extraApproved = m.total_done - m.baseline_done;
-  const pctAll = pct(m.total_done, m.total_all);
-  const pctDue = pct(m.baseline_done, m.baseline_all);
-  return `총 <b>${pctAll}%</b>(<b>${m.total_all}sty</b> 가운데) / due date 대비 <b>${pctDue}%</b> — ` +
-    `due date 도래 <b>${m.baseline_all}sty</b> 중 <b>${m.baseline_done}sty</b> 완료` +
+  return `총 <b>${m.total_all}sty</b> 가운데 due date 도래 <b>${m.baseline_all}sty</b> 중 <b>${m.baseline_done}sty</b> 완료` +
     (extraApproved > 0 ? ` (+<b>${extraApproved}sty</b> Approved)` : '');
 }
 
@@ -1348,7 +1345,9 @@ function progressRowHtml(label, m, key, suffix, weekId, season, owner, stage, re
     : `<td class="remark-col"></td>`;
   const rowHtml = `<tr><td class="owner-col">${esc(label)}</td>` +
     `<td class="status-col" id="cell-${key}-${esc(suffix)}">${statusTextHtml(m)}</td>` +
-    `${remarkCell}</tr>` + overdueDetailRowHtml(overdue, overdueId, 3);
+    `<td class="num-td pct">${pct(m.total_done, m.total_all)}%</td>` +
+    `<td class="num-td pct">${pct(m.baseline_done, m.baseline_all)}%</td>` +
+    `${remarkCell}</tr>` + overdueDetailRowHtml(overdue, overdueId, 5);
   return {html: rowHtml, overdueId};
 }
 
@@ -1358,6 +1357,7 @@ function renderStageTable(stage, owner, season, quarters, quarterProgress, overa
   table.innerHTML = `<thead>
     <tr><th class="owner-col">Quarter</th>
       <th class="status-col">현황</th>
+      <th class="num-th">전체%</th><th class="num-th">Due%</th>
       <th class="remark-col">비고</th></tr>
     </thead><tbody></tbody>`;
   const tbody = table.querySelector('tbody');
@@ -1388,7 +1388,7 @@ function renderStageTable(stage, owner, season, quarters, quarterProgress, overa
       const {html} = progressRowHtml(q, m, key, q, weekId, season, owner, stage, remarkText, false);
       inner += html;
     });
-    detailRow.innerHTML = `<td colspan="3" style="background:#fafbfe;padding:0">` +
+    detailRow.innerHTML = `<td colspan="5" style="background:#fafbfe;padding:0">` +
       `<div id="${detailId}" style="display:none">` +
       `<table style="width:100%;border-collapse:collapse">${inner}</table></div></td>`;
     tbody.appendChild(detailRow);
