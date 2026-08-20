@@ -546,19 +546,6 @@ function recentActivityBefore(row, stage) {
   return null;
 }
 
-// iso(YYYY-MM-DD) -> refIso까지 달력일수(음수 가능, refIso가 iso보다 이르면 음수).
-function calendarDaysBetween(iso, refIso) {
-  if (!iso || !refIso) return null;
-  const start = new Date(iso + 'T00:00:00');
-  const end = new Date(refIso + 'T00:00:00');
-  return Math.round((end - start) / (24 * 3600 * 1000));
-}
-
-// stage 제출(QC/PP/TOP 확정)부터 실제 선적일까지 걸린 달력일수의 실측 중앙값
-// (DCS AI 소싱 에이전트 DW_SOURCING_ORDER_RECAP, 브랜드 M 26F/27S 기준, 2026-08-20 집계).
-// "선적일 며칠 전에 그 stage가 끝나야 하는지"의 실제 운영 기준 — 감으로 정한 값 아님.
-const STAGE_SHIP_BUFFER_DAYS = {FIT: 103, PP: 56, TOP: 27};
-
 // iso(YYYY-MM-DD)부터 refIso(기준일, 보통 위에서 지정한 as_of_date)까지 주말 뺀 영업일수. iso가 refIso 이후면 0.
 function businessDaysSince(iso, refIso) {
   if (!iso || !refIso) return null;
@@ -600,19 +587,16 @@ function computeProgressFromRaw(rawRows, asOfDate, offsets) {
             const recent = recentActivityBefore(row, stage);
             if (recent) { confirmRawDate = recent.date; confirmStage = recent.label; confirmReason = recent.reason; }
           }
-          // 납기(ETD) 영향 여부: 선적일까지 남은 날짜가, 이 stage가 끝난 뒤 선적까지 실제로
-          // 걸리는 실측 기간(STAGE_SHIP_BUFFER_DAYS)보다 이미 적으면 -> 지금 끝내도 선적일에
-          // 못 맞출 가능성이 높다는 뜻 -> 영향 있음. ETD가 없으면 판단 불가로 null.
+          // 납기(ETD) 영향 여부: due~ETD 사이 원래 버퍼(영업일)보다 이미 초과한 일수가 많거나
+          // 같으면 그 버퍼를 다 까먹은 것 -> 영향 있음. ETD가 없으면 판단 불가로 null.
           const overdueDays = businessDaysSince(due, asOfDate);
-          const daysUntilEtd = row.etd ? calendarDaysBetween(asOfDate, row.etd) : null;
-          const requiredBufferDays = STAGE_SHIP_BUFFER_DAYS[stage];
-          const impactsDelivery = daysUntilEtd == null ? null : daysUntilEtd < requiredBufferDays;
+          const etdBufferDays = (due && row.etd) ? businessDaysSince(due, row.etd) : null;
+          const impactsDelivery = etdBufferDays == null ? null : overdueDays >= etdBufferDays;
           bucket.overdue.push({
             style_code: row.style_code, vendor: row.vendor || null, due, status: d.status || '접수 전',
             confirm_stage: confirmStage, confirm_date: confirmRawDate ? shortDate(confirmRawDate) : null,
             elapsed_days: businessDaysSince(confirmRawDate, asOfDate), overdue_days: overdueDays,
-            etd: row.etd || null, days_until_etd: daysUntilEtd, required_buffer_days: requiredBufferDays,
-            impacts_delivery: impactsDelivery,
+            etd: row.etd || null, etd_buffer_days: etdBufferDays, impacts_delivery: impactsDelivery,
             reason: confirmReason,
           });
         }
@@ -1346,8 +1330,8 @@ function overdueDetailRowHtml(overdue, overdueId, colspan) {
       `<td style="padding:3px 6px">${esc(o.confirm_stage || '-')}</td><td style="padding:3px 6px">${esc(o.confirm_date || '-')}</td>` +
       `<td style="padding:3px 6px">${esc(o.reason || '-')}</td>` +
       `<td style="padding:3px 6px">${o.elapsed_days != null ? esc(String(o.elapsed_days)) : '-'}</td>` +
-      `<td style="padding:3px 6px${o.impacts_delivery ? ';color:#c0392b;font-weight:700' : ''}" title="${o.etd ? `ETD ${esc(shortDate(o.etd))}까지 ${o.days_until_etd}일 남음, 이 단계 실측 필요기간 ${o.required_buffer_days}일` : ''}">` +
-      `${o.impacts_delivery == null ? '판단불가' : (o.impacts_delivery ? '영향 O' : '영향 X')}</td></tr>`).join('') +
+      `<td style="padding:3px 6px${o.impacts_delivery ? ';color:#c0392b;font-weight:700' : ''}" title="${o.etd ? `ETD ${esc(shortDate(o.etd))}, 원래 버퍼 ${o.etd_buffer_days}영업일` : ''}">` +
+      `${o.impacts_delivery == null ? '판단불가' : (o.impacts_delivery ? 'O' : 'X')}</td></tr>`).join('') +
     `</tbody></table></div></td></tr>`;
 }
 
