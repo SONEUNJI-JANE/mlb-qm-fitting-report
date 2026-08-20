@@ -1323,12 +1323,12 @@ function overdueDetailRowHtml(overdue, overdueId, colspan, weekId, season, stage
   const impacted = overdue.filter(o => o.impacts_delivery).length;
   const impactedPct = pct(impacted, overdue.length);
   const impactedNote = impacted > 0
-    ? ` <span style="font-weight:700">(납기영향 ${impacted}건, ${impactedPct}%)</span>`
+    ? ` <span style="color:#c0392b;font-weight:700">(납기영향 ${impacted}건, ${impactedPct}%)</span>`
     : '';
   return `<tr><td colspan="${colspan}" style="background:#fafbfe;padding:0">` +
     `<div style="padding:4px 10px"><a href="#" onclick="toggleOverdue('${overdueId}');return false" style="font-size:11px;color:#4a65a9">미완료 ${overdue.length}건 상세 ▾</a>${impactedNote}</div>` +
     `<div id="${overdueId}" style="display:none;padding:0 10px 8px;overflow-x:auto">` +
-    `<table style="width:100%;font-size:10px;border-collapse:collapse;white-space:nowrap">` +
+    `<table style="width:auto;min-width:100%;table-layout:auto;overflow:visible;font-size:10px;border-collapse:collapse;white-space:nowrap">` +
     `<thead><tr style="color:#888"><th style="text-align:center;padding:4px 10px">스타일</th><th style="text-align:center;padding:4px 10px">협력사</th><th style="text-align:center;padding:4px 10px">DUE DATE</th><th style="text-align:center;padding:4px 10px">납기(ETD)</th><th style="text-align:center;padding:4px 10px">초과일수</th><th style="text-align:left;padding:4px 10px">현재 status</th>` +
       `<th style="text-align:center;padding:4px 10px">이전 Stage</th><th style="text-align:center;padding:4px 10px">전달일</th>` +
       `<th style="text-align:center;padding:4px 10px">사유</th><th style="text-align:center;padding:4px 10px">소요일</th>` +
