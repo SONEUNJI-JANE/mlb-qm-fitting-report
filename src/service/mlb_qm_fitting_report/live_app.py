@@ -14,6 +14,8 @@ from src.service.mlb_qm_fitting_report.report_builder import build_report_html
 from src.service.mlb_qm_fitting_report.sync_26fw import STYLE_CODES_SETTING_KEY
 from src.service.mlb_qm_fitting_report.sync_27ss_due import DUE_OVERRIDE_SETTING_KEY
 
+DELIVERY_DATE_SETTING_KEY = "mlb_qm_delivery_date_overrides"
+
 SEASONS = ["27SS", "26FW"]
 LIVE_WEEK_SETTING_KEY = "mlb_qm_live_week_id"
 KNOWN_WEEKS_SETTING_KEY = "mlb_qm_known_week_ids"
@@ -84,6 +86,16 @@ def _compute_week_data(settings: dict, as_of_date: date) -> dict:
             override = due_overrides.get(s["style_code"])
             if override:
                 s.update(override)
+
+    # 소싱 에이전트(DCS AI, Snowflake DW_SOURCING_ORDER_RECAP)의 입고예정일이 "최종 협의된
+    # 납기일자"라 PLM 쪽 earliest_etd보다 우선한다. 스타일당 여러 PO/컬러 중 가장 빠른 날짜.
+    delivery_overrides_raw = fetch_setting(settings, DELIVERY_DATE_SETTING_KEY)
+    if delivery_overrides_raw:
+        delivery_overrides = json.loads(delivery_overrides_raw)
+        for s in styles:
+            override = delivery_overrides.get(s["style_code"])
+            if override:
+                s["earliest_etd"] = override
 
     records = fetch_fitting_records(settings)
     style_codes = {s["style_code"] for s in styles}
