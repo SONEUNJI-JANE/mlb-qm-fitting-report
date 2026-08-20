@@ -1329,26 +1329,26 @@ function overdueDetailRowHtml(overdue, overdueId, colspan, weekId, season, stage
     `<div style="padding:4px 10px"><a href="#" onclick="toggleOverdue('${overdueId}');return false" style="font-size:11px;color:#4a65a9">미완료 ${overdue.length}건 상세 ▾</a>${impactedNote}</div>` +
     `<div id="${overdueId}" style="display:none;padding:0 10px 8px;overflow-x:auto">` +
     `<table style="width:100%;font-size:10px;border-collapse:collapse;white-space:nowrap">` +
-    `<thead><tr style="color:#888"><th style="text-align:left;padding:3px 6px">스타일</th><th style="text-align:left;padding:3px 6px">협력사</th><th style="text-align:left;padding:3px 6px">DUE DATE</th><th style="text-align:left;padding:3px 6px">납기(ETD)</th><th style="text-align:left;padding:3px 6px">초과일수</th><th style="text-align:left;padding:3px 6px">현재 status</th>` +
-      `<th style="text-align:left;padding:3px 6px">이전 Stage</th><th style="text-align:left;padding:3px 6px">전달일</th>` +
-      `<th style="text-align:left;padding:3px 6px">사유</th><th style="text-align:left;padding:3px 6px">소요일</th>` +
-      `<th style="text-align:left;padding:3px 6px">납기영향</th><th style="text-align:left;padding:3px 6px">비고</th></tr></thead>` +
+    `<thead><tr style="color:#888"><th style="text-align:center;padding:4px 10px">스타일</th><th style="text-align:center;padding:4px 10px">협력사</th><th style="text-align:center;padding:4px 10px">DUE DATE</th><th style="text-align:center;padding:4px 10px">납기(ETD)</th><th style="text-align:center;padding:4px 10px">초과일수</th><th style="text-align:left;padding:4px 10px">현재 status</th>` +
+      `<th style="text-align:center;padding:4px 10px">이전 Stage</th><th style="text-align:center;padding:4px 10px">전달일</th>` +
+      `<th style="text-align:center;padding:4px 10px">사유</th><th style="text-align:center;padding:4px 10px">소요일</th>` +
+      `<th style="text-align:center;padding:4px 10px">납기영향</th><th style="text-align:center;padding:4px 10px">비고</th></tr></thead>` +
     `<tbody>` + overdue.map(o => {
       const remarkDomId = `overdue-${weekId}-${season}-${o.style_code}-${stage}`.replace(/[^\\w-]/g, '_');
       const remarkText = remarks[overdueRemarkKey(season, o.style_code, stage)] || '';
       return `<tr style="border-top:1px solid #eee${o.impacts_delivery ? ';background:#fdeceb' : ''}">` +
-      `<td style="padding:3px 6px">${esc(o.style_code)}</td><td style="padding:3px 6px">${esc(vendorAlias(o.vendor) || '-')}</td><td style="padding:3px 6px">${esc(shortDate(o.due))}</td>` +
-      `<td style="padding:3px 6px">${o.etd ? esc(shortDate(o.etd)) : '-'}</td>` +
-      `<td style="padding:3px 6px">${o.overdue_days != null ? esc('+' + o.overdue_days) : '-'}</td>` +
-      `<td style="padding:3px 6px">${esc(o.status)}</td>` +
-      `<td style="padding:3px 6px">${esc(o.confirm_stage || '-')}</td><td style="padding:3px 6px">${esc(o.confirm_date || '-')}</td>` +
-      `<td style="padding:3px 6px">${esc(o.reason || '-')}</td>` +
-      `<td style="padding:3px 6px">${o.elapsed_days != null ? esc(String(o.elapsed_days)) : '-'}</td>` +
-      `<td style="padding:3px 6px" title="${o.etd ? `ETD ${esc(shortDate(o.etd))}, 원래 버퍼 ${o.etd_buffer_days}영업일` : ''}">` +
+      `<td style="padding:4px 10px;text-align:center">${esc(o.style_code)}</td><td style="padding:4px 10px;text-align:center">${esc(vendorAlias(o.vendor) || '-')}</td><td style="padding:4px 10px;text-align:center">${esc(shortDate(o.due))}</td>` +
+      `<td style="padding:4px 10px;text-align:center">${o.etd ? esc(shortDate(o.etd)) : '-'}</td>` +
+      `<td style="padding:4px 10px;text-align:center">${o.overdue_days != null ? esc('+' + o.overdue_days) : '-'}</td>` +
+      `<td style="padding:4px 10px;text-align:left">${esc(o.status)}</td>` +
+      `<td style="padding:4px 10px;text-align:center">${esc(o.confirm_stage || '-')}</td><td style="padding:4px 10px;text-align:center">${esc(o.confirm_date || '-')}</td>` +
+      `<td style="padding:4px 10px;text-align:center">${esc(o.reason || '-')}</td>` +
+      `<td style="padding:4px 10px;text-align:center">${o.elapsed_days != null ? esc(String(o.elapsed_days)) : '-'}</td>` +
+      `<td style="padding:4px 10px;text-align:center" title="${o.etd ? `ETD ${esc(shortDate(o.etd))}, 원래 버퍼 ${o.etd_buffer_days}영업일` : ''}">` +
       `${o.impacts_delivery == null ? '판단불가' : (o.impacts_delivery ? 'O' : 'X')}</td>` +
-      `<td style="padding:3px 6px"><input type="text" class="remark-input" id="${remarkDomId}" value="${esc(remarkText)}" readonly ` +
+      `<td style="padding:4px 10px;text-align:center"><input type="text" class="remark-input" id="${remarkDomId}" value="${esc(remarkText)}" readonly ` +
       `ondblclick="unlockRemark('${remarkDomId}')" onblur="saveOverdueRemark('${weekId}','${season}','${o.style_code}','${stage}')" ` +
-      `style="width:140px;font-size:10px;padding:2px 4px;text-align:left" title="더블클릭해서 수정"></td></tr>`;
+      `style="width:220px;font-size:10px;padding:2px 4px;text-align:left" title="더블클릭해서 수정"></td></tr>`;
     }).join('') +
     `</tbody></table></div></td></tr>`;
 }
