@@ -1303,8 +1303,9 @@ function normalizeQuarter(raw) {
 
 function statusTextHtml(m) {
   const extraApproved = m.total_done - m.baseline_done;
-  return `총 <b>${m.total_all}sty</b> 가운데 due date 도래 <b>${m.baseline_all}sty</b> 중 <b>${m.baseline_done}sty</b> 완료` +
-    (extraApproved > 0 ? ` (+<b>${extraApproved}sty</b> Approved)` : '');
+  return `due date 도래 <b>${m.baseline_all}sty</b> 중 <b>${m.baseline_done}sty</b> 완료` +
+    (extraApproved > 0 ? ` (+<b>${extraApproved}sty</b> Approved)` : '') +
+    ` — 총 <b>${m.total_all}sty</b> 가운데`;
 }
 
 function overdueDetailRowHtml(overdue, overdueId, colspan) {
@@ -1345,8 +1346,8 @@ function progressRowHtml(label, m, key, suffix, weekId, season, owner, stage, re
     : `<td class="remark-col"></td>`;
   const rowHtml = `<tr><td class="owner-col">${esc(label)}</td>` +
     `<td class="status-col" id="cell-${key}-${esc(suffix)}">${statusTextHtml(m)}</td>` +
-    `<td class="num-td pct">${pct(m.total_done, m.total_all)}%</td>` +
     `<td class="num-td pct">${pct(m.baseline_done, m.baseline_all)}%</td>` +
+    `<td class="num-td pct">${pct(m.total_done, m.total_all)}%</td>` +
     `${remarkCell}</tr>` + overdueDetailRowHtml(overdue, overdueId, 5);
   return {html: rowHtml, overdueId};
 }
@@ -1357,7 +1358,7 @@ function renderStageTable(stage, owner, season, quarters, quarterProgress, overa
   table.innerHTML = `<thead>
     <tr><th class="owner-col">Quarter</th>
       <th class="status-col">현황</th>
-      <th class="num-th">전체%</th><th class="num-th">Due%</th>
+      <th class="num-th">Due%</th><th class="num-th">전체%</th>
       <th class="remark-col">비고</th></tr>
     </thead><tbody></tbody>`;
   const tbody = table.querySelector('tbody');
