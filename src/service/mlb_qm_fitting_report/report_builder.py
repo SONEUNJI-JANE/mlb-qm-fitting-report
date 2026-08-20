@@ -1319,15 +1319,19 @@ function normalizeQuarter(raw) {
 
 function statusTextHtml(m) {
   const extraApproved = m.total_done - m.baseline_done;
-  return `due date 도래 <b>${m.baseline_all}sty</b> 중 <b>${m.baseline_done}sty</b> 완료` +
-    (extraApproved > 0 ? ` (+<b>${extraApproved}sty</b> Approved)` : '') +
-    ` — 총 <b>${m.total_all}sty</b> 가운데`;
+  return `총 <b>${m.total_all}sty</b> 가운데 due date 도래 <b>${m.baseline_all}sty</b> 중 <b>${m.baseline_done}sty</b> 완료` +
+    (extraApproved > 0 ? ` (+<b>${extraApproved}sty</b> Approved)` : '');
 }
 
 function overdueDetailRowHtml(overdue, overdueId, colspan) {
   if (!overdue.length) return '';
+  const impacted = overdue.filter(o => o.impacts_delivery).length;
+  const impactedPct = pct(impacted, overdue.length);
+  const impactedNote = impacted > 0
+    ? ` <span style="color:#c0392b;font-weight:700">(납기영향 ${impacted}건, ${impactedPct}%)</span>`
+    : '';
   return `<tr><td colspan="${colspan}" style="background:#fafbfe;padding:0">` +
-    `<div style="padding:4px 10px"><a href="#" onclick="toggleOverdue('${overdueId}');return false" style="font-size:11px;color:#4a65a9">미완료 ${overdue.length}건 상세 ▾</a></div>` +
+    `<div style="padding:4px 10px"><a href="#" onclick="toggleOverdue('${overdueId}');return false" style="font-size:11px;color:#4a65a9">미완료 ${overdue.length}건 상세 ▾</a>${impactedNote}</div>` +
     `<div id="${overdueId}" style="display:none;padding:0 10px 8px">` +
     `<table style="width:100%;font-size:10px;border-collapse:collapse">` +
     `<thead><tr style="color:#888"><th style="text-align:left;padding:3px 6px">스타일</th><th style="text-align:left;padding:3px 6px">협력사</th><th style="text-align:left;padding:3px 6px">DUE DATE</th><th style="text-align:left;padding:3px 6px">납기(ETD)</th><th style="text-align:left;padding:3px 6px">초과일수</th><th style="text-align:left;padding:3px 6px">현재 status</th>` +
