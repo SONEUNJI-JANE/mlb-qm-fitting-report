@@ -1,7 +1,16 @@
 import json
 import time
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta, timezone
 from typing import Callable
+
+_KST = timezone(timedelta(hours=9))
+
+
+def kst_today() -> date:
+    """배포 서버(K8s pod)는 UTC로 돈다 — date.today()를 그대로 쓰면 KST 저녁~밤 시간대에
+    아직 UTC로는 전날이라 "오늘"을 하루 늦게 인식해서 라이브 주차/얼린 주차가 뒤바뀐다.
+    이 앱은 KST 기준 업무라 항상 KST로 "오늘"을 계산한다."""
+    return datetime.now(_KST).date()
 
 from fastapi import FastAPI, Response
 
@@ -26,7 +35,7 @@ app = FastAPI()
 def current_live_as_of(today: date = None) -> date:
     """이번 주의 기준일(금요일). 오늘이 금요일이면 오늘, 아니면 가장 최근 지난 금요일
     (주말이면 이번 주 금요일, 월~목이면 지난주 금요일) — "이번 주는 계속 실시간"의 기준."""
-    today = today or date.today()
+    today = today or kst_today()
     days_since_friday = (today.isoweekday() - 5) % 7  # ISO: Mon=1..Sun=7, Fri=5
     return today - timedelta(days=days_since_friday)
 
@@ -156,7 +165,7 @@ def build_snapshot_payload(settings: dict) -> dict:
     # current_as_of(지난 금요일 또는 오늘)는 week_id 계산(=주 구간 판별)용일 뿐,
     # 아직 얼리지 않은 이번 주 데이터는 실제 오늘 날짜까지 실시간으로 다 보여줘야 한다.
     # current_as_of를 그대로 쓰면 월~목 사이엔 지난 금요일 이후 데이터가 필터링돼 누락된다.
-    weeks[current_week_id] = _compute_week_data(settings, date.today())
+    weeks[current_week_id] = _compute_week_data(settings, kst_today())
 
     # 비고는 얼린 스냅샷 안에 같이 저장하지 않는다 — 얼린 뒤에도 계속 수정할 수 있어야 하므로
     # (브라우저가 직접 저장하는 값이라) 매번 최신값을 따로 붙여준다.
