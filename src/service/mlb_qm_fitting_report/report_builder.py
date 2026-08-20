@@ -1322,7 +1322,7 @@ function overdueDetailRowHtml(overdue, overdueId, colspan) {
       `<th style="text-align:left;padding:3px 6px">이전 Stage</th><th style="text-align:left;padding:3px 6px">전달일</th>` +
       `<th style="text-align:left;padding:3px 6px">사유</th><th style="text-align:left;padding:3px 6px">소요일</th>` +
       `<th style="text-align:left;padding:3px 6px">납기영향</th></tr></thead>` +
-    `<tbody>` + overdue.map(o => `<tr style="border-top:1px solid #eee">` +
+    `<tbody>` + overdue.map(o => `<tr style="border-top:1px solid #eee${o.impacts_delivery ? ';background:#fdeceb' : ''}">` +
       `<td style="padding:3px 6px">${esc(o.style_code)}</td><td style="padding:3px 6px">${esc(vendorAlias(o.vendor) || '-')}</td><td style="padding:3px 6px">${esc(shortDate(o.due))}</td>` +
       `<td style="padding:3px 6px">${o.etd ? esc(shortDate(o.etd)) : '-'}</td>` +
       `<td style="padding:3px 6px">${o.overdue_days != null ? esc('+' + o.overdue_days) : '-'}</td>` +
