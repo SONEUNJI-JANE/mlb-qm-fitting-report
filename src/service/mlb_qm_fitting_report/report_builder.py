@@ -23,6 +23,7 @@ th{background:#f8f9fa;color:#555;font-weight:700}
 .owner-col{width:64px;text-align:center}
 .stage-col{width:64px;text-align:center}
 .act-col{width:60px;text-align:center}
+.status-col{text-align:left;vertical-align:middle;padding:6px 12px;font-size:13px}
 .remark-col{width:280px;text-align:center;vertical-align:middle;padding:6px}
 .remark-input{border:1px solid transparent;background:transparent}
 .remark-input:not([readonly]){border-color:#c7c9d9;background:#fff}
@@ -1307,11 +1308,9 @@ function render() {
     const remarks = week.remarks || {};
     const table = document.createElement('table');
     table.innerHTML = `<thead>
-      <tr><th class="owner-col" rowspan="2">담당</th><th class="stage-col" rowspan="2">단계</th>
-        <th class="grp-th grp-a" colspan="3">전체 스타일 수 기준</th><th class="grp-th grp-b" colspan="3">Due Date 기준</th>
-        <th class="remark-col" rowspan="2">비고</th></tr>
-      <tr><th class="num-th grp-a">비율</th><th class="num-th grp-a">승인</th><th class="num-th grp-a">전체</th>
-        <th class="num-th grp-b">비율</th><th class="num-th grp-b">승인</th><th class="num-th grp-b">전체</th></tr>
+      <tr><th class="owner-col">담당</th><th class="stage-col">단계</th>
+        <th class="status-col">현황</th>
+        <th class="remark-col">비고</th></tr>
       </thead><tbody></tbody>`;
     const tbody = table.querySelector('tbody');
     for (const owner of ['TD', 'QA']) {
@@ -1323,10 +1322,12 @@ function render() {
         const overdueId = `overdue-${key}`.replace(/[^\\w-]/g, '_');
         const remarkDomId = `remark-${weekId}-${season}-${owner}-${stage}`.replace(/[^\\w-]/g, '_');
         const remarkText = remarks[remarkKey(season, owner, stage)] || '';
+        const extraApproved = m.total_done - m.baseline_done;
+        const statusText = `${m.total_all}개 안에서 ${m.baseline_all}개 중에서 ${m.baseline_done}개 됨` +
+          (extraApproved > 0 ? ` (+${extraApproved}개 aprvd)` : '');
         const row = document.createElement('tr');
         row.innerHTML = `<td class="owner-col">${esc(owner)}</td><td class="stage-col">${esc(stage)}</td>` +
-          `<td class="num-td pct grp-a" id="cell-${key}">${pct(m.total_done, m.total_all)}%</td><td class="num-td grp-a">${m.total_done}</td><td class="num-td grp-a">${m.total_all}</td>` +
-          `<td class="num-td pct grp-b">${pct(m.baseline_done, m.baseline_all)}%</td><td class="num-td grp-b">${m.baseline_done}</td><td class="num-td grp-b">${m.baseline_all}</td>` +
+          `<td class="status-col" id="cell-${key}">${statusText}</td>` +
           `<td class="remark-col" style="display:flex;align-items:center;justify-content:flex-start">` +
           `<input type="text" class="remark-input" id="${remarkDomId}" value="${esc(remarkText)}" readonly ` +
           `ondblclick="unlockRemark('${remarkDomId}')" onblur="saveRemark('${weekId}','${season}','${owner}','${stage}')" ` +
@@ -1336,7 +1337,7 @@ function render() {
 
         if (overdue.length) {
           const detailRow = document.createElement('tr');
-          const colspan = 9;
+          const colspan = 4;
           detailRow.innerHTML = `<td colspan="${colspan}" style="background:#fafbfe;padding:0">` +
             `<div style="padding:4px 10px"><a href="#" onclick="toggleOverdue('${overdueId}');return false" style="font-size:11px;color:#4a65a9">미완료 ${overdue.length}건 상세 ▾</a></div>` +
             `<div id="${overdueId}" style="display:none;padding:0 10px 8px">` +
