@@ -1303,7 +1303,10 @@ function normalizeQuarter(raw) {
 
 function statusTextHtml(m) {
   const extraApproved = m.total_done - m.baseline_done;
-  return `총 <b>${m.total_all}sty</b> 가운데 due date 도래 <b>${m.baseline_all}sty</b> 중 <b>${m.baseline_done}sty</b> 완료` +
+  const pctAll = pct(m.total_done, m.total_all);
+  const pctDue = pct(m.baseline_done, m.baseline_all);
+  return `총 <b>${pctAll}%</b>(<b>${m.total_all}sty</b> 가운데) / due date 대비 <b>${pctDue}%</b> — ` +
+    `due date 도래 <b>${m.baseline_all}sty</b> 중 <b>${m.baseline_done}sty</b> 완료` +
     (extraApproved > 0 ? ` (+<b>${extraApproved}sty</b> Approved)` : '');
 }
 
@@ -1313,12 +1316,13 @@ function overdueDetailRowHtml(overdue, overdueId, colspan) {
     `<div style="padding:4px 10px"><a href="#" onclick="toggleOverdue('${overdueId}');return false" style="font-size:11px;color:#4a65a9">미완료 ${overdue.length}건 상세 ▾</a></div>` +
     `<div id="${overdueId}" style="display:none;padding:0 10px 8px">` +
     `<table style="width:100%;font-size:10px;border-collapse:collapse">` +
-    `<thead><tr style="color:#888"><th style="text-align:left;padding:3px 6px">스타일</th><th style="text-align:left;padding:3px 6px">협력사</th><th style="text-align:left;padding:3px 6px">DUE DATE</th><th style="text-align:left;padding:3px 6px">초과일수</th><th style="text-align:left;padding:3px 6px">현재 status</th>` +
+    `<thead><tr style="color:#888"><th style="text-align:left;padding:3px 6px">스타일</th><th style="text-align:left;padding:3px 6px">협력사</th><th style="text-align:left;padding:3px 6px">DUE DATE</th><th style="text-align:left;padding:3px 6px">납기(ETD)</th><th style="text-align:left;padding:3px 6px">초과일수</th><th style="text-align:left;padding:3px 6px">현재 status</th>` +
       `<th style="text-align:left;padding:3px 6px">이전 Stage</th><th style="text-align:left;padding:3px 6px">전달일</th>` +
       `<th style="text-align:left;padding:3px 6px">사유</th><th style="text-align:left;padding:3px 6px">소요일</th>` +
       `<th style="text-align:left;padding:3px 6px">납기영향</th></tr></thead>` +
     `<tbody>` + overdue.map(o => `<tr style="border-top:1px solid #eee">` +
       `<td style="padding:3px 6px">${esc(o.style_code)}</td><td style="padding:3px 6px">${esc(vendorAlias(o.vendor) || '-')}</td><td style="padding:3px 6px">${esc(shortDate(o.due))}</td>` +
+      `<td style="padding:3px 6px">${o.etd ? esc(shortDate(o.etd)) : '-'}</td>` +
       `<td style="padding:3px 6px">${o.overdue_days != null ? esc('+' + o.overdue_days) : '-'}</td>` +
       `<td style="padding:3px 6px">${esc(o.status)}</td>` +
       `<td style="padding:3px 6px">${esc(o.confirm_stage || '-')}</td><td style="padding:3px 6px">${esc(o.confirm_date || '-')}</td>` +
@@ -1329,8 +1333,27 @@ function overdueDetailRowHtml(overdue, overdueId, colspan) {
     `</tbody></table></div></td></tr>`;
 }
 
-// stage(FIT/PP/TOP) 하나를 quarter별 행으로 쪼개서 보여주는 표. quarterProgress = {quarter: progress}.
-function renderStageTable(stage, owner, season, quarters, quarterProgress, weekId, remarks) {
+// 담당/단계 하나의 한 행(전체 또는 quarter 하나) — 현황(pct+문장) + 미완료 상세 토글 + (전체 행일 때만) 비고.
+function progressRowHtml(label, m, key, suffix, weekId, season, owner, stage, remarkText, showRemark) {
+  const overdue = m.overdue || [];
+  const overdueId = `overdue-${key}-${suffix}`.replace(/[^\\w-]/g, '_');
+  const remarkCell = showRemark
+    ? (() => {
+        const remarkDomId = `remark-${weekId}-${season}-${owner}-${stage}`.replace(/[^\\w-]/g, '_');
+        return `<td class="remark-col" style="display:flex;align-items:center;justify-content:flex-start">` +
+          `<input type="text" class="remark-input" id="${remarkDomId}" value="${esc(remarkText)}" readonly ` +
+          `ondblclick="unlockRemark('${remarkDomId}')" onblur="saveRemark('${weekId}','${season}','${owner}','${stage}')" ` +
+          `style="width:220px;font-size:11px;padding:2px 4px;text-align:left" title="더블클릭해서 수정"></td>`;
+      })()
+    : `<td class="remark-col"></td>`;
+  const rowHtml = `<tr><td class="owner-col">${esc(label)}</td>` +
+    `<td class="status-col" id="cell-${key}-${esc(suffix)}">${statusTextHtml(m)}</td>` +
+    `${remarkCell}</tr>` + overdueDetailRowHtml(overdue, overdueId, 3);
+  return {html: rowHtml, overdueId};
+}
+
+// stage(FIT/PP/TOP) 하나: "전체" 행(quarter 다 합친 값) + 클릭하면 펼쳐지는 quarter별 세부 행.
+function renderStageTable(stage, owner, season, quarters, quarterProgress, overallProgress, weekId, remarks) {
   const table = document.createElement('table');
   table.innerHTML = `<thead>
     <tr><th class="owner-col">Quarter</th>
@@ -1338,28 +1361,38 @@ function renderStageTable(stage, owner, season, quarters, quarterProgress, weekI
       <th class="remark-col">비고</th></tr>
     </thead><tbody></tbody>`;
   const tbody = table.querySelector('tbody');
-  quarters.forEach(q => {
-    const progress = quarterProgress[q];
-    let m = (progress[owner] || {})[stage];
-    if (!m) return;
-    const key = editKey(season, owner, stage);
-    if (edits[key]) m = {...m, total_done: edits[key].override_numerator, total_all: edits[key].override_denominator};
-    const overdue = m.overdue || [];
-    const overdueId = `overdue-${key}-${q}`.replace(/[^\\w-]/g, '_');
-    // 비고는 quarter 상관없이 season/owner/stage 단위로 하나만 공유(저장 키도 동일) — DOM id만 quarter로 구분.
-    const remarkDomId = `remark-${weekId}-${season}-${owner}-${stage}-${q}`.replace(/[^\\w-]/g, '_');
-    const remarkText = remarks[remarkKey(season, owner, stage)] || '';
-    const row = document.createElement('tr');
-    row.innerHTML = `<td class="owner-col">${esc(q)}</td>` +
-      `<td class="status-col" id="cell-${key}-${esc(q)}">${statusTextHtml(m)}</td>` +
-      `<td class="remark-col" style="display:flex;align-items:center;justify-content:flex-start">` +
-      `<input type="text" class="remark-input" id="${remarkDomId}" value="${esc(remarkText)}" readonly ` +
-      `ondblclick="unlockRemark('${remarkDomId}')" onblur="saveRemark('${weekId}','${season}','${owner}','${stage}')" ` +
-      `style="width:220px;font-size:11px;padding:2px 4px;text-align:left" title="더블클릭해서 수정">` +
-      `</td>`;
-    tbody.appendChild(row);
-    tbody.insertAdjacentHTML('beforeend', overdueDetailRowHtml(overdue, overdueId, 3));
-  });
+  const key = editKey(season, owner, stage);
+  let overallM = (overallProgress[owner] || {})[stage];
+  if (!overallM) return table;
+  if (edits[key]) overallM = {...overallM, total_done: edits[key].override_numerator, total_all: edits[key].override_denominator};
+  const remarkText = remarks[remarkKey(season, owner, stage)] || '';
+  const detailId = `qbreakdown-${key}`.replace(/[^\\w-]/g, '_');
+  const canExpand = quarters.length > 1;
+  const {html: overallRowHtml} = progressRowHtml(
+    canExpand ? `▾ 전체 (quarter별 보기)` : '전체', overallM, key, '전체', weekId, season, owner, stage, remarkText, true);
+  const overallRow = document.createElement('template');
+  overallRow.innerHTML = overallRowHtml;
+  if (canExpand) {
+    const labelTd = overallRow.content.querySelector('td.owner-col');
+    labelTd.innerHTML = `<a href="#" onclick="toggleOverdue('${detailId}');return false" style="color:#1a1a2e;font-weight:700">▾ 전체</a>`;
+  }
+  tbody.append(...overallRow.content.childNodes);
+
+  if (canExpand) {
+    const detailRow = document.createElement('tr');
+    let inner = '';
+    quarters.forEach(q => {
+      const progress = quarterProgress[q];
+      let m = (progress[owner] || {})[stage];
+      if (!m) return;
+      const {html} = progressRowHtml(q, m, key, q, weekId, season, owner, stage, remarkText, false);
+      inner += html;
+    });
+    detailRow.innerHTML = `<td colspan="3" style="background:#fafbfe;padding:0">` +
+      `<div id="${detailId}" style="display:none">` +
+      `<table style="width:100%;border-collapse:collapse">${inner}</table></div></td>`;
+    tbody.appendChild(detailRow);
+  }
   return table;
 }
 
@@ -1392,7 +1425,7 @@ function render() {
         stageTitle.className = 'quarter-title';
         stageTitle.textContent = `${stage} (${owner})`;
         container.appendChild(stageTitle);
-        container.appendChild(renderStageTable(stage, owner, season, ['전체'], {'전체': progress}, weekId, remarks));
+        container.appendChild(renderStageTable(stage, owner, season, ['전체'], {'전체': progress}, progress, weekId, remarks));
       });
       continue;
     }
@@ -1405,6 +1438,7 @@ function render() {
     const quarters = QUARTER_ORDER.filter(q => rowsByQuarter[q]);
     const quarterProgress = {};
     quarters.forEach(q => { quarterProgress[q] = computeProgressFromRaw(rowsByQuarter[q], asOfDate, offsets); });
+    const overallProgress = computeProgressFromRaw(seasonRows, asOfDate, offsets);
 
     STAGES.forEach(stage => {
       const owner = OWNER_BY_STAGE[stage];
@@ -1412,7 +1446,7 @@ function render() {
       stageTitle.className = 'quarter-title';
       stageTitle.textContent = `${stage} (${owner})`;
       container.appendChild(stageTitle);
-      container.appendChild(renderStageTable(stage, owner, season, quarters, quarterProgress, weekId, remarks));
+      container.appendChild(renderStageTable(stage, owner, season, quarters, quarterProgress, overallProgress, weekId, remarks));
     });
   }
 }
