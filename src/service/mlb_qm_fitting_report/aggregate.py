@@ -103,7 +103,7 @@ def build_raw_rows(styles: list[dict], records: list[dict]) -> dict:
                 "received": r["updated_at"][:10],
                 "status": r["status"],
                 "confirm_date": r["updated_at"][:10],
-                "reason": None,
+                "reason": r.get("comment") or None,
             }
             for r in all_records.get((style_code, stage), [])
         ]
@@ -141,7 +141,7 @@ def build_raw_rows(styles: list[dict], records: list[dict]) -> dict:
                 "round": _round_label(record["round"]) if record else None,
                 "status": record["status"] if record else None,
                 "confirm_date": record["updated_at"][:10] if record else None,
-                "reason": None,
+                "reason": (record.get("comment") or None) if record else None,
                 "first_received": rounds[0]["received"] if rounds else None,
                 "rounds": rounds,
             }
@@ -150,7 +150,7 @@ def build_raw_rows(styles: list[dict], records: list[dict]) -> dict:
             "round": _round_label(prep_record["round"]) if prep_record else None,
             "status": prep_record["status"] if prep_record else None,
             "confirm_date": prep_record["updated_at"][:10] if prep_record else None,
-            "reason": None,
+            "reason": (prep_record.get("comment") or None) if prep_record else None,
             "first_received": prep_rounds[0]["received"] if prep_rounds else None,
             "rounds": prep_rounds,
         }

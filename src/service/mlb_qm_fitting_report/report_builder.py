@@ -223,8 +223,7 @@ function unlockRemark(domId) {
   input.select();
 }
 
-async function saveRemark(weekId, season, owner, stage) {
-  const domId = `remark-${weekId}-${season}-${owner}-${stage}`.replace(/[^\\w-]/g, '_');
+async function saveRemarkValue(weekId, domId, storageKey) {
   const input = document.getElementById(domId);
   if (input.readOnly) return; // dblclick으로 잠금 해제 안 한 상태에서 blur만 지나가는 경우
   const text = input.value;
@@ -235,7 +234,7 @@ async function saveRemark(weekId, season, owner, stage) {
     });
     const rows = await readResp.json();
     const current = (rows[0] && rows[0].value) ? JSON.parse(rows[0].value) : {};
-    current[remarkKey(season, owner, stage)] = text;
+    current[storageKey] = text;
     const saveResp = await fetch(`${SETTINGS.supabase_url}/rest/v1/settings`, {
       method: 'POST',
       headers: {
@@ -253,6 +252,16 @@ async function saveRemark(weekId, season, owner, stage) {
   } finally {
     input.readOnly = true;
   }
+}
+
+async function saveRemark(weekId, season, owner, stage) {
+  const domId = `remark-${weekId}-${season}-${owner}-${stage}`.replace(/[^\\w-]/g, '_');
+  await saveRemarkValue(weekId, domId, remarkKey(season, owner, stage));
+}
+
+async function saveOverdueRemark(weekId, season, styleCode, stage) {
+  const domId = `overdue-${weekId}-${season}-${styleCode}-${stage}`.replace(/[^\\w-]/g, '_');
+  await saveRemarkValue(weekId, domId, overdueRemarkKey(season, styleCode, stage));
 }
 
 async function applyDueOffsets(season) {
@@ -1307,12 +1316,14 @@ function statusTextHtml(m) {
     (extraApproved > 0 ? ` (+<b>${extraApproved}sty</b> Approved)` : '');
 }
 
-function overdueDetailRowHtml(overdue, overdueId, colspan) {
+function overdueRemarkKey(season, styleCode, stage) { return `od|${season}|${styleCode}|${stage}`; }
+
+function overdueDetailRowHtml(overdue, overdueId, colspan, weekId, season, stage, remarks) {
   if (!overdue.length) return '';
   const impacted = overdue.filter(o => o.impacts_delivery).length;
   const impactedPct = pct(impacted, overdue.length);
   const impactedNote = impacted > 0
-    ? ` <span style="color:#c0392b;font-weight:700">(납기영향 ${impacted}건, ${impactedPct}%)</span>`
+    ? ` <span style="font-weight:700">(납기영향 ${impacted}건, ${impactedPct}%)</span>`
     : '';
   return `<tr><td colspan="${colspan}" style="background:#fafbfe;padding:0">` +
     `<div style="padding:4px 10px"><a href="#" onclick="toggleOverdue('${overdueId}');return false" style="font-size:11px;color:#4a65a9">미완료 ${overdue.length}건 상세 ▾</a>${impactedNote}</div>` +
@@ -1321,8 +1332,11 @@ function overdueDetailRowHtml(overdue, overdueId, colspan) {
     `<thead><tr style="color:#888"><th style="text-align:left;padding:3px 6px">스타일</th><th style="text-align:left;padding:3px 6px">협력사</th><th style="text-align:left;padding:3px 6px">DUE DATE</th><th style="text-align:left;padding:3px 6px">납기(ETD)</th><th style="text-align:left;padding:3px 6px">초과일수</th><th style="text-align:left;padding:3px 6px">현재 status</th>` +
       `<th style="text-align:left;padding:3px 6px">이전 Stage</th><th style="text-align:left;padding:3px 6px">전달일</th>` +
       `<th style="text-align:left;padding:3px 6px">사유</th><th style="text-align:left;padding:3px 6px">소요일</th>` +
-      `<th style="text-align:left;padding:3px 6px">납기영향</th></tr></thead>` +
-    `<tbody>` + overdue.map(o => `<tr style="border-top:1px solid #eee${o.impacts_delivery ? ';background:#fdeceb' : ''}">` +
+      `<th style="text-align:left;padding:3px 6px">납기영향</th><th style="text-align:left;padding:3px 6px">비고</th></tr></thead>` +
+    `<tbody>` + overdue.map(o => {
+      const remarkDomId = `overdue-${weekId}-${season}-${o.style_code}-${stage}`.replace(/[^\\w-]/g, '_');
+      const remarkText = remarks[overdueRemarkKey(season, o.style_code, stage)] || '';
+      return `<tr style="border-top:1px solid #eee${o.impacts_delivery ? ';background:#fdeceb' : ''}">` +
       `<td style="padding:3px 6px">${esc(o.style_code)}</td><td style="padding:3px 6px">${esc(vendorAlias(o.vendor) || '-')}</td><td style="padding:3px 6px">${esc(shortDate(o.due))}</td>` +
       `<td style="padding:3px 6px">${o.etd ? esc(shortDate(o.etd)) : '-'}</td>` +
       `<td style="padding:3px 6px">${o.overdue_days != null ? esc('+' + o.overdue_days) : '-'}</td>` +
@@ -1330,13 +1344,17 @@ function overdueDetailRowHtml(overdue, overdueId, colspan) {
       `<td style="padding:3px 6px">${esc(o.confirm_stage || '-')}</td><td style="padding:3px 6px">${esc(o.confirm_date || '-')}</td>` +
       `<td style="padding:3px 6px">${esc(o.reason || '-')}</td>` +
       `<td style="padding:3px 6px">${o.elapsed_days != null ? esc(String(o.elapsed_days)) : '-'}</td>` +
-      `<td style="padding:3px 6px${o.impacts_delivery ? ';color:#c0392b;font-weight:700' : ''}" title="${o.etd ? `ETD ${esc(shortDate(o.etd))}, 원래 버퍼 ${o.etd_buffer_days}영업일` : ''}">` +
-      `${o.impacts_delivery == null ? '판단불가' : (o.impacts_delivery ? 'O' : 'X')}</td></tr>`).join('') +
+      `<td style="padding:3px 6px;font-weight:700" title="${o.etd ? `ETD ${esc(shortDate(o.etd))}, 원래 버퍼 ${o.etd_buffer_days}영업일` : ''}">` +
+      `${o.impacts_delivery == null ? '판단불가' : (o.impacts_delivery ? 'O' : 'X')}</td>` +
+      `<td style="padding:3px 6px"><input type="text" class="remark-input" id="${remarkDomId}" value="${esc(remarkText)}" readonly ` +
+      `ondblclick="unlockRemark('${remarkDomId}')" onblur="saveOverdueRemark('${weekId}','${season}','${o.style_code}','${stage}')" ` +
+      `style="width:140px;font-size:10px;padding:2px 4px;text-align:left" title="더블클릭해서 수정"></td></tr>`;
+    }).join('') +
     `</tbody></table></div></td></tr>`;
 }
 
 // 담당/단계 하나의 한 행(전체 또는 quarter 하나) — 현황(pct+문장) + 미완료 상세 토글 + (전체 행일 때만) 비고.
-function progressRowHtml(label, m, key, suffix, weekId, season, owner, stage, remarkText, showRemark) {
+function progressRowHtml(label, m, key, suffix, weekId, season, owner, stage, remarkText, showRemark, remarksBlob) {
   const overdue = m.overdue || [];
   const overdueId = `overdue-${key}-${suffix}`.replace(/[^\\w-]/g, '_');
   const remarkCell = showRemark
@@ -1352,7 +1370,7 @@ function progressRowHtml(label, m, key, suffix, weekId, season, owner, stage, re
     `<td class="status-col" id="cell-${key}-${esc(suffix)}">${statusTextHtml(m)}</td>` +
     `<td class="num-td pct">${pct(m.baseline_done, m.baseline_all)}%</td>` +
     `<td class="num-td pct">${pct(m.total_done, m.total_all)}%</td>` +
-    `${remarkCell}</tr>` + overdueDetailRowHtml(overdue, overdueId, 5);
+    `${remarkCell}</tr>` + overdueDetailRowHtml(overdue, overdueId, 5, weekId, season, stage, remarksBlob);
   return {html: rowHtml, overdueId};
 }
 
@@ -1374,7 +1392,7 @@ function renderStageTable(stage, owner, season, quarters, quarterProgress, overa
   const detailId = `qbreakdown-${key}`.replace(/[^\\w-]/g, '_');
   const canExpand = quarters.length > 1;
   const {html: overallRowHtml} = progressRowHtml(
-    canExpand ? `▾ 전체 (quarter별 보기)` : '전체', overallM, key, '전체', weekId, season, owner, stage, remarkText, true);
+    canExpand ? `▾ 전체 (quarter별 보기)` : '전체', overallM, key, '전체', weekId, season, owner, stage, remarkText, true, remarks);
   const overallRow = document.createElement('template');
   overallRow.innerHTML = overallRowHtml;
   if (canExpand) {
@@ -1390,7 +1408,7 @@ function renderStageTable(stage, owner, season, quarters, quarterProgress, overa
       const progress = quarterProgress[q];
       let m = (progress[owner] || {})[stage];
       if (!m) return;
-      const {html} = progressRowHtml(q, m, key, q, weekId, season, owner, stage, remarkText, false);
+      const {html} = progressRowHtml(q, m, key, q, weekId, season, owner, stage, remarkText, false, remarks);
       inner += html;
     });
     detailRow.innerHTML = `<td colspan="5" style="background:#fafbfe;padding:0">` +

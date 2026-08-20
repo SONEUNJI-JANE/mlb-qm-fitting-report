@@ -52,6 +52,7 @@ def test_map_fitting_records_converts_round_label_to_number():
     r1 = next(r for r in fit_records if r["round"] == 1)
     assert r1["status"] == "Rejected"
     assert r1["updated_at"] == "2026-04-10T00:00:00+00:00"
+    assert r1["comment"] == "핏변경"
 
     r2 = next(r for r in fit_records if r["round"] == 2)
     assert r2["status"] == "Approved"

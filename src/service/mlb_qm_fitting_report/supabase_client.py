@@ -3,7 +3,7 @@ import json
 import requests
 
 _STYLES_FIELDS = "style_code,item,quarter,season,td,qa,co,qc_due,pp_due,top_due,vendor,washed,qty_kr,qty_cn,earliest_etd"
-_FITTING_FIELDS = "style_code,stage,round,status,updated_at"
+_FITTING_FIELDS = "style_code,stage,round,status,updated_at,comment"
 _REPORT_CONFIG_KEY = "mlb_qm_fitting_report_config"
 
 

@@ -57,6 +57,7 @@ def map_fitting_records(raw_row: dict) -> list[dict]:
                 "round": round_num,
                 "status": r["status"],
                 "updated_at": f"{round_date}T00:00:00+00:00",
+                "comment": r.get("reason") or None,
             })
         done_field = _DONE_FIELD_FOR_STAGE.get(stage)
         is_done = done_field and raw_row.get(done_field)
