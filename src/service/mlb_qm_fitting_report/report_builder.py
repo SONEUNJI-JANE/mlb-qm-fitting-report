@@ -1322,9 +1322,7 @@ function overdueDetailRowHtml(overdue, overdueId, colspan, weekId, season, stage
   if (!overdue.length) return '';
   const impacted = overdue.filter(o => o.impacts_delivery).length;
   const impactedPct = pct(impacted, overdue.length);
-  const impactedNote = impacted > 0
-    ? ` <span style="color:#c0392b;font-weight:700">(납기영향 ${impacted}건, ${impactedPct}%)</span>`
-    : '';
+  const impactedNote = ` <span style="color:${impacted > 0 ? '#c0392b' : '#888'};font-weight:700">(납기영향 ${impacted}건, ${impactedPct}%)</span>`;
   return `<tr><td colspan="${colspan}" style="background:#fafbfe;padding:0">` +
     `<div style="padding:4px 10px"><a href="#" onclick="toggleOverdue('${overdueId}');return false" style="font-size:11px;color:#4a65a9">미완료 ${overdue.length}건 상세 ▾</a>${impactedNote}</div>` +
     `<div id="${overdueId}" style="display:none;padding:0 10px 8px;overflow-x:hidden">` +
