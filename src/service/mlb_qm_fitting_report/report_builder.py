@@ -586,10 +586,16 @@ function computeProgressFromRaw(rawRows, asOfDate, offsets) {
             const recent = recentActivityBefore(row, stage);
             if (recent) { confirmRawDate = recent.date; confirmStage = recent.label; confirmReason = recent.reason; }
           }
+          // 납기(ETD) 영향 여부: due~ETD 사이 원래 버퍼(영업일)보다 이미 초과한 일수가 많거나
+          // 같으면 그 버퟼를 다 까먹은 것 -> 영향 있음. ETD가 없으면 판단 불가로 null.
+          const overdueDays = businessDaysSince(due, asOfDate);
+          const etdBufferDays = (due && row.etd) ? businessDaysSince(due, row.etd) : null;
+          const impactsDelivery = etdBufferDays == null ? null : overdueDays >= etdBufferDays;
           bucket.overdue.push({
             style_code: row.style_code, vendor: row.vendor || null, due, status: d.status || '접수 전',
             confirm_stage: confirmStage, confirm_date: confirmRawDate ? shortDate(confirmRawDate) : null,
-            elapsed_days: businessDaysSince(confirmRawDate, asOfDate), overdue_days: businessDaysSince(due, asOfDate),
+            elapsed_days: businessDaysSince(confirmRawDate, asOfDate), overdue_days: overdueDays,
+            etd: row.etd || null, etd_buffer_days: etdBufferDays, impacts_delivery: impactsDelivery,
             reason: confirmReason,
           });
         }
@@ -1344,14 +1350,17 @@ function render() {
             `<table style="width:100%;font-size:10px;border-collapse:collapse">` +
             `<thead><tr style="color:#888"><th style="text-align:left;padding:3px 6px">스타일</th><th style="text-align:left;padding:3px 6px">협력사</th><th style="text-align:left;padding:3px 6px">DUE DATE</th><th style="text-align:left;padding:3px 6px">초과일수</th><th style="text-align:left;padding:3px 6px">현재 status</th>` +
               `<th style="text-align:left;padding:3px 6px">이전 Stage</th><th style="text-align:left;padding:3px 6px">전달일</th>` +
-              `<th style="text-align:left;padding:3px 6px">사유</th><th style="text-align:left;padding:3px 6px">소요일</th></tr></thead>` +
+              `<th style="text-align:left;padding:3px 6px">사유</th><th style="text-align:left;padding:3px 6px">소요일</th>` +
+              `<th style="text-align:left;padding:3px 6px">납기영향</th></tr></thead>` +
             `<tbody>` + overdue.map(o => `<tr style="border-top:1px solid #eee">` +
               `<td style="padding:3px 6px">${esc(o.style_code)}</td><td style="padding:3px 6px">${esc(vendorAlias(o.vendor) || '-')}</td><td style="padding:3px 6px">${esc(shortDate(o.due))}</td>` +
               `<td style="padding:3px 6px">${o.overdue_days != null ? esc('+' + o.overdue_days) : '-'}</td>` +
               `<td style="padding:3px 6px">${esc(o.status)}</td>` +
               `<td style="padding:3px 6px">${esc(o.confirm_stage || '-')}</td><td style="padding:3px 6px">${esc(o.confirm_date || '-')}</td>` +
               `<td style="padding:3px 6px">${esc(o.reason || '-')}</td>` +
-              `<td style="padding:3px 6px">${o.elapsed_days != null ? esc(String(o.elapsed_days)) : '-'}</td></tr>`).join('') +
+              `<td style="padding:3px 6px">${o.elapsed_days != null ? esc(String(o.elapsed_days)) : '-'}</td>` +
+              `<td style="padding:3px 6px${o.impacts_delivery ? ';color:#c0392b;font-weight:700' : ''}" title="${o.etd ? `ETD ${esc(shortDate(o.etd))}, 원래 버퍼 ${o.etd_buffer_days}영업일` : ''}">` +
+              `${o.impacts_delivery == null ? '판단불가' : (o.impacts_delivery ? '영향 O' : '영향 X')}</td></tr>`).join('') +
             `</tbody></table></div></td>`;
           tbody.appendChild(detailRow);
         }
