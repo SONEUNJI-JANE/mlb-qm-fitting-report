@@ -154,17 +154,13 @@ asOfRowsEl.querySelectorAll('select,input').forEach(el => el.addEventListener('i
 const JS_WEEKDAY = {MON: 1, TUE: 2, WED: 3, THU: 4, FRI: 5, SAT: 6, SUN: 0};
 
 function resolveAsOfDate(season) {
+  // 이번 주(라이브)는 실시간이라 기준일은 그냥 오늘. override가 있으면 그것만 우선.
+  // (예전엔 "지난 금요일"로 되돌아가는 정적 배치용 로직이었는데, 라이브 방식으로 바뀐 뒤
+  // 안 지워져서 요약/미완료/납기영향 계산이 전부 1주 전 날짜 기준으로 돌고 있었음.)
   const row = asOfRowsEl.querySelector(`[data-season="${season}"]`);
   const override = row ? row.querySelector('[data-field="override"]').value : '';
   if (override) return override;
-  const weekday = row ? row.querySelector('[data-field="weekday"]').value : 'FRI';
-  const target = JS_WEEKDAY[weekday] ?? 5;
-  const today = new Date();
-  let daysBack = (today.getDay() - target + 7) % 7;
-  if (daysBack === 0) daysBack = 7;
-  const d = new Date(today);
-  d.setDate(d.getDate() - daysBack);
-  return d.toISOString().slice(0, 10);
+  return new Date().toISOString().slice(0, 10);
 }
 
 function dueOffsetsKey(season) { return `mlb_qm_fitting_due_offsets_${season}`; }
