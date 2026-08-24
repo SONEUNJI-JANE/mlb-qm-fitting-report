@@ -146,13 +146,20 @@ function updateAsOfBadges() {
 asOfRowsEl.querySelectorAll('select,input').forEach(el => el.addEventListener('input', () => { updateAsOfBadges(); refresh(); }));
 
 function resolveAsOfDate(season) {
-  // 이번 주(라이브)는 실시간이라 기준일은 그냥 오늘. override가 있으면 그것만 우선.
-  // (예전엔 "지난 금요일"로 되돌아가는 정적 배치용 로직이었는데, 라이브 방식으로 바뀐 뒤
-  // 안 지워져서 요약/미완료/납기영향 계산이 전부 1주 전 날짜 기준으로 돌고 있었음.)
+  // 매주 월요일에 "지난 한 주(금요일 마감)"를 분석하는 기준 — due date 지났는지 판단하는
+  // 기준일은 "가장 최근 지난 금요일"(오늘이 금요일이면 오늘 자신). override가 있으면 우선.
+  // (데이터 자체는 오늘까지 반영된 최신 상태 — 여기서 정하는 건 그중 어디까지를 "이번 판단
+  // 대상"으로 볼지의 기준일일 뿐. server의 current_live_as_of()와 동일한 공식.)
   const row = asOfRowsEl.querySelector(`[data-season="${season}"]`);
   const override = row ? row.querySelector('[data-field="override"]').value : '';
   if (override) return override;
-  return new Date().toISOString().slice(0, 10);
+  const today = new Date();
+  // toISOString은 UTC로 변환돼서 로컬 자정 근처에 날짜가 하루 밀릴 수 있음 — 로컬 필드로 직접 계산.
+  const daysSinceFriday = (today.getDay() - 5 + 7) % 7; // getDay: Sun=0..Sat=6, Fri=5
+  const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - daysSinceFriday);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
 }
 
 function dueOffsetsKey(season) { return `mlb_qm_fitting_due_offsets_${season}`; }
