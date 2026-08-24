@@ -101,7 +101,7 @@ th.grp-a,th.grp-th:first-of-type{border-left:1px solid #e5e7eb}
     </div>
     <details class="settings-bar">
       <summary>기준일 설정 (시즌별)</summary>
-      <p class="desc">전체 스타일 수 기준 = 완료 / 전체. Due Date 기준 = as_of_date까지 due date 지난 것 중 완료 / 지난 것 전체(계획 대비 실적).<br>기준 요일 = 매주 자동 적용(예: 금요일 지정 시 실행일 기준 직전 금요일을 그 주 기준일로 씀). 특정 주만 다른 날짜 쓰려면 날짜 지정. 시즌마다 따로 설정 가능.</p>
+      <p class="desc">전체 스타일 수 기준 = 완료 / 전체. Due Date 기준 = as_of_date까지 due date 지난 것 중 완료 / 지난 것 전체(계획 대비 실적).<br>이번 주(라이브)는 항상 오늘 날짜 기준. 특정 날짜로 보고 싶을 때만 아래에 지정(시즌마다 따로 가능).</p>
       <div id="as-of-rows"></div>
       <div class="row"><button class="btn" onclick="applySettings()">적용</button><span id="settings-status"></span></div>
     </details>
@@ -129,13 +129,8 @@ seasons.forEach(season => {
   row.className = 'row';
   row.dataset.season = season;
   row.innerHTML = `<label style="min-width:48px;font-weight:700">${esc(season)}</label>` +
-    `<label>기준 요일</label><select data-field="weekday">
-      <option value="MON">월</option><option value="TUE">화</option><option value="WED">수</option>
-      <option value="THU">목</option><option value="FRI">금</option>
-    </select>
-    <label>특정 날짜로 고정(선택)</label><input type="date" data-field="override">` +
+    `<label>특정 날짜로 고정(선택)</label><input type="date" data-field="override">` +
     `<span class="as-of-badge" style="margin-left:8px;color:#4a65a9;font-weight:700"></span>`;
-  row.querySelector('[data-field="weekday"]').value = s.as_of_weekday || SETTINGS.as_of_weekday || 'FRI';
   row.querySelector('[data-field="override"]').value = s.as_of_date_override || '';
   asOfRowsEl.appendChild(row);
 });
@@ -149,9 +144,6 @@ function updateAsOfBadges() {
 }
 
 asOfRowsEl.querySelectorAll('select,input').forEach(el => el.addEventListener('input', () => { updateAsOfBadges(); refresh(); }));
-
-// 최신 주차 화면은 이 값들로 라이브 재계산한다(과거 주차는 스냅샷 당시 as_of_date 그대로 씀).
-const JS_WEEKDAY = {MON: 1, TUE: 2, WED: 3, THU: 4, FRI: 5, SAT: 6, SUN: 0};
 
 function resolveAsOfDate(season) {
   // 이번 주(라이브)는 실시간이라 기준일은 그냥 오늘. override가 있으면 그것만 우선.
@@ -301,7 +293,6 @@ async function loadSavedAsOfSettings() {
       asOfRowsEl.querySelectorAll('[data-season]').forEach(row => {
         const s = saved[row.dataset.season];
         if (!s) return;
-        if (s.as_of_weekday) row.querySelector('[data-field="weekday"]').value = s.as_of_weekday;
         row.querySelector('[data-field="override"]').value = s.as_of_date_override || '';
       });
     }
@@ -349,7 +340,6 @@ async function applySettings() {
   const as_of_by_season = {};
   asOfRowsEl.querySelectorAll('[data-season]').forEach(row => {
     as_of_by_season[row.dataset.season] = {
-      as_of_weekday: row.querySelector('[data-field="weekday"]').value,
       as_of_date_override: row.querySelector('[data-field="override"]').value || null,
     };
   });
