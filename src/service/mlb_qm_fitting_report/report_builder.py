@@ -117,7 +117,23 @@ const SETTINGS = JSON.parse(document.getElementById('settings-data').textContent
 const DUE_OFFSETS = JSON.parse(document.getElementById('due-offsets-data').textContent);
 const weekIds = Object.keys(DATA.weeks).sort().reverse();
 const sel = document.getElementById('week-select');
-weekIds.forEach(w => { const o = document.createElement('option'); o.value = w; o.textContent = w + ' (기준일 ' + DATA.weeks[w].as_of_date + ')'; sel.appendChild(o); });
+// 가장 최근 지난 금요일(오늘이 금요일이면 오늘 자신) — resolveAsOfDate()의 기본값과 같은 공식.
+// 데이터가 최신인 날짜(라이브)랑 due date 판단 기준일(항상 금요일)을 한 표시로 맞추려고 씀.
+function mostRecentFridayStr() {
+  const today = new Date();
+  const daysSinceFriday = (today.getDay() - 5 + 7) % 7;
+  const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - daysSinceFriday);
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${d.getFullYear()}-${mm}-${dd}`;
+}
+weekIds.forEach((w, i) => {
+  const asOf = i === 0 ? mostRecentFridayStr() : DATA.weeks[w].as_of_date; // i===0: 최신(라이브) 주
+  const o = document.createElement('option');
+  o.value = w;
+  o.textContent = w + ' (기준일 ' + asOf + ')';
+  sel.appendChild(o);
+});
 
 const seasons = weekIds.length ? Object.keys(DATA.weeks[weekIds[0]].raw || {}).sort() : [];
 const asOfBySeason = SETTINGS.as_of_by_season || {};
@@ -153,13 +169,7 @@ function resolveAsOfDate(season) {
   const row = asOfRowsEl.querySelector(`[data-season="${season}"]`);
   const override = row ? row.querySelector('[data-field="override"]').value : '';
   if (override) return override;
-  const today = new Date();
-  // toISOString은 UTC로 변환돼서 로컬 자정 근처에 날짜가 하루 밀릴 수 있음 — 로컬 필드로 직접 계산.
-  const daysSinceFriday = (today.getDay() - 5 + 7) % 7; // getDay: Sun=0..Sat=6, Fri=5
-  const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - daysSinceFriday);
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const dd = String(d.getDate()).padStart(2, '0');
-  return `${d.getFullYear()}-${mm}-${dd}`;
+  return mostRecentFridayStr();
 }
 
 function dueOffsetsKey(season) { return `mlb_qm_fitting_due_offsets_${season}`; }
