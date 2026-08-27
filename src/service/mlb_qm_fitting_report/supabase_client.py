@@ -36,7 +36,7 @@ def fetch_styles(settings: dict) -> list[dict]:
 
 
 def fetch_fitting_records(settings: dict) -> list[dict]:
-    return _get_all(settings, "fitting_records", _FITTING_FIELDS, "style_code,round")
+    return _get_all(settings, "fitting_records", _FITTING_FIELDS, "style_code,round,id")
 
 
 def fetch_report_config(settings: dict) -> dict | None:
