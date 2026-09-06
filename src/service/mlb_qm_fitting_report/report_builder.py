@@ -78,7 +78,8 @@ th.grp-a,th.grp-th:first-of-type{border-left:1px solid #e5e7eb}
 </div>
 <div id="main-tab">
 <div style="max-width:1100px;margin:16px auto 0;display:flex;justify-content:flex-end">
-  <button class="settings-btn" onclick="switchTab('settings')">⚙ 설정</button>
+  <button class="settings-btn" onclick="location.href='?refresh=1'">🔄 데이터 새로고침</button>
+  <button class="settings-btn" onclick="switchTab('settings')" style="margin-left:8px">⚙ 설정</button>
 </div>
 <div class="content" id="seasons"></div>
 <div class="override-bar" id="override-bar">
