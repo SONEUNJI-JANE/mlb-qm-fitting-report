@@ -55,9 +55,6 @@ class SnapshotCache:
         self._data = None
         self._fetched_at = 0.0
 
-    def invalidate(self) -> None:
-        self._fetched_at = 0.0
-
     def get(self, fetch_fn: Callable[[], dict]) -> tuple[dict, bool]:
         now = time.monotonic()
         if self._data is not None and (now - self._fetched_at) < self._ttl:
@@ -188,12 +185,8 @@ def healthz():
 
 
 @app.get("/")
-def root(refresh: int = 0):
-    # ?refresh=1 = 화면의 [데이터 새로고침] 버튼. 5분 캐시를 버리고 Supabase에서 다시 읽는다
-    # (엑셀->Supabase 동기화 자체는 PC의 로컬 엑셀 파일을 읽어야 해서 서버에선 못 돈다).
+def root():
     settings = load_settings()
-    if refresh:
-        _cache.invalidate()
     payload, is_stale = _cache.get(lambda: build_snapshot_payload(settings))
     html = build_report_html(payload, settings)
     headers = {"X-Data-Stale": "true"} if is_stale else {}
