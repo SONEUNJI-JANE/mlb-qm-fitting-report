@@ -591,11 +591,12 @@ function computeProgressFromRaw(rawRows, asOfDate, offsets) {
         if (isDone) {
           bucket.baseline_done++;
         } else {
-          // 기도산업은 2ND TOP을 보지 않는다 - 1차 TOP에서 리젝이 나도 다음 회차가 없어서
-          // 납기에 영향을 주지 않는다. 완료율(Due%/전체%)엔 그대로 미완료로 잡고,
-          // 챙길 대상을 추리는 미완료 상세 리스트에서만 뺀다.
-          if (stage === 'TOP' && vendorAlias(row.vendor) === '기도산업') continue;
           const d = (row.detail && row.detail[stage]) || {};
+          // 기도산업은 2ND TOP을 보지 않는다 - TOP을 이미 한 번 낸 뒤라면 리젝이 나도 다음
+          // 회차가 없어서 납기에 영향이 없다. 완료율(Due%/전체%)엔 그대로 미완료로 잡고,
+          // 챙길 대상을 추리는 미완료 상세 리스트에서만 뺀다.
+          // TOP을 아직 접수조차 안 한 건(회차 기록 없음)은 여전히 챙겨야 하므로 남긴다.
+          if (stage === 'TOP' && vendorAlias(row.vendor) === '기도산업' && d.round) continue;
           let confirmRawDate = d.confirm_date || null;
           let confirmStage = d.confirm_date ? `${ordinalRound(d.round)} ${stage}`.trim() : null;
           let confirmReason = d.confirm_date ? (d.reason || null) : null;
