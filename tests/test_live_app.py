@@ -1,6 +1,6 @@
 import json
 import sys
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from unittest.mock import patch
 
 sys.path.insert(0, ".")
@@ -114,21 +114,29 @@ def _fake_settings_store(initial: dict = None):
     return store, fake_fetch, fake_upsert
 
 
-def test_current_live_as_of_on_friday_uses_today():
+def _kst(year, month, day, hour):
+    return datetime(year, month, day, hour, 0, tzinfo=timezone(timedelta(hours=9)))
+
+
+def test_current_live_as_of_on_wednesday_before_18_uses_last_week():
     from src.service.mlb_qm_fitting_report.live_app import current_live_as_of
-    friday = date(2026, 8, 7)  # 실제로 금요일
-    assert current_live_as_of(friday) == friday
+    # 2026-08-05는 수요일. 18시 전이면 아직 이번 주 기준일이 아니라 지난주 수요일(7/29)이다.
+    assert current_live_as_of(_kst(2026, 8, 5, 17)) == date(2026, 7, 29)
 
 
-def test_current_live_as_of_on_weekday_uses_last_friday():
+def test_current_live_as_of_on_wednesday_after_18_uses_today():
     from src.service.mlb_qm_fitting_report.live_app import current_live_as_of
-    monday = date(2026, 8, 10)
-    assert current_live_as_of(monday) == date(2026, 8, 7)  # 지난주 금요일
+    assert current_live_as_of(_kst(2026, 8, 5, 18)) == date(2026, 8, 5)
 
 
-def test_friday_of_week_id():
-    from src.service.mlb_qm_fitting_report.live_app import friday_of_week_id
-    assert friday_of_week_id("2026-W32") == date(2026, 8, 7)
+def test_current_live_as_of_on_weekday_uses_last_wednesday():
+    from src.service.mlb_qm_fitting_report.live_app import current_live_as_of
+    assert current_live_as_of(_kst(2026, 8, 10, 9)) == date(2026, 8, 5)  # 월요일 -> 지난 수
+
+
+def test_as_of_day_of_week_id():
+    from src.service.mlb_qm_fitting_report.live_app import as_of_day_of_week_id
+    assert as_of_day_of_week_id("2026-W32") == date(2026, 8, 5)
 
 
 def test_compute_week_data_excludes_records_after_as_of_date():
@@ -193,7 +201,7 @@ def test_build_snapshot_payload_freezes_previous_week_on_rollover():
 
     weeks = payload["weeks"]
     assert set(weeks.keys()) == {"2026-W31", "2026-W32"}
-    assert weeks["2026-W31"]["as_of_date"] == "2026-07-31"  # 얼려진 지난주
+    assert weeks["2026-W31"]["as_of_date"] == "2026-07-29"  # 얼려진 지난주(그 주 수요일)
     assert weeks["2026-W32"]["as_of_date"] == "2026-08-07"  # 이번주(라이브)
     assert store["mlb_qm_live_week_id"] == "2026-W32"
     assert "mlb_qm_snapshot_2026-W31" in store  # 얼린 스냅샷이 저장됨
@@ -242,9 +250,10 @@ if __name__ == "__main__":
     test_cache_returns_fresh_value_within_ttl()
     test_cache_falls_back_to_stale_on_fetch_error()
     test_cache_raises_when_no_prior_success()
-    test_current_live_as_of_on_friday_uses_today()
-    test_current_live_as_of_on_weekday_uses_last_friday()
-    test_friday_of_week_id()
+    test_current_live_as_of_on_wednesday_before_18_uses_last_week()
+    test_current_live_as_of_on_wednesday_after_18_uses_today()
+    test_current_live_as_of_on_weekday_uses_last_wednesday()
+    test_as_of_day_of_week_id()
     test_compute_week_data_excludes_records_after_as_of_date()
     test_build_snapshot_payload_first_visit_only_creates_current_week()
     test_build_snapshot_payload_freezes_previous_week_on_rollover()

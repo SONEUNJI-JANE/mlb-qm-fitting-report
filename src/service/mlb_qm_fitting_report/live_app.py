@@ -32,18 +32,24 @@ KNOWN_WEEKS_SETTING_KEY = "mlb_qm_known_week_ids"
 app = FastAPI()
 
 
-def current_live_as_of(today: date = None) -> date:
-    """이번 주의 기준일(금요일). 오늘이 금요일이면 오늘, 아니면 가장 최근 지난 금요일
-    (주말이면 이번 주 금요일, 월~목이면 지난주 금요일) — "이번 주는 계속 실시간"의 기준."""
-    today = today or kst_today()
-    days_since_friday = (today.isoweekday() - 5) % 7  # ISO: Mon=1..Sun=7, Fri=5
-    return today - timedelta(days=days_since_friday)
+AS_OF_WEEKDAY = 3   # ISO 수요일(Mon=1..Sun=7)
+AS_OF_HOUR = 18     # 수요일 18시(KST)가 지나야 그 수요일이 기준일이 된다
 
 
-def friday_of_week_id(week_id: str) -> date:
-    """'2026-W31' 같은 week_id -> 그 ISO 주의 금요일 날짜."""
+def current_live_as_of(now: datetime = None) -> date:
+    """이번 주의 기준일(수요일 18시). 수요일 18시를 넘겨야 그 수요일이 기준일이 되고,
+    그 전(수요일 낮 포함)이면 지난주 수요일이 기준일이다 — "이번 주는 계속 실시간"의 기준."""
+    now = now or datetime.now(_KST)
+    days_since = (now.isoweekday() - AS_OF_WEEKDAY) % 7
+    if days_since == 0 and now.hour < AS_OF_HOUR:
+        days_since = 7
+    return now.date() - timedelta(days=days_since)
+
+
+def as_of_day_of_week_id(week_id: str) -> date:
+    """'2026-W31' 같은 week_id -> 그 ISO 주의 기준일(수요일) 날짜."""
     year, week = week_id.split("-W")
-    return date.fromisocalendar(int(year), int(week), 5)
+    return date.fromisocalendar(int(year), int(week), AS_OF_WEEKDAY)
 
 
 class SnapshotCache:
@@ -128,10 +134,10 @@ def _remark_setting_key(week_id: str) -> str:
 
 
 def build_snapshot_payload(settings: dict) -> dict:
-    """매주 금요일 기준으로 주차를 나눈다. 이번 주(금요일 지나기 전)는 요청마다 실시간
+    """매주 수요일 18시 기준으로 주차를 나눈다. 이번 주(다음 수요일 18시 지나기 전)는 요청마다 실시간
     재계산하고, 지난 주는 한 번 계산한 값을 Supabase settings 테이블에 얼려서 저장해두고
     그대로 재사용한다(주가 넘어간 뒤 처음 들어온 요청이 그 얼리기를 트리거한다 — 서버가
-    상시 대기하는 스케줄러가 없어서, 정확히 금요일 자정이 아니라 그 이후 첫 방문 시점
+    상시 대기하는 스케줄러가 없어서, 정확히 수요일 18시가 아니라 그 이후 첫 방문 시점
     값으로 얼려진다. 값 자체는 날짜 단위 계산이라 지연 며칠 안엔 결과가 같다)."""
     current_as_of = current_live_as_of()
     current_week_id = week_id_for(current_as_of)
@@ -142,7 +148,7 @@ def build_snapshot_payload(settings: dict) -> dict:
     last_live_week = fetch_setting(settings, LIVE_WEEK_SETTING_KEY)
     if last_live_week and last_live_week != current_week_id:
         if not fetch_setting(settings, _snapshot_setting_key(last_live_week)):
-            frozen_as_of = friday_of_week_id(last_live_week)
+            frozen_as_of = as_of_day_of_week_id(last_live_week)
             frozen_data = _compute_week_data(settings, frozen_as_of)
             upsert_setting(settings, _snapshot_setting_key(last_live_week), json.dumps(frozen_data))
         if last_live_week not in known_weeks:
@@ -162,9 +168,9 @@ def build_snapshot_payload(settings: dict) -> dict:
         if frozen_json:
             weeks[week_id] = json.loads(frozen_json)
 
-    # current_as_of(지난 금요일 또는 오늘)는 week_id 계산(=주 구간 판별)용일 뿐,
+    # current_as_of(가장 최근 수요일 18시)는 week_id 계산(=주 구간 판별)용일 뿐,
     # 아직 얼리지 않은 이번 주 데이터는 실제 오늘 날짜까지 실시간으로 다 보여줘야 한다.
-    # current_as_of를 그대로 쓰면 월~목 사이엔 지난 금요일 이후 데이터가 필터링돼 누락된다.
+    # current_as_of를 그대로 쓰면 그 수요일 이후 데이터가 필터링돼 누락된다.
     weeks[current_week_id] = _compute_week_data(settings, kst_today())
 
     # 비고는 얼린 스냅샷 안에 같이 저장하지 않는다 — 얼린 뒤에도 계속 수정할 수 있어야 하므로

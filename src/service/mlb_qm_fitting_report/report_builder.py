@@ -117,18 +117,20 @@ const SETTINGS = JSON.parse(document.getElementById('settings-data').textContent
 const DUE_OFFSETS = JSON.parse(document.getElementById('due-offsets-data').textContent);
 const weekIds = Object.keys(DATA.weeks).sort().reverse();
 const sel = document.getElementById('week-select');
-// 가장 최근 지난 금요일(오늘이 금요일이면 오늘 자신) — resolveAsOfDate()의 기본값과 같은 공식.
-// 데이터가 최신인 날짜(라이브)랑 due date 판단 기준일(항상 금요일)을 한 표시로 맞추려고 씀.
-function mostRecentFridayStr() {
+// 가장 최근 수요일 18시(수요일 18시를 넘겨야 그 수요일이 기준일) — resolveAsOfDate()의 기본값과
+// 같은 공식. 데이터가 최신인 날짜(라이브)랑 due date 판단 기준일을 한 표시로 맞추려고 씀.
+// server의 current_live_as_of()와 동일 규칙(AS_OF_WEEKDAY=수, AS_OF_HOUR=18).
+function mostRecentAsOfStr() {
   const today = new Date();
-  const daysSinceFriday = (today.getDay() - 5 + 7) % 7;
-  const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - daysSinceFriday);
+  let daysSinceAsOf = (today.getDay() - 3 + 7) % 7;  // JS: Sun=0..Wed=3
+  if (daysSinceAsOf === 0 && today.getHours() < 18) daysSinceAsOf = 7;
+  const d = new Date(today.getFullYear(), today.getMonth(), today.getDate() - daysSinceAsOf);
   const mm = String(d.getMonth() + 1).padStart(2, '0');
   const dd = String(d.getDate()).padStart(2, '0');
   return `${d.getFullYear()}-${mm}-${dd}`;
 }
 weekIds.forEach((w, i) => {
-  const asOf = i === 0 ? mostRecentFridayStr() : DATA.weeks[w].as_of_date; // i===0: 최신(라이브) 주
+  const asOf = i === 0 ? mostRecentAsOfStr() : DATA.weeks[w].as_of_date; // i===0: 최신(라이브) 주
   const o = document.createElement('option');
   o.value = w;
   o.textContent = w + ' (기준일 ' + asOf + ')';
@@ -162,14 +164,14 @@ function updateAsOfBadges() {
 asOfRowsEl.querySelectorAll('select,input').forEach(el => el.addEventListener('input', () => { updateAsOfBadges(); refresh(); }));
 
 function resolveAsOfDate(season) {
-  // 매주 월요일에 "지난 한 주(금요일 마감)"를 분석하는 기준 — due date 지났는지 판단하는
-  // 기준일은 "가장 최근 지난 금요일"(오늘이 금요일이면 오늘 자신). override가 있으면 우선.
+  // 매주 "지난 한 주(수요일 18시 마감)"를 분석하는 기준 — due date 지났는지 판단하는
+  // 기준일은 "가장 최근 수요일 18시". override가 있으면 우선.
   // (데이터 자체는 오늘까지 반영된 최신 상태 — 여기서 정하는 건 그중 어디까지를 "이번 판단
   // 대상"으로 볼지의 기준일일 뿐. server의 current_live_as_of()와 동일한 공식.)
   const row = asOfRowsEl.querySelector(`[data-season="${season}"]`);
   const override = row ? row.querySelector('[data-field="override"]').value : '';
   if (override) return override;
-  return mostRecentFridayStr();
+  return mostRecentAsOfStr();
 }
 
 function dueOffsetsKey(season) { return `mlb_qm_fitting_due_offsets_${season}`; }
@@ -807,27 +809,27 @@ function isoWeekLabel(iso) {
   return `${target.getFullYear()}-W${String(week).padStart(2, '0')}`;
 }
 
-// "2026-W35" -> 그 ISO 주의 금요일 날짜(Date). 기준일 설정이 금요일 기준인 것과 맞춤.
-function isoWeekLabelToFriday(weekStr) {
+// "2026-W35" -> 그 ISO 주의 수요일 날짜(Date). 기준일이 수요일인 것과 맞춤.
+function isoWeekLabelToAsOfDay(weekStr) {
   const [y, w] = weekStr.split('-W').map(Number);
   const jan4 = new Date(y, 0, 4);
   const jan4Day = (jan4.getDay() + 6) % 7;
   const monday = new Date(jan4);
   monday.setDate(jan4.getDate() - jan4Day + (w - 1) * 7);
-  const friday = new Date(monday);
-  friday.setDate(monday.getDate() + 4);
-  return friday;
+  const asOfDay = new Date(monday);
+  asOfDay.setDate(monday.getDate() + 2);
+  return asOfDay;
 }
 
 function periodDisplayLabel(key, period) {
   if (period === 'month') return key;
-  const f = isoWeekLabelToFriday(key);
+  const f = isoWeekLabelToAsOfDay(key);
   return `${key} (${f.getMonth() + 1}/${f.getDate()})`;
 }
 
 function periodShortLabel(key, period) {
   if (period === 'month') return key.slice(5);
-  const f = isoWeekLabelToFriday(key);
+  const f = isoWeekLabelToAsOfDay(key);
   return `${f.getMonth() + 1}/${f.getDate()}`;
 }
 
