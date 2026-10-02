@@ -873,13 +873,50 @@ function canonStatus(raw) {
   return s;
 }
 
+// 그룹 한 줄을 눌러서 접었다 폈다 하는 링크 + 그 안에 들어갈 상태별 분해 표.
+// 단계 평균(예: FIT 22.6일)만으로는 "승인 후 다음 단계 착수(28.7일)"와 "리젝 재작업(14.2일)"이
+// 뭉개져서, 어느 쪽이 느린 건지 구분이 안 된다 - 펼치면 그 분해가 나온다.
+function leadDetailId(rowId) { return `lead-detail-${rowId}`; }
+
+function leadToggleLink(rowId, label) {
+  return `<a href="#" onclick="toggleOverdue('${leadDetailId(rowId)}');return false" ` +
+    `style="color:#4a65a9;text-decoration:none">${esc(label)} <span style="font-size:9px">▾</span></a>`;
+}
+
+// byStageStatus: {stage: {status: {days:[...], next:{label:count}}}}
+function leadDetailRow(rowId, byStageStatus, colspan) {
+  const lines = [];
+  WITHIN_STAGE_PIPELINE.forEach(stage => {
+    const byStatus = (byStageStatus && byStageStatus[stage]) || {};
+    Object.keys(byStatus).sort((a, b) => {
+      if (a === 'Approved') return -1;
+      if (b === 'Approved') return 1;
+      return a.localeCompare(b, 'ko');
+    }).forEach(status => {
+      const bucket = byStatus[status];
+      if (!bucket.days.length) return;
+      const avg = Math.round(bucket.days.reduce((a, b) => a + b, 0) / bucket.days.length * 10) / 10;
+      const nextLabel = Object.entries(bucket.next).sort((a, b) => b[1] - a[1])[0][0];
+      lines.push(`<tr><td style="padding:3px 10px;color:${STAGE_COLORS[stage] || '#555'};font-weight:700">${esc(stage)}</td>` +
+        `<td style="padding:3px 10px">${esc(status)}</td>` +
+        `<td style="padding:3px 10px;color:#888">→ ${esc(nextLabel)}</td>` +
+        `<td style="padding:3px 10px;text-align:right;font-weight:700">${avg}일</td>` +
+        `<td style="padding:3px 10px;text-align:right;color:#888">${bucket.days.length}건</td></tr>`);
+    });
+  });
+  const body = lines.length ? lines.join('') : `<tr><td colspan="5" style="padding:4px 10px;color:#888">분해할 데이터 없음</td></tr>`;
+  return `<tr><td colspan="${colspan}" style="padding:0">` +
+    `<div id="${leadDetailId(rowId)}" style="display:none;padding:6px 10px 10px 24px;background:#fafbfe">` +
+    `<table style="font-size:10px;border-collapse:collapse"><tbody>${body}</tbody></table></div></td></tr>`;
+}
+
 function computeRoundLeadTimes(rawRows, groupBy) {
   const stages = {};
   WITHIN_STAGE_PIPELINE.forEach(stage => { stages[stage] = {}; });
   // 그룹(협력사/아이템/TD/QA)별 왕복 리드타임. response = 우리가 결과를 내보낸 뒤 다음 샘플이
   // 들어오기까지(상대가 들고 있던 기간), review = 샘플이 들어온 뒤 결과를 내보내기까지(우리가 들고 있던 기간).
   const groups = {};
-  const groupBucket = g => groups[g] || (groups[g] = {response: [], review: [], byStage: {}});
+  const groupBucket = g => groups[g] || (groups[g] = {response: [], review: [], byStage: {}, byStageStatus: {}});
 
   for (const row of rawRows) {
     if (!row.detail) continue;
@@ -925,6 +962,11 @@ function computeRoundLeadTimes(rawRows, groupBy) {
         const gb = groupBucket(group);
         gb.response.push(days);
         (gb.byStage[stage] || (gb.byStage[stage] = [])).push(days);
+        // 접었다 폈을 때 보여줄 상태별 분해(Approved→PP 28.7일 / Rejected→FIT 14.2일 식).
+        const byStatus = gb.byStageStatus[stage] || (gb.byStageStatus[stage] = {});
+        const sb = byStatus[status] || (byStatus[status] = {days: [], next: {}});
+        sb.days.push(days);
+        sb.next[nextStageLabel] = (sb.next[nextStageLabel] || 0) + 1;
       });
     });
   }
@@ -1282,50 +1324,14 @@ function renderAnalysis() {
 
     const sec5 = document.createElement('div');
     sec5.className = 'analysis-section';
-    let html = `<div style="margin-bottom:10px">${groupByHtml}</div>` +
-      `<h3 style="margin-bottom:20px">Stage별 소요일 수</h3>` +
-      `<div style="display:flex;gap:8px;flex-wrap:nowrap">`;
-
-    WITHIN_STAGE_PIPELINE.forEach(stage => {
-      const byStatus = roundLead.stages[stage] || {};
-      const statuses = Object.keys(byStatus).sort((a, b) => {
-        if (a === 'Approved') return -1;
-        if (b === 'Approved') return 1;
-        return a.localeCompare(b, 'ko');
-      });
-      const stageAllDays = statuses.flatMap(status => byStatus[status].days);
-
-      html += `<div style="flex:1;min-width:0">` +
-        `<h4 style="color:${STAGE_COLORS[stage] || '#1a1a2e'};margin:0 0 4px;font-size:12px">${esc(stage)}` +
-        (stageAllDays.length ? ` <span style="font-weight:400;color:#888;font-size:10px">평균 ${avgOf(stageAllDays)}일(${stageAllDays.length})</span>` : '') +
-        `</h4>` +
-        `<table style="width:100%;font-size:11px;border-collapse:collapse">` +
-        `<thead><tr><th style="padding:3px 4px;text-align:center">상태</th><th style="padding:3px 4px;text-align:center">다음</th>` +
-        `<th style="padding:3px 4px;text-align:center">평균</th><th style="padding:3px 4px;text-align:center">건수</th></tr></thead><tbody>`;
-
-      if (!statuses.length) {
-        html += `<tr><td colspan="4" style="padding:6px;color:#888">데이터 없음</td></tr>`;
-      }
-      statuses.forEach(status => {
-        const bucket = byStatus[status];
-        // 그 상태에서 일어난 모든 회차 전환(1st→2nd, 2nd→3rd, ...)이 평균/건수에 다 포함된다.
-        // 목적지는 단계명만 표시(회차 생략), 여러 단계로 갈리면 제일 많은 걸 대표로.
-        const nextLabel = Object.entries(bucket.next).sort((a, b) => b[1] - a[1])[0][0];
-        html += `<tr>` +
-          `<td style="padding:3px 4px;text-align:center;border-top:1px solid #eee">${esc(status)}</td>` +
-          `<td style="padding:3px 4px;text-align:center;border-top:1px solid #eee;color:#555;font-size:11px">${esc(nextLabel)}</td>` +
-          `<td style="padding:3px 4px;text-align:center;font-weight:700;border-top:1px solid #eee">${avgOf(bucket.days)}일</td>` +
-          `<td style="padding:3px 4px;text-align:center;color:#888;border-top:1px solid #eee">${bucket.days.length}</td></tr>`;
-      });
-      html += `</tbody></table></div>`;
-    });
-    html += `</div>`;
+    let html = `<div style="margin-bottom:10px">${groupByHtml}</div>`;
 
     // 같은 섹션 아래에 그룹별 분해: 위 Stage 표와 같은 "내보냄→들어옴"을 단계별로 쪼개고,
     // 맨 끝에 "들어옴→내보냄"(우리가 들고 있던 기간)을 붙여 공이 어느 쪽에 있었는지 가른다.
     const groupRows = Object.entries(roundLead.groups)
       .map(([name, b]) => ({name, resp: avgOf(b.response), respN: b.response.length,
-                            rev: avgOf(b.review), revN: b.review.length, byStage: b.byStage}))
+                            rev: avgOf(b.review), revN: b.review.length,
+                            byStage: b.byStage, byStageStatus: b.byStageStatus}))
       .filter(g => g.respN || g.revN)
       .sort((a, b) => (b.resp == null ? -1 : b.resp) - (a.resp == null ? -1 : a.resp));
     const allResp = Object.values(roundLead.groups).flatMap(b => b.response);
@@ -1337,33 +1343,38 @@ function renderAnalysis() {
     const cell = (v, n) => v == null ? '<span style="color:#ccc">-</span>'
       : `${v}일 <span style="color:#aaa">(${n})</span>`;
     const th = `padding:4px 10px;text-align:center`;
+    const colspan = WITHIN_STAGE_PIPELINE.length + 3;
 
-    html += `<h3 style="margin:24px 0 4px">${esc(GROUP_LABELS[groupBy])}별 소요일 수</h3>` +
-      `<p class="sub">위 표와 같은 "내보냄→들어옴"(결과를 보낸 뒤 다음 샘플이 들어오기까지)을 ` +
-      `${esc(GROUP_LABELS[groupBy])}별로 쪼갠 것. 맨 오른쪽 "들어옴→내보냄"은 샘플 접수 뒤 결과를 ` +
-      `보내기까지 우리가 들고 있던 기간입니다. 접수일·전달일이 기입된 회차만 집계합니다.</p>` +
+    html += `<h3 style="margin:0 0 4px">${esc(GROUP_LABELS[groupBy])}별 소요일 수 (영업일)</h3>` +
+      `<p class="sub">단계 칸 = 내보냄→들어옴(결과를 보낸 뒤 다음 샘플이 들어오기까지, 상대가 들고 있던 기간). ` +
+      `맨 오른쪽 "들어옴→내보냄"은 샘플 접수 뒤 결과를 보내기까지 우리가 들고 있던 기간입니다. ` +
+      `${esc(GROUP_LABELS[groupBy])} 이름을 누르면 상태별(Approved/Rejected/Int Rej) 분해가 펼쳐집니다. ` +
+      `접수일·전달일이 기입된 회차만 집계합니다.</p>` +
       `<table style="font-size:11px;border-collapse:collapse">` +
       `<thead><tr style="color:#888"><th style="padding:4px 10px;text-align:left">${esc(GROUP_LABELS[groupBy])}</th>` +
       WITHIN_STAGE_PIPELINE.map(st => `<th style="${th};color:${STAGE_COLORS[st] || '#888'}">${esc(st)}</th>`).join('') +
       `<th style="${th}">내보냄→들어옴</th><th style="${th};border-left:1px solid #eee">들어옴→내보냄</th>` +
       `</tr></thead><tbody>` +
       `<tr style="font-weight:700;background:#fafbfe">` +
-      `<td style="padding:4px 10px">전체 평균</td>` +
+      `<td style="padding:4px 10px">${leadToggleLink('all', '전체 평균')}</td>` +
       WITHIN_STAGE_PIPELINE.map(st => `<td style="${th}">${cell(avgOf(allByStage[st]), allByStage[st].length)}</td>`).join('') +
       `<td style="${th}">${cell(avgOf(allResp), allResp.length)}</td>` +
-      `<td style="${th};border-left:1px solid #eee">${cell(avgOf(allRev), allRev.length)}</td></tr>`;
+      `<td style="${th};border-left:1px solid #eee">${cell(avgOf(allRev), allRev.length)}</td></tr>` +
+      leadDetailRow('all', roundLead.stages, colspan);
     if (!groupRows.length) {
       html += `<tr><td colspan="${WITHIN_STAGE_PIPELINE.length + 3}" style="padding:6px;color:#888">데이터 없음</td></tr>`;
     }
     groupRows.forEach(g => {
+      const rowId = `lead-${groupBy}-${g.name}`.replace(/[^\w-]/g, '_');
       html += `<tr style="border-top:1px solid #eee">` +
-        `<td style="padding:4px 10px">${esc(g.name)}</td>` +
+        `<td style="padding:4px 10px">${leadToggleLink(rowId, g.name)}</td>` +
         WITHIN_STAGE_PIPELINE.map(st => {
           const d = g.byStage[st] || [];
           return `<td style="${th}">${cell(avgOf(d), d.length)}</td>`;
         }).join('') +
         `<td style="${th};font-weight:700">${cell(g.resp, g.respN)}</td>` +
-        `<td style="${th};border-left:1px solid #eee">${cell(g.rev, g.revN)}</td></tr>`;
+        `<td style="${th};border-left:1px solid #eee">${cell(g.rev, g.revN)}</td></tr>` +
+        leadDetailRow(rowId, g.byStageStatus, colspan);
     });
     html += `</tbody></table>`;
 
