@@ -873,24 +873,24 @@ function canonStatus(raw) {
   return s;
 }
 
-function computeRoundLeadTimes(rawRows) {
+function computeRoundLeadTimes(rawRows, groupBy) {
   const stages = {};
   WITHIN_STAGE_PIPELINE.forEach(stage => { stages[stage] = {}; });
-  // 협력사별 왕복 리드타임. response = 우리가 결과를 내보낸 뒤 다음 샘플이 들어오기까지(협력사가
-  // 들고 있던 기간), review = 샘플이 들어온 뒤 결과를 내보내기까지(우리가 들고 있던 기간).
-  const vendors = {};
-  const vendorBucket = v => vendors[v] || (vendors[v] = {response: [], review: []});
+  // 그룹(협력사/아이템/TD/QA)별 왕복 리드타임. response = 우리가 결과를 내보낸 뒤 다음 샘플이
+  // 들어오기까지(상대가 들고 있던 기간), review = 샘플이 들어온 뒤 결과를 내보내기까지(우리가 들고 있던 기간).
+  const groups = {};
+  const groupBucket = g => groups[g] || (groups[g] = {response: [], review: []});
 
   for (const row of rawRows) {
     if (!row.detail) continue;
-    const vendor = vendorAlias(row.vendor) || '미지정';
+    const group = groupKeyForRow(row, groupBy);
     WITHIN_STAGE_PIPELINE.forEach(stage => {
       const rounds = (row.detail[stage] && row.detail[stage].rounds) || [];
       rounds.forEach((r, i) => {
         // 우리가 들고 있던 기간: 접수 -> 전달. 둘 다 찍힌 회차만 센다.
         if (r.received && r.confirm_date && r.confirm_date >= r.received) {
           const reviewDays = businessDaysSince(r.received, r.confirm_date);
-          if (reviewDays != null) vendorBucket(vendor).review.push(reviewDays);
+          if (reviewDays != null) groupBucket(group).review.push(reviewDays);
         }
         if (!r.confirm_date) return;
         const status = canonStatus(r.status);
@@ -922,11 +922,11 @@ function computeRoundLeadTimes(rawRows) {
         const bucket = stages[stage][status] || (stages[stage][status] = {days: [], next: {}});
         bucket.days.push(days);
         bucket.next[nextStageLabel] = (bucket.next[nextStageLabel] || 0) + 1;
-        vendorBucket(vendor).response.push(days);
+        groupBucket(group).response.push(days);
       });
     });
   }
-  return {stages, vendors};
+  return {stages, groups};
 }
 
 // stage별 원자료: 실제 due date가 있는 건은 {duePeriod, confirmPeriod, onTime, hasRealDue:true}로,
@@ -1275,12 +1275,13 @@ function renderAnalysis() {
   // 단계별(보정/FIT/PP/TOP) 소요일수: 단계마다 표를 따로 만들고, 그 안에서 상태(APPROVED가
   // 맨 위, 나머지는 이름순) → 회차(1ST/2ND/3RD/4TH/5TH) 순으로 묶어서 보여준다.
   {
-    const roundLead = computeRoundLeadTimes(rows);
+    const roundLead = computeRoundLeadTimes(rows, groupBy);
     const avgOf = days => days.length ? Math.round(days.reduce((a, b) => a + b, 0) / days.length * 10) / 10 : null;
 
     const sec5 = document.createElement('div');
     sec5.className = 'analysis-section';
-    let html = `<h3 style="margin-bottom:20px">Stage별 소요일 수</h3>` +
+    let html = `<div style="margin-bottom:10px">${groupByHtml}</div>` +
+      `<h3 style="margin-bottom:20px">Stage별 소요일 수</h3>` +
       `<div style="display:flex;gap:8px;flex-wrap:nowrap">`;
 
     WITHIN_STAGE_PIPELINE.forEach(stage => {
@@ -1317,53 +1318,51 @@ function renderAnalysis() {
       html += `</tbody></table></div>`;
     });
     html += `</div>`;
-    sec5.innerHTML = html;
-    container.appendChild(sec5);
 
-    // 협력사 왕복 리드타임: 공이 누구한테 있었는지를 영업일로 가른다.
-    // 내보냄→들어옴 = 협력사가 들고 있던 기간, 들어옴→내보냄 = 우리(QM)가 들고 있던 기간.
-    const vendorRows = Object.entries(roundLead.vendors)
-      .map(([vendor, b]) => ({vendor, resp: avgOf(b.response), respN: b.response.length,
-                              rev: avgOf(b.review), revN: b.review.length}))
-      .filter(v => v.respN || v.revN)
+    // 같은 섹션 아래에 그룹별 왕복 리드타임: 공이 누구한테 있었는지를 영업일로 가른다.
+    // 내보냄→들어옴 = 상대가 들고 있던 기간, 들어옴→내보냄 = 우리(QM)가 들고 있던 기간.
+    const groupRows = Object.entries(roundLead.groups)
+      .map(([name, b]) => ({name, resp: avgOf(b.response), respN: b.response.length,
+                            rev: avgOf(b.review), revN: b.review.length}))
+      .filter(g => g.respN || g.revN)
       .sort((a, b) => (b.resp == null ? -1 : b.resp) - (a.resp == null ? -1 : a.resp));
+    const allResp = Object.values(roundLead.groups).flatMap(b => b.response);
+    const allRev = Object.values(roundLead.groups).flatMap(b => b.review);
+    const cell = v => v == null ? '-' : v + '일';
+    const headCell = `padding:4px 10px;text-align:center`;
 
-    const sec6 = document.createElement('div');
-    sec6.className = 'analysis-section';
-    const allResp = Object.values(roundLead.vendors).flatMap(b => b.response);
-    const allRev = Object.values(roundLead.vendors).flatMap(b => b.review);
-    let vh = `<h3>협력사 왕복 리드타임 (영업일)</h3>` +
-      `<p class="sub">내보냄→들어옴 = 결과를 보낸 뒤 다음 샘플이 들어오기까지(협력사가 들고 있던 기간). ` +
+    html += `<h3 style="margin:24px 0 4px">${esc(GROUP_LABELS[groupBy])}별 왕복 리드타임</h3>` +
+      `<p class="sub">내보냄→들어옴 = 결과를 보낸 뒤 다음 샘플이 들어오기까지(상대가 들고 있던 기간). ` +
       `들어옴→내보냄 = 샘플 접수 뒤 결과를 보내기까지(우리가 들고 있던 기간). ` +
       `접수일·전달일이 둘 다 기입된 회차만 집계합니다.</p>` +
       `<table style="font-size:11px;border-collapse:collapse">` +
-      `<thead><tr style="color:#888"><th style="padding:4px 10px;text-align:left">협력사</th>` +
-      `<th style="padding:4px 10px;text-align:center">내보냄→들어옴</th><th style="padding:4px 10px;text-align:center">건수</th>` +
-      `<th style="padding:4px 10px;text-align:center">들어옴→내보냄</th><th style="padding:4px 10px;text-align:center">건수</th>` +
-      `<th style="padding:4px 10px;text-align:center">차이</th></tr></thead><tbody>`;
-    const cell = v => v == null ? '-' : v + '일';
-    vh += `<tr style="font-weight:700;background:#fafbfe">` +
+      `<thead><tr style="color:#888"><th style="padding:4px 10px;text-align:left">${esc(GROUP_LABELS[groupBy])}</th>` +
+      `<th style="${headCell}">내보냄→들어옴</th><th style="${headCell}">건수</th>` +
+      `<th style="${headCell}">들어옴→내보냄</th><th style="${headCell}">건수</th>` +
+      `<th style="${headCell}">차이</th></tr></thead><tbody>` +
+      `<tr style="font-weight:700;background:#fafbfe">` +
       `<td style="padding:4px 10px">전체 평균</td>` +
-      `<td style="padding:4px 10px;text-align:center">${cell(avgOf(allResp))}</td>` +
-      `<td style="padding:4px 10px;text-align:center;color:#888">${allResp.length}</td>` +
-      `<td style="padding:4px 10px;text-align:center">${cell(avgOf(allRev))}</td>` +
-      `<td style="padding:4px 10px;text-align:center;color:#888">${allRev.length}</td>` +
-      `<td style="padding:4px 10px;text-align:center">-</td></tr>`;
-    if (!vendorRows.length) vh += `<tr><td colspan="6" style="padding:6px;color:#888">데이터 없음</td></tr>`;
-    vendorRows.forEach(v => {
-      const gap = (v.resp != null && v.rev != null) ? Math.round((v.resp - v.rev) * 10) / 10 : null;
-      vh += `<tr style="border-top:1px solid #eee">` +
-        `<td style="padding:4px 10px">${esc(v.vendor)}</td>` +
-        `<td style="padding:4px 10px;text-align:center;font-weight:700">${cell(v.resp)}</td>` +
-        `<td style="padding:4px 10px;text-align:center;color:#888">${v.respN}</td>` +
-        `<td style="padding:4px 10px;text-align:center">${cell(v.rev)}</td>` +
-        `<td style="padding:4px 10px;text-align:center;color:#888">${v.revN}</td>` +
-        `<td style="padding:4px 10px;text-align:center;color:${gap > 0 ? '#c0392b' : '#888'}">` +
+      `<td style="${headCell}">${cell(avgOf(allResp))}</td>` +
+      `<td style="${headCell};color:#888">${allResp.length}</td>` +
+      `<td style="${headCell}">${cell(avgOf(allRev))}</td>` +
+      `<td style="${headCell};color:#888">${allRev.length}</td>` +
+      `<td style="${headCell}">-</td></tr>`;
+    if (!groupRows.length) html += `<tr><td colspan="6" style="padding:6px;color:#888">데이터 없음</td></tr>`;
+    groupRows.forEach(g => {
+      const gap = (g.resp != null && g.rev != null) ? Math.round((g.resp - g.rev) * 10) / 10 : null;
+      html += `<tr style="border-top:1px solid #eee">` +
+        `<td style="padding:4px 10px">${esc(g.name)}</td>` +
+        `<td style="${headCell};font-weight:700">${cell(g.resp)}</td>` +
+        `<td style="${headCell};color:#888">${g.respN}</td>` +
+        `<td style="${headCell}">${cell(g.rev)}</td>` +
+        `<td style="${headCell};color:#888">${g.revN}</td>` +
+        `<td style="${headCell};color:${gap > 0 ? '#c0392b' : '#888'}">` +
         `${gap == null ? '-' : (gap > 0 ? '+' : '') + gap + '일'}</td></tr>`;
     });
-    vh += `</tbody></table>`;
-    sec6.innerHTML = vh;
-    container.appendChild(sec6);
+    html += `</tbody></table>`;
+
+    sec5.innerHTML = html;
+    container.appendChild(sec5);
   }
 }
 
