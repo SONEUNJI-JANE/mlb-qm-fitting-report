@@ -62,8 +62,10 @@ def test_build_raw_rows_includes_full_round_history():
         {"style_code": "C1", "season": "27SS", "td": "김철수", "qa": "이영희", "qc_due": "2026-07-20", "pp_due": "2026-08-10", "top_due": "2026-09-01"},
     ]
     records = [
-        {"style_code": "C1", "stage": "FIT", "round": 1, "status": "Rejected", "updated_at": "2026-07-10T00:00:00Z"},
-        {"style_code": "C1", "stage": "FIT", "round": 2, "status": "Approved", "updated_at": "2026-07-15T00:00:00Z"},
+        {"style_code": "C1", "stage": "FIT", "round": 1, "status": "Rejected",
+         "received_date": "2026-07-10", "delivered_date": "2026-07-13", "updated_at": "2026-07-13T00:00:00Z"},
+        {"style_code": "C1", "stage": "FIT", "round": 2, "status": "Approved",
+         "received_date": "2026-07-28", "delivered_date": "2026-07-30", "updated_at": "2026-07-30T00:00:00Z"},
     ]
     result = build_raw_rows(styles, records)
     fit_detail = result["27SS"][0]["detail"]["FIT"]
@@ -81,10 +83,31 @@ def test_build_raw_rows_includes_full_round_history():
     assert rounds[1]["status"] == "Approved"
     assert fit_detail["first_received"] == "2026-07-10"
 
+    # 접수일(샘플 들어온 날)과 전달일(결과 내보낸 날)은 서로 다른 값이어야 한다 —
+    # "내보낸 뒤 며칠 만에 다음 샘플이 들어왔나"를 재려면 둘이 구분돼야 한다.
+    assert rounds[0]["received"] == "2026-07-10" and rounds[0]["confirm_date"] == "2026-07-13"
+    assert rounds[1]["received"] == "2026-07-28" and rounds[1]["confirm_date"] == "2026-07-30"
+
+
+def test_build_raw_rows_falls_back_when_dates_missing():
+    """전달일이 비면 피팅일 -> updated_at 순으로 떨어지고, 접수일은 없으면 None으로 둔다
+    (updated_at으로 때우면 리드타임이 0일로 잡혀 평균이 망가진다)."""
+    styles = [{"style_code": "C2", "season": "27SS", "qc_due": "2026-07-20"}]
+    records = [
+        {"style_code": "C2", "stage": "FIT", "round": 1, "status": "Rejected",
+         "received_date": None, "delivered_date": None, "fitting_date": "2026-07-12",
+         "updated_at": "2026-07-19T00:00:00Z"},
+    ]
+    detail = build_raw_rows(styles, records)["27SS"][0]["detail"]["FIT"]
+    assert detail["rounds"][0]["received"] is None
+    assert detail["rounds"][0]["confirm_date"] == "2026-07-12"  # 피팅일로 폴백
+    assert detail["first_received"] is None
+
 
 if __name__ == "__main__":
     test_total_vs_baseline_fit()
     test_fit_is_td_pp_top_are_qa_regardless_of_owner_fields()
     test_drop_styles_excluded()
     test_build_raw_rows_includes_full_round_history()
+    test_build_raw_rows_falls_back_when_dates_missing()
     print("OK: test_aggregate")

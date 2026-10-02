@@ -15,6 +15,28 @@ def _parse_date(value):
     return date.fromisoformat(value[:10])
 
 
+def _received(record: dict) -> str | None:
+    """샘플이 들어온 날(접수일). 기입 안 된 회차가 있어서 없으면 None - "내보냄→들어옴"
+    리드타임 계산에서 그 회차는 빠진다(updated_at으로 때우면 0일로 잡혀 평균이 망가진다)."""
+    value = record.get("received_date")
+    return value[:10] if value else None
+
+
+def _confirmed(record: dict) -> str | None:
+    """그 회차 결과를 협력사에 내보낸 날(전달일). 전달일이 비면 피팅일, 그것도 없으면
+    레코드가 갱신된 날을 쓴다 - 담당자가 전달일 기입을 빠뜨리는 경우가 있다."""
+    for key in ("delivered_date", "fitting_date"):
+        if record.get(key):
+            return record[key][:10]
+    return record["updated_at"][:10]
+
+
+def _first_received(rounds: list[dict]) -> str | None:
+    """그 단계가 실제로 시작된 날 = 접수일이 찍힌 첫 회차의 접수일. 1회차 접수일이 비어
+    있어도 2회차 접수일이 있으면 그걸 쓴다(없는 것보단 낫다)."""
+    return next((r["received"] for r in rounds if r["received"]), None)
+
+
 def _latest_status_by_style_and_stage(records: list[dict]) -> dict:
     """(style_code, stage) -> 가장 최신 record(round 최댓값, updated_at 최댓값)"""
     latest = {}
@@ -95,14 +117,12 @@ def build_raw_rows(styles: list[dict], records: list[dict]) -> dict:
     result: dict = {}
 
     def _rounds_list(style_code: str, stage: str) -> list[dict]:
-        # updated_at만 있고 별도 접수일(received) 컬럼은 없어서, received도 confirm_date와
-        # 같은 값을 쓴다(회차→회차 리드타임 계산이 그나마 뭔가 값을 갖도록 하기 위한 근사치).
         return [
             {
                 "round": _round_label(r["round"]),
-                "received": r["updated_at"][:10],
+                "received": _received(r),
                 "status": r["status"],
-                "confirm_date": r["updated_at"][:10],
+                "confirm_date": _confirmed(r),
                 "reason": r.get("comment") or None,
             }
             for r in all_records.get((style_code, stage), [])
@@ -140,18 +160,18 @@ def build_raw_rows(styles: list[dict], records: list[dict]) -> dict:
             row["detail"][stage] = {
                 "round": _round_label(record["round"]) if record else None,
                 "status": record["status"] if record else None,
-                "confirm_date": record["updated_at"][:10] if record else None,
+                "confirm_date": _confirmed(record) if record else None,
                 "reason": (record.get("comment") or None) if record else None,
-                "first_received": rounds[0]["received"] if rounds else None,
+                "first_received": _first_received(rounds),
                 "rounds": rounds,
             }
         # 보정은 집계 대상 stage는 아니지만, FIT이 아직 시작 전일 때 "이전 단계" 상세로 보여준다.
         row["detail"]["보정"] = {
             "round": _round_label(prep_record["round"]) if prep_record else None,
             "status": prep_record["status"] if prep_record else None,
-            "confirm_date": prep_record["updated_at"][:10] if prep_record else None,
+            "confirm_date": _confirmed(prep_record) if prep_record else None,
             "reason": (prep_record.get("comment") or None) if prep_record else None,
-            "first_received": prep_rounds[0]["received"] if prep_rounds else None,
+            "first_received": _first_received(prep_rounds),
             "rounds": prep_rounds,
         }
         if row["detail"]["FIT"]["round"] is None and prep_approved:

@@ -874,14 +874,24 @@ function canonStatus(raw) {
 }
 
 function computeRoundLeadTimes(rawRows) {
-  const result = {};
-  WITHIN_STAGE_PIPELINE.forEach(stage => { result[stage] = {}; });
+  const stages = {};
+  WITHIN_STAGE_PIPELINE.forEach(stage => { stages[stage] = {}; });
+  // 협력사별 왕복 리드타임. response = 우리가 결과를 내보낸 뒤 다음 샘플이 들어오기까지(협력사가
+  // 들고 있던 기간), review = 샘플이 들어온 뒤 결과를 내보내기까지(우리가 들고 있던 기간).
+  const vendors = {};
+  const vendorBucket = v => vendors[v] || (vendors[v] = {response: [], review: []});
 
   for (const row of rawRows) {
     if (!row.detail) continue;
+    const vendor = vendorAlias(row.vendor) || '미지정';
     WITHIN_STAGE_PIPELINE.forEach(stage => {
       const rounds = (row.detail[stage] && row.detail[stage].rounds) || [];
       rounds.forEach((r, i) => {
+        // 우리가 들고 있던 기간: 접수 -> 전달. 둘 다 찍힌 회차만 센다.
+        if (r.received && r.confirm_date && r.confirm_date >= r.received) {
+          const reviewDays = businessDaysSince(r.received, r.confirm_date);
+          if (reviewDays != null) vendorBucket(vendor).review.push(reviewDays);
+        }
         if (!r.confirm_date) return;
         const status = canonStatus(r.status);
         let nextDate = null;
@@ -909,13 +919,14 @@ function computeRoundLeadTimes(rawRows) {
         if (!nextDate || nextDate < r.confirm_date || !nextStageLabel) return;
         const days = businessDaysSince(r.confirm_date, nextDate);
         if (days == null) return;
-        const bucket = result[stage][status] || (result[stage][status] = {days: [], next: {}});
+        const bucket = stages[stage][status] || (stages[stage][status] = {days: [], next: {}});
         bucket.days.push(days);
         bucket.next[nextStageLabel] = (bucket.next[nextStageLabel] || 0) + 1;
+        vendorBucket(vendor).response.push(days);
       });
     });
   }
-  return result;
+  return {stages, vendors};
 }
 
 // stage별 원자료: 실제 due date가 있는 건은 {duePeriod, confirmPeriod, onTime, hasRealDue:true}로,
@@ -1273,7 +1284,7 @@ function renderAnalysis() {
       `<div style="display:flex;gap:8px;flex-wrap:nowrap">`;
 
     WITHIN_STAGE_PIPELINE.forEach(stage => {
-      const byStatus = roundLead[stage] || {};
+      const byStatus = roundLead.stages[stage] || {};
       const statuses = Object.keys(byStatus).sort((a, b) => {
         if (a === 'Approved') return -1;
         if (b === 'Approved') return 1;
@@ -1308,6 +1319,51 @@ function renderAnalysis() {
     html += `</div>`;
     sec5.innerHTML = html;
     container.appendChild(sec5);
+
+    // 협력사 왕복 리드타임: 공이 누구한테 있었는지를 영업일로 가른다.
+    // 내보냄→들어옴 = 협력사가 들고 있던 기간, 들어옴→내보냄 = 우리(QM)가 들고 있던 기간.
+    const vendorRows = Object.entries(roundLead.vendors)
+      .map(([vendor, b]) => ({vendor, resp: avgOf(b.response), respN: b.response.length,
+                              rev: avgOf(b.review), revN: b.review.length}))
+      .filter(v => v.respN || v.revN)
+      .sort((a, b) => (b.resp == null ? -1 : b.resp) - (a.resp == null ? -1 : a.resp));
+
+    const sec6 = document.createElement('div');
+    sec6.className = 'analysis-section';
+    const allResp = Object.values(roundLead.vendors).flatMap(b => b.response);
+    const allRev = Object.values(roundLead.vendors).flatMap(b => b.review);
+    let vh = `<h3>협력사 왕복 리드타임 (영업일)</h3>` +
+      `<p class="sub">내보냄→들어옴 = 결과를 보낸 뒤 다음 샘플이 들어오기까지(협력사가 들고 있던 기간). ` +
+      `들어옴→내보냄 = 샘플 접수 뒤 결과를 보내기까지(우리가 들고 있던 기간). ` +
+      `접수일·전달일이 둘 다 기입된 회차만 집계합니다.</p>` +
+      `<table style="font-size:11px;border-collapse:collapse">` +
+      `<thead><tr style="color:#888"><th style="padding:4px 10px;text-align:left">협력사</th>` +
+      `<th style="padding:4px 10px;text-align:center">내보냄→들어옴</th><th style="padding:4px 10px;text-align:center">건수</th>` +
+      `<th style="padding:4px 10px;text-align:center">들어옴→내보냄</th><th style="padding:4px 10px;text-align:center">건수</th>` +
+      `<th style="padding:4px 10px;text-align:center">차이</th></tr></thead><tbody>`;
+    const cell = v => v == null ? '-' : v + '일';
+    vh += `<tr style="font-weight:700;background:#fafbfe">` +
+      `<td style="padding:4px 10px">전체 평균</td>` +
+      `<td style="padding:4px 10px;text-align:center">${cell(avgOf(allResp))}</td>` +
+      `<td style="padding:4px 10px;text-align:center;color:#888">${allResp.length}</td>` +
+      `<td style="padding:4px 10px;text-align:center">${cell(avgOf(allRev))}</td>` +
+      `<td style="padding:4px 10px;text-align:center;color:#888">${allRev.length}</td>` +
+      `<td style="padding:4px 10px;text-align:center">-</td></tr>`;
+    if (!vendorRows.length) vh += `<tr><td colspan="6" style="padding:6px;color:#888">데이터 없음</td></tr>`;
+    vendorRows.forEach(v => {
+      const gap = (v.resp != null && v.rev != null) ? Math.round((v.resp - v.rev) * 10) / 10 : null;
+      vh += `<tr style="border-top:1px solid #eee">` +
+        `<td style="padding:4px 10px">${esc(v.vendor)}</td>` +
+        `<td style="padding:4px 10px;text-align:center;font-weight:700">${cell(v.resp)}</td>` +
+        `<td style="padding:4px 10px;text-align:center;color:#888">${v.respN}</td>` +
+        `<td style="padding:4px 10px;text-align:center">${cell(v.rev)}</td>` +
+        `<td style="padding:4px 10px;text-align:center;color:#888">${v.revN}</td>` +
+        `<td style="padding:4px 10px;text-align:center;color:${gap > 0 ? '#c0392b' : '#888'}">` +
+        `${gap == null ? '-' : (gap > 0 ? '+' : '') + gap + '일'}</td></tr>`;
+    });
+    vh += `</tbody></table>`;
+    sec6.innerHTML = vh;
+    container.appendChild(sec6);
   }
 }
 
