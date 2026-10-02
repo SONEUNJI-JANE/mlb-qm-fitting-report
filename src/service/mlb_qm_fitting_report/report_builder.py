@@ -879,7 +879,7 @@ function computeRoundLeadTimes(rawRows, groupBy) {
   // 그룹(협력사/아이템/TD/QA)별 왕복 리드타임. response = 우리가 결과를 내보낸 뒤 다음 샘플이
   // 들어오기까지(상대가 들고 있던 기간), review = 샘플이 들어온 뒤 결과를 내보내기까지(우리가 들고 있던 기간).
   const groups = {};
-  const groupBucket = g => groups[g] || (groups[g] = {response: [], review: []});
+  const groupBucket = g => groups[g] || (groups[g] = {response: [], review: [], byStage: {}});
 
   for (const row of rawRows) {
     if (!row.detail) continue;
@@ -922,7 +922,9 @@ function computeRoundLeadTimes(rawRows, groupBy) {
         const bucket = stages[stage][status] || (stages[stage][status] = {days: [], next: {}});
         bucket.days.push(days);
         bucket.next[nextStageLabel] = (bucket.next[nextStageLabel] || 0) + 1;
-        groupBucket(group).response.push(days);
+        const gb = groupBucket(group);
+        gb.response.push(days);
+        (gb.byStage[stage] || (gb.byStage[stage] = [])).push(days);
       });
     });
   }
@@ -1319,45 +1321,49 @@ function renderAnalysis() {
     });
     html += `</div>`;
 
-    // 같은 섹션 아래에 그룹별 왕복 리드타임: 공이 누구한테 있었는지를 영업일로 가른다.
-    // 내보냄→들어옴 = 상대가 들고 있던 기간, 들어옴→내보냄 = 우리(QM)가 들고 있던 기간.
+    // 같은 섹션 아래에 그룹별 분해: 위 Stage 표와 같은 "내보냄→들어옴"을 단계별로 쪼개고,
+    // 맨 끝에 "들어옴→내보냄"(우리가 들고 있던 기간)을 붙여 공이 어느 쪽에 있었는지 가른다.
     const groupRows = Object.entries(roundLead.groups)
       .map(([name, b]) => ({name, resp: avgOf(b.response), respN: b.response.length,
-                            rev: avgOf(b.review), revN: b.review.length}))
+                            rev: avgOf(b.review), revN: b.review.length, byStage: b.byStage}))
       .filter(g => g.respN || g.revN)
       .sort((a, b) => (b.resp == null ? -1 : b.resp) - (a.resp == null ? -1 : a.resp));
     const allResp = Object.values(roundLead.groups).flatMap(b => b.response);
     const allRev = Object.values(roundLead.groups).flatMap(b => b.review);
-    const cell = v => v == null ? '-' : v + '일';
-    const headCell = `padding:4px 10px;text-align:center`;
+    const allByStage = {};
+    WITHIN_STAGE_PIPELINE.forEach(st => {
+      allByStage[st] = Object.values(roundLead.groups).flatMap(b => b.byStage[st] || []);
+    });
+    const cell = (v, n) => v == null ? '<span style="color:#ccc">-</span>'
+      : `${v}일 <span style="color:#aaa">(${n})</span>`;
+    const th = `padding:4px 10px;text-align:center`;
 
-    html += `<h3 style="margin:24px 0 4px">${esc(GROUP_LABELS[groupBy])}별 왕복 리드타임</h3>` +
-      `<p class="sub">내보냄→들어옴 = 결과를 보낸 뒤 다음 샘플이 들어오기까지(상대가 들고 있던 기간). ` +
-      `들어옴→내보냄 = 샘플 접수 뒤 결과를 보내기까지(우리가 들고 있던 기간). ` +
-      `접수일·전달일이 둘 다 기입된 회차만 집계합니다.</p>` +
+    html += `<h3 style="margin:24px 0 4px">${esc(GROUP_LABELS[groupBy])}별 소요일 수</h3>` +
+      `<p class="sub">위 표와 같은 "내보냄→들어옴"(결과를 보낸 뒤 다음 샘플이 들어오기까지)을 ` +
+      `${esc(GROUP_LABELS[groupBy])}별로 쪼갠 것. 맨 오른쪽 "들어옴→내보냄"은 샘플 접수 뒤 결과를 ` +
+      `보내기까지 우리가 들고 있던 기간입니다. 접수일·전달일이 기입된 회차만 집계합니다.</p>` +
       `<table style="font-size:11px;border-collapse:collapse">` +
       `<thead><tr style="color:#888"><th style="padding:4px 10px;text-align:left">${esc(GROUP_LABELS[groupBy])}</th>` +
-      `<th style="${headCell}">내보냄→들어옴</th><th style="${headCell}">건수</th>` +
-      `<th style="${headCell}">들어옴→내보냄</th><th style="${headCell}">건수</th>` +
-      `<th style="${headCell}">차이</th></tr></thead><tbody>` +
+      WITHIN_STAGE_PIPELINE.map(st => `<th style="${th};color:${STAGE_COLORS[st] || '#888'}">${esc(st)}</th>`).join('') +
+      `<th style="${th}">내보냄→들어옴</th><th style="${th};border-left:1px solid #eee">들어옴→내보냄</th>` +
+      `</tr></thead><tbody>` +
       `<tr style="font-weight:700;background:#fafbfe">` +
       `<td style="padding:4px 10px">전체 평균</td>` +
-      `<td style="${headCell}">${cell(avgOf(allResp))}</td>` +
-      `<td style="${headCell};color:#888">${allResp.length}</td>` +
-      `<td style="${headCell}">${cell(avgOf(allRev))}</td>` +
-      `<td style="${headCell};color:#888">${allRev.length}</td>` +
-      `<td style="${headCell}">-</td></tr>`;
-    if (!groupRows.length) html += `<tr><td colspan="6" style="padding:6px;color:#888">데이터 없음</td></tr>`;
+      WITHIN_STAGE_PIPELINE.map(st => `<td style="${th}">${cell(avgOf(allByStage[st]), allByStage[st].length)}</td>`).join('') +
+      `<td style="${th}">${cell(avgOf(allResp), allResp.length)}</td>` +
+      `<td style="${th};border-left:1px solid #eee">${cell(avgOf(allRev), allRev.length)}</td></tr>`;
+    if (!groupRows.length) {
+      html += `<tr><td colspan="${WITHIN_STAGE_PIPELINE.length + 3}" style="padding:6px;color:#888">데이터 없음</td></tr>`;
+    }
     groupRows.forEach(g => {
-      const gap = (g.resp != null && g.rev != null) ? Math.round((g.resp - g.rev) * 10) / 10 : null;
       html += `<tr style="border-top:1px solid #eee">` +
         `<td style="padding:4px 10px">${esc(g.name)}</td>` +
-        `<td style="${headCell};font-weight:700">${cell(g.resp)}</td>` +
-        `<td style="${headCell};color:#888">${g.respN}</td>` +
-        `<td style="${headCell}">${cell(g.rev)}</td>` +
-        `<td style="${headCell};color:#888">${g.revN}</td>` +
-        `<td style="${headCell};color:${gap > 0 ? '#c0392b' : '#888'}">` +
-        `${gap == null ? '-' : (gap > 0 ? '+' : '') + gap + '일'}</td></tr>`;
+        WITHIN_STAGE_PIPELINE.map(st => {
+          const d = g.byStage[st] || [];
+          return `<td style="${th}">${cell(avgOf(d), d.length)}</td>`;
+        }).join('') +
+        `<td style="${th};font-weight:700">${cell(g.resp, g.respN)}</td>` +
+        `<td style="${th};border-left:1px solid #eee">${cell(g.rev, g.revN)}</td></tr>`;
     });
     html += `</tbody></table>`;
 
