@@ -1341,15 +1341,16 @@ function renderAnalysis() {
       allByStage[st] = Object.values(roundLead.groups).flatMap(b => b.byStage[st] || []);
     });
     const cell = (v, n) => v == null ? '<span style="color:#ccc">-</span>'
-      : `${v}일 <span style="color:#aaa">(${n})</span>`;
+      : `${v}일 <span style="color:#aaa">(${n}건)</span>`;
     const th = `padding:4px 10px;text-align:center`;
     const colspan = WITHIN_STAGE_PIPELINE.length + 3;
 
     html += `<h3 style="margin:0 0 4px">${esc(GROUP_LABELS[groupBy])}별 소요일 수 (영업일)</h3>` +
       `<p class="sub">단계 칸 = 내보냄→들어옴(결과를 보낸 뒤 다음 샘플이 들어오기까지, 상대가 들고 있던 기간). ` +
       `맨 오른쪽 "들어옴→내보냄"은 샘플 접수 뒤 결과를 보내기까지 우리가 들고 있던 기간입니다. ` +
-      `${esc(GROUP_LABELS[groupBy])} 이름을 누르면 상태별(Approved/Rejected/Int Rej) 분해가 펼쳐집니다. ` +
-      `접수일·전달일이 기입된 회차만 집계합니다.</p>` +
+      `${esc(GROUP_LABELS[groupBy])} 이름을 누르면 상태별(Approved/Rejected/Int Rej) 분해가 펼쳐집니다.<br>` +
+      `괄호 안은 평균을 낸 <b>회차 건수</b>입니다 — 스타일 수가 아닙니다. 한 스타일이 1차·2차·3차를 ` +
+      `거치면 그만큼 여러 번 셉니다. 접수일·전달일이 기입된 회차만 집계합니다.</p>` +
       `<table style="font-size:11px;border-collapse:collapse">` +
       `<thead><tr style="color:#888"><th style="padding:4px 10px;text-align:left">${esc(GROUP_LABELS[groupBy])}</th>` +
       WITHIN_STAGE_PIPELINE.map(st => `<th style="${th};color:${STAGE_COLORS[st] || '#888'}">${esc(st)}</th>`).join('') +
