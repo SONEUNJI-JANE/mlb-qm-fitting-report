@@ -916,11 +916,24 @@ function computeRoundLeadTimes(rawRows, groupBy) {
   // 그룹(협력사/아이템/TD/QA)별 왕복 리드타임. response = 우리가 결과를 내보낸 뒤 다음 샘플이
   // 들어오기까지(상대가 들고 있던 기간), review = 샘플이 들어온 뒤 결과를 내보내기까지(우리가 들고 있던 기간).
   const groups = {};
-  const groupBucket = g => groups[g] || (groups[g] = {response: [], review: [], byStage: {}, byStageStatus: {}});
+  const groupBucket = g => groups[g] || (groups[g] = {response: [], review: [], byStage: {}, byStageStatus: {}, counts: {}, styles: 0});
 
   for (const row of rawRows) {
     if (!row.detail) continue;
     const group = groupKeyForRow(row, groupBy);
+    // 날짜 기입과 무관하게 "몇 스타일을 몇 회차 봤는지"를 따로 센다 - 리드타임은 접수일·전달일이
+    // 다 있어야 계산되지만, 회차 수는 기록만 있으면 셀 수 있다(스타일당 몇 번 봤나 = rounds/styles).
+    {
+      const gb = groupBucket(group);
+      gb.styles++;
+      WITHIN_STAGE_PIPELINE.forEach(stage => {
+        const rs = (row.detail[stage] && row.detail[stage].rounds) || [];
+        if (!rs.length) return;
+        const c = gb.counts[stage] || (gb.counts[stage] = {styles: 0, rounds: 0});
+        c.styles++;
+        c.rounds += rs.length;
+      });
+    }
     WITHIN_STAGE_PIPELINE.forEach(stage => {
       const rounds = (row.detail[stage] && row.detail[stage].rounds) || [];
       rounds.forEach((r, i) => {
@@ -1063,6 +1076,8 @@ function withIndependentCumulative(dueAndDone, sortedPeriods) {
 
 let analysisPeriod = 'week';
 let analysisGroupBy = 'vendor';
+// 그룹 표에 뭘 띄울지: 'days'=평균 소요일, 'rounds'=스타일당 회차 수.
+let analysisLeadMetric = 'days';
 let complianceChartStage = 'FIT';
 const STAGE_COLORS = {FIT: '#4a65a9', PP: '#e0a72e', TOP: '#2e9e5b'};
 
@@ -1331,26 +1346,57 @@ function renderAnalysis() {
     const groupRows = Object.entries(roundLead.groups)
       .map(([name, b]) => ({name, resp: avgOf(b.response), respN: b.response.length,
                             rev: avgOf(b.review), revN: b.review.length,
-                            byStage: b.byStage, byStageStatus: b.byStageStatus}))
+                            byStage: b.byStage, byStageStatus: b.byStageStatus,
+                            counts: b.counts, styles: b.styles}))
       .filter(g => g.respN || g.revN)
       .sort((a, b) => (b.resp == null ? -1 : b.resp) - (a.resp == null ? -1 : a.resp));
     const allResp = Object.values(roundLead.groups).flatMap(b => b.response);
     const allRev = Object.values(roundLead.groups).flatMap(b => b.review);
-    const allByStage = {};
+    const allByStage = {}, allCounts = {};
     WITHIN_STAGE_PIPELINE.forEach(st => {
       allByStage[st] = Object.values(roundLead.groups).flatMap(b => b.byStage[st] || []);
+      allCounts[st] = Object.values(roundLead.groups).reduce((acc, b) => {
+        const c = b.counts[st];
+        return c ? {styles: acc.styles + c.styles, rounds: acc.rounds + c.rounds} : acc;
+      }, {styles: 0, rounds: 0});
     });
-    const cell = (v, n) => v == null ? '<span style="color:#ccc">-</span>'
-      : `${v}일 <span style="color:#aaa">(${n}건)</span>`;
+    // 단계 구분 없는 합계(맨 오른쪽 두 칸용): 스타일 수는 그룹의 스타일 수, 회차는 전 단계 합.
+    const sumCounts = cs => WITHIN_STAGE_PIPELINE.reduce(
+      (acc, st) => cs[st] ? {styles: acc.styles, rounds: acc.rounds + cs[st].rounds} : acc, {styles: 0, rounds: 0});
+    const allStyles = Object.values(roundLead.groups).reduce((n, b) => n + b.styles, 0);
+    const metric = analysisLeadMetric;
+    // 한 칸에 두 줄: 윗줄은 고른 지표(평균 소요일 또는 스타일당 회차), 아랫줄은 모수
+    // (회차 건수·스타일 수). 괄호 안 숫자가 스타일 수인 줄 알고 헷갈리는 일이 없게 둘 다 적는다.
+    const cell = (days, daysN, c) => {
+      const counts = c || {styles: 0, rounds: 0};
+      const head = metric === 'rounds'
+        ? (counts.styles ? `${Math.round(counts.rounds / counts.styles * 10) / 10}회` : null)
+        : (days == null ? null : `${days}일`);
+      if (head == null && !counts.rounds) return '<span style="color:#ccc">-</span>';
+      const sub = metric === 'rounds'
+        ? `${counts.rounds}회차 · ${counts.styles}sty`
+        : `${daysN}건 · ${counts.styles}sty`;
+      return `<div style="font-weight:700">${head == null ? '-' : head}</div>` +
+        `<div style="color:#aaa;font-size:10px;font-weight:400">${sub}</div>`;
+    };
+    const metricHtml = `<label style="font-weight:700;margin-right:8px;font-size:12px">지표</label>` +
+      `<select onchange="analysisLeadMetric=this.value;renderAnalysis()">` +
+      `<option value="days"${metric === 'days' ? ' selected' : ''}>평균 소요일</option>` +
+      `<option value="rounds"${metric === 'rounds' ? ' selected' : ''}>스타일당 회차 수</option></select>`;
     const th = `padding:4px 10px;text-align:center`;
     const colspan = WITHIN_STAGE_PIPELINE.length + 3;
 
-    html += `<h3 style="margin:0 0 4px">${esc(GROUP_LABELS[groupBy])}별 소요일 수 (영업일)</h3>` +
+    html += `<h3 style="margin:0 0 4px">${esc(GROUP_LABELS[groupBy])}별 ` +
+      `${metric === 'rounds' ? '회차 수' : '소요일 수 (영업일)'}</h3>` +
       `<p class="sub">단계 칸 = 내보냄→들어옴(결과를 보낸 뒤 다음 샘플이 들어오기까지, 상대가 들고 있던 기간). ` +
       `맨 오른쪽 "들어옴→내보냄"은 샘플 접수 뒤 결과를 보내기까지 우리가 들고 있던 기간입니다. ` +
       `${esc(GROUP_LABELS[groupBy])} 이름을 누르면 상태별(Approved/Rejected/Int Rej) 분해가 펼쳐집니다.<br>` +
-      `괄호 안은 평균을 낸 <b>회차 건수</b>입니다 — 스타일 수가 아닙니다. 한 스타일이 1차·2차·3차를 ` +
-      `거치면 그만큼 여러 번 셉니다. 접수일·전달일이 기입된 회차만 집계합니다.</p>` +
+      (metric === 'rounds'
+        ? `윗줄 = 스타일 1개를 평균 몇 회차 봤는지(회차 ÷ 스타일). 아랫줄 = 그 모수(총 회차 · 스타일 수).`
+        : `윗줄 = 평균 소요일. 아랫줄 = 그 모수(평균을 낸 <b>회차 건수</b> · <b>스타일 수</b>) — ` +
+          `한 스타일이 1차·2차·3차를 거치면 회차는 그만큼 여러 번 셉니다.`) +
+      ` 소요일은 접수일·전달일이 기입된 회차만, 회차 수는 기록이 있는 회차를 다 셉니다.</p>` +
+      `<div style="margin-bottom:8px">${metricHtml}</div>` +
       `<table style="font-size:11px;border-collapse:collapse">` +
       `<thead><tr style="color:#888"><th style="padding:4px 10px;text-align:left">${esc(GROUP_LABELS[groupBy])}</th>` +
       WITHIN_STAGE_PIPELINE.map(st => `<th style="${th};color:${STAGE_COLORS[st] || '#888'}">${esc(st)}</th>`).join('') +
@@ -1358,9 +1404,9 @@ function renderAnalysis() {
       `</tr></thead><tbody>` +
       `<tr style="font-weight:700;background:#fafbfe">` +
       `<td style="padding:4px 10px">${leadToggleLink('all', '전체 평균')}</td>` +
-      WITHIN_STAGE_PIPELINE.map(st => `<td style="${th}">${cell(avgOf(allByStage[st]), allByStage[st].length)}</td>`).join('') +
-      `<td style="${th}">${cell(avgOf(allResp), allResp.length)}</td>` +
-      `<td style="${th};border-left:1px solid #eee">${cell(avgOf(allRev), allRev.length)}</td></tr>` +
+      WITHIN_STAGE_PIPELINE.map(st => `<td style="${th}">${cell(avgOf(allByStage[st]), allByStage[st].length, allCounts[st])}</td>`).join('') +
+      `<td style="${th}">${cell(avgOf(allResp), allResp.length, {...sumCounts(allCounts), styles: allStyles})}</td>` +
+      `<td style="${th};border-left:1px solid #eee">${cell(avgOf(allRev), allRev.length, {...sumCounts(allCounts), styles: allStyles})}</td></tr>` +
       leadDetailRow('all', roundLead.stages, colspan);
     if (!groupRows.length) {
       html += `<tr><td colspan="${WITHIN_STAGE_PIPELINE.length + 3}" style="padding:6px;color:#888">데이터 없음</td></tr>`;
@@ -1371,10 +1417,10 @@ function renderAnalysis() {
         `<td style="padding:4px 10px">${leadToggleLink(rowId, g.name)}</td>` +
         WITHIN_STAGE_PIPELINE.map(st => {
           const d = g.byStage[st] || [];
-          return `<td style="${th}">${cell(avgOf(d), d.length)}</td>`;
+          return `<td style="${th}">${cell(avgOf(d), d.length, g.counts[st])}</td>`;
         }).join('') +
-        `<td style="${th};font-weight:700">${cell(g.resp, g.respN)}</td>` +
-        `<td style="${th};border-left:1px solid #eee">${cell(g.rev, g.revN)}</td></tr>` +
+        `<td style="${th};font-weight:700">${cell(g.resp, g.respN, {...sumCounts(g.counts), styles: g.styles})}</td>` +
+        `<td style="${th};border-left:1px solid #eee">${cell(g.rev, g.revN, {...sumCounts(g.counts), styles: g.styles})}</td></tr>` +
         leadDetailRow(rowId, g.byStageStatus, colspan);
     });
     html += `</tbody></table>`;
