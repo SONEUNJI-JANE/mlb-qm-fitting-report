@@ -1088,6 +1088,8 @@ let analysisGroupBy = 'vendor';
 let analysisLeadMetric = 'days';
 // 그룹 표를 숫자표로 볼지 가로막대 차트로 볼지.
 let analysisLeadView = 'table';
+// 차트로 볼 때 어느 칸을 그릴지(표의 열 하나를 고르는 것). 차트는 한 개만 그린다.
+let analysisLeadStage = 'FIT';
 let complianceChartStage = 'FIT';
 const STAGE_COLORS = {FIT: '#4a65a9', PP: '#e0a72e', TOP: '#2e9e5b'};
 
@@ -1389,6 +1391,13 @@ function renderAnalysis() {
       return `<div style="font-weight:700">${head == null ? '-' : head}</div>` +
         `<div style="color:#aaa;font-size:10px;font-weight:400">${sub}</div>`;
     };
+    // 차트에서 고를 수 있는 칸 = 표의 열. 회차 지표일 땐 "들어옴→내보냄"(우리 검토 소요일)이
+    // 의미가 없어서 뺀다.
+    const leadChartOptions = [
+      ...WITHIN_STAGE_PIPELINE.map(st => ({key: st, label: st, color: STAGE_COLORS[st]})),
+      {key: 'resp', label: '내보냄→들어옴 (상대가 들고 있던 기간)', color: '#c0392b'},
+      ...(metric === 'days' ? [{key: 'rev', label: '들어옴→내보냄 (우리가 들고 있던 기간)', color: '#2e9e5b'}] : []),
+    ];
     const metricHtml = `<label style="font-weight:700;margin-right:8px;font-size:12px">지표</label>` +
       `<select onchange="analysisLeadMetric=this.value;renderAnalysis()">` +
       `<option value="days"${metric === 'days' ? ' selected' : ''}>평균 소요일</option>` +
@@ -1396,7 +1405,13 @@ function renderAnalysis() {
       `<label style="font-weight:700;margin:0 8px 0 16px;font-size:12px">보기</label>` +
       `<select onchange="analysisLeadView=this.value;renderAnalysis()">` +
       `<option value="table"${analysisLeadView === 'table' ? ' selected' : ''}>표</option>` +
-      `<option value="chart"${analysisLeadView === 'chart' ? ' selected' : ''}>차트</option></select>`;
+      `<option value="chart"${analysisLeadView === 'chart' ? ' selected' : ''}>차트</option></select>` +
+      (analysisLeadView === 'chart'
+        ? `<label style="font-weight:700;margin:0 8px 0 16px;font-size:12px">차트 칸</label>` +
+          `<select onchange="analysisLeadStage=this.value;renderAnalysis()">` +
+          leadChartOptions.map(o => `<option value="${o.key}"${analysisLeadStage === o.key ? ' selected' : ''}>${esc(o.label)}</option>`).join('') +
+          `</select>`
+        : '');
 
     // 차트용 값: 고른 지표를 그룹별 숫자 하나로 환산한다(없으면 제외).
     const metricValue = (days, counts) => {
@@ -1407,15 +1422,6 @@ function renderAnalysis() {
       return days;
     };
     const chartUnit = metric === 'rounds' ? '회' : '일';
-    const chartFor = (pick, color) => {
-      const items = groupRows
-        .map(g => ({label: g.name, value: pick(g)}))
-        .filter(x => x.value != null)
-        .sort((a, b) => b.value - a.value);
-      return items.length
-        ? hBarChart(items, {unit: chartUnit, color, width: 340, labelWidth: 84, barHeight: 14, gap: 4})
-        : `<p class="sub">데이터 없음</p>`;
-    };
     const th = `padding:4px 10px;text-align:center`;
     const colspan = WITHIN_STAGE_PIPELINE.length + 3;
 
@@ -1460,20 +1466,21 @@ function renderAnalysis() {
     tableHtml += `</tbody></table>`;
 
     if (analysisLeadView === 'chart') {
-      // 단계별 차트 + 왕복 합계 차트. 막대는 큰 값부터 정렬돼 누가 오래 끄는지 바로 보인다.
-      html += `<div style="display:flex;gap:12px;flex-wrap:wrap">` +
-        WITHIN_STAGE_PIPELINE.map(st =>
-          `<div><div style="font-weight:700;font-size:12px;color:${STAGE_COLORS[st] || '#1a1a2e'};margin-bottom:6px">${esc(st)}</div>` +
-          chartFor(g => metricValue(avgOf(g.byStage[st] || []), g.counts[st]), STAGE_COLORS[st]) + `</div>`).join('') +
-        `</div>` +
-        `<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:16px">` +
-        `<div><div style="font-weight:700;font-size:12px;margin-bottom:6px">내보냄→들어옴 (상대가 들고 있던 기간)</div>` +
-        chartFor(g => metricValue(g.resp, {...sumCounts(g.counts), styles: g.styles}), '#c0392b') + `</div>` +
-        (metric === 'days'
-          ? `<div><div style="font-weight:700;font-size:12px;margin-bottom:6px">들어옴→내보냄 (우리가 들고 있던 기간)</div>` +
-            chartFor(g => g.rev, '#2e9e5b') + `</div>`
-          : '') +
-        `</div>`;
+      // 차트는 고른 칸 하나만 크게 그린다(표의 열 = 차트 하나). 막대는 큰 값부터.
+      const picked = leadChartOptions.find(o => o.key === analysisLeadStage) || leadChartOptions[0];
+      const valueOf = g => {
+        if (picked.key === 'resp') return metricValue(g.resp, {...sumCounts(g.counts), styles: g.styles});
+        if (picked.key === 'rev') return g.rev;
+        return metricValue(avgOf(g.byStage[picked.key] || []), g.counts[picked.key]);
+      };
+      const items = groupRows.map(g => ({label: g.name, value: valueOf(g)}))
+        .filter(x => x.value != null)
+        .sort((a, b) => b.value - a.value);
+      html += `<div style="font-weight:700;font-size:12px;color:${picked.color || '#1a1a2e'};margin:4px 0 8px">` +
+        `${esc(picked.label)} · ${metric === 'rounds' && picked.key !== 'rev' ? '스타일당 회차 수' : '평균 소요일'}</div>` +
+        (items.length
+          ? hBarChart(items, {unit: chartUnit, color: picked.color, width: 760, labelWidth: 110, barHeight: 18, gap: 6})
+          : `<p class="sub">데이터 없음</p>`);
     } else {
       html += tableHtml;
     }
