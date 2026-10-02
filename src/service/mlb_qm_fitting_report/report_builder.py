@@ -1088,8 +1088,15 @@ let analysisGroupBy = 'vendor';
 let analysisLeadMetric = 'days';
 // 그룹 표를 숫자표로 볼지 가로막대 차트로 볼지.
 let analysisLeadView = 'table';
-// 차트로 볼 때 어느 칸을 그릴지(표의 열 하나를 고르는 것). 차트는 한 개만 그린다.
-let analysisLeadStage = 'FIT';
+// 차트로 볼 때 한 차트에 같이 띄울 칸들. 체크박스로 켜고 끈다(표의 열 = 막대 한 줄).
+let analysisLeadStages = ['보정', 'FIT', 'PP', 'TOP'];
+
+function toggleLeadStage(key) {
+  const i = analysisLeadStages.indexOf(key);
+  if (i >= 0) analysisLeadStages.splice(i, 1);
+  else analysisLeadStages.push(key);
+  renderAnalysis();
+}
 let complianceChartStage = 'FIT';
 const STAGE_COLORS = {FIT: '#4a65a9', PP: '#e0a72e', TOP: '#2e9e5b'};
 
@@ -1407,10 +1414,11 @@ function renderAnalysis() {
       `<option value="table"${analysisLeadView === 'table' ? ' selected' : ''}>표</option>` +
       `<option value="chart"${analysisLeadView === 'chart' ? ' selected' : ''}>차트</option></select>` +
       (analysisLeadView === 'chart'
-        ? `<label style="font-weight:700;margin:0 8px 0 16px;font-size:12px">차트 칸</label>` +
-          `<select onchange="analysisLeadStage=this.value;renderAnalysis()">` +
-          leadChartOptions.map(o => `<option value="${o.key}"${analysisLeadStage === o.key ? ' selected' : ''}>${esc(o.label)}</option>`).join('') +
-          `</select>`
+        ? `<span style="margin-left:16px;font-weight:700;font-size:12px">차트에 띄울 칸</span> ` +
+          leadChartOptions.map(o =>
+            `<label style="margin-left:10px;font-size:11px;color:${o.color || '#555'};white-space:nowrap">` +
+            `<input type="checkbox" onchange="toggleLeadStage('${o.key}')"` +
+            `${analysisLeadStages.includes(o.key) ? ' checked' : ''}> ${esc(o.label)}</label>`).join('')
         : '');
 
     // 차트용 값: 고른 지표를 그룹별 숫자 하나로 환산한다(없으면 제외).
@@ -1466,21 +1474,27 @@ function renderAnalysis() {
     tableHtml += `</tbody></table>`;
 
     if (analysisLeadView === 'chart') {
-      // 차트는 고른 칸 하나만 크게 그린다(표의 열 = 차트 하나). 막대는 큰 값부터.
-      const picked = leadChartOptions.find(o => o.key === analysisLeadStage) || leadChartOptions[0];
-      const valueOf = g => {
-        if (picked.key === 'resp') return metricValue(g.resp, {...sumCounts(g.counts), styles: g.styles});
-        if (picked.key === 'rev') return g.rev;
-        return metricValue(avgOf(g.byStage[picked.key] || []), g.counts[picked.key]);
+      // 체크한 칸들을 한 차트에 묶음 막대로 겹쳐 그린다(x축 = 그룹, 막대 = 칸).
+      // 위쪽 "주차별 일정 준수 현황"과 같은 groupedBarChart를 쓴다.
+      const picked = leadChartOptions.filter(o => analysisLeadStages.includes(o.key));
+      const valueOf = (g, key) => {
+        if (key === 'resp') return metricValue(g.resp, {...sumCounts(g.counts), styles: g.styles});
+        if (key === 'rev') return g.rev;
+        return metricValue(avgOf(g.byStage[key] || []), g.counts[key]);
       };
-      const items = groupRows.map(g => ({label: g.name, value: valueOf(g)}))
-        .filter(x => x.value != null)
-        .sort((a, b) => b.value - a.value);
-      html += `<div style="font-weight:700;font-size:12px;color:${picked.color || '#1a1a2e'};margin:4px 0 8px">` +
-        `${esc(picked.label)} · ${metric === 'rounds' && picked.key !== 'rev' ? '스타일당 회차 수' : '평균 소요일'}</div>` +
-        (items.length
-          ? hBarChart(items, {unit: chartUnit, color: picked.color, width: 760, labelWidth: 110, barHeight: 18, gap: 6})
-          : `<p class="sub">데이터 없음</p>`);
+      const names = groupRows.map(g => g.name);
+      const series = picked.map(o => ({
+        name: o.label.split(' (')[0],
+        color: o.color || '#4a65a9',
+        values: groupRows.map(g => valueOf(g, o.key)),
+      }));
+      const dataMax = Math.max(0, ...series.flatMap(x => x.values.filter(v => v != null)));
+      html += (picked.length && names.length
+        ? groupedBarChart(names, series, {
+            width: 900, height: 280, unit: chartUnit,
+            yMax: Math.max(1, Math.ceil(dataMax * 1.1)),
+          })
+        : `<p class="sub">${picked.length ? '데이터 없음' : '띄울 칸을 하나 이상 체크하세요'}</p>`);
     } else {
       html += tableHtml;
     }
