@@ -897,6 +897,22 @@ function canonStatus(raw) {
 // 그룹 한 줄을 눌러서 접었다 폈다 하는 링크 + 그 안에 들어갈 상태별 분해 표.
 // 단계 평균(예: FIT 22.6일)만으로는 "승인 후 다음 단계 착수(28.7일)"와 "리젝 재작업(14.2일)"이
 // 뭉개져서, 어느 쪽이 느린 건지 구분이 안 된다 - 펼치면 그 분해가 나온다.
+// 시즌 끝나고 쓰는 협력사 평가: 단계마다 "샘플 제작 수 / 스타일 수" 비율을 내고, 아래 기준표로
+// 점수(3/2/1/0)를 매긴 뒤 QC·PP·TOP 점수를 평균해 총점을 낸다. 기준은 QM 평가 양식 그대로다.
+// (샘플 제작 수 = 그 단계 회차 수, 스타일 수 = 그 단계 샘플이 한 번이라도 들어온 스타일 수)
+const EVAL_BANDS = {
+  QC: [[1.5, 3], [2, 2], [2.5, 1]],        // 1~1.5 미만 3점, ~2 미만 2점, ~2.5 미만 1점, 그 이상 0점
+  PP: [[1.25, 3], [1.5, 2], [1.75, 1]],
+  TOP: [[1.25, 3], [1.5, 2], [1.75, 1]],
+};
+const EVAL_CATEGORY_ORDER = ['KNIT', 'SWEATER', 'WOVEN', 'DENIM', '미분류'];
+
+function evalScore(kind, ratio) {
+  if (ratio == null || !isFinite(ratio) || ratio <= 0) return null;
+  for (const [limit, score] of EVAL_BANDS[kind]) if (ratio < limit) return score;
+  return 0;
+}
+
 function leadDetailId(rowId) { return `lead-detail-${rowId}`; }
 
 function leadToggleLink(rowId, label) {
@@ -1426,7 +1442,8 @@ function renderAnalysis() {
       `<label style="font-weight:700;margin:0 8px 0 16px;font-size:12px">보기</label>` +
       `<select onchange="analysisLeadView=this.value;renderAnalysis()">` +
       `<option value="table"${analysisLeadView === 'table' ? ' selected' : ''}>표</option>` +
-      `<option value="chart"${analysisLeadView === 'chart' ? ' selected' : ''}>차트</option></select>` +
+      `<option value="chart"${analysisLeadView === 'chart' ? ' selected' : ''}>차트</option>` +
+      `<option value="eval"${analysisLeadView === 'eval' ? ' selected' : ''}>협력사 평가</option></select>` +
       (analysisLeadView === 'chart'
         ? `<span style="margin-left:16px;font-weight:700;font-size:12px">차트에 띄울 칸</span> ` +
           leadChartOptions.map(o =>
@@ -1447,7 +1464,7 @@ function renderAnalysis() {
     const th = `padding:4px 10px;text-align:center`;
     const colspan = WITHIN_STAGE_PIPELINE.length + 3;
 
-    html += `<h3 style="margin:0 0 4px">${esc(GROUP_LABELS[groupBy])}별 ` +
+    if (analysisLeadView !== 'eval') html += `<h3 style="margin:0 0 4px">${esc(GROUP_LABELS[groupBy])}별 ` +
       `${metric === 'rounds' ? '회차 수' : '소요일 수 (영업일)'}</h3>` +
       `<p class="sub">단계 칸 = 내보냄→들어옴(결과를 보낸 뒤 다음 샘플이 들어오기까지, 상대가 들고 있던 기간). ` +
       `맨 오른쪽 "들어옴→내보냄"은 샘플 접수 뒤 결과를 보내기까지 우리가 들고 있던 기간입니다. ` +
@@ -1487,7 +1504,52 @@ function renderAnalysis() {
     });
     tableHtml += `</tbody></table>`;
 
-    if (analysisLeadView === 'chart') {
+    if (analysisLeadView === 'eval') {
+      // 평가표는 늘 협력사 기준이다(그룹 기준 선택과 무관). QC = FIT 단계.
+      const ev = computeRoundLeadTimes(rows, 'vendor').groups;
+      const KINDS = [['QC', 'FIT'], ['PP', 'PP'], ['TOP', 'TOP']];
+      const byCat = {};
+      Object.entries(ev).forEach(([vendor, b]) => {
+        const cat = VENDOR_CATEGORY[vendor] || '미분류';
+        const cells = KINDS.map(([kind, stage]) => {
+          const c = b.counts[stage] || {styles: 0, rounds: 0};
+          const ratio = c.styles ? c.rounds / c.styles : null;
+          return {kind, styles: c.styles, rounds: c.rounds, ratio, score: evalScore(kind, ratio)};
+        });
+        const scored = cells.filter(c => c.score != null);
+        if (!scored.length) return;
+        const total = scored.reduce((a, c) => a + c.score, 0) / scored.length;
+        (byCat[cat] || (byCat[cat] = [])).push({vendor, cells, total});
+      });
+      const tdc = 'padding:4px 8px;text-align:center';
+      html += `<h3 style="margin:0 0 4px">협력사 평가 (샘플 제작 수 ÷ 스타일 수)</h3>` +
+        `<p class="sub">단계마다 "샘플 제작 수 ÷ 스타일 수"를 내고 기준표로 점수를 매긴 뒤, QC·PP·TOP 점수를 평균해 총점을 냅니다. ` +
+        `QC는 1 미만~1.5 3점 / ~2 2점 / ~2.5 1점 / 그 이상 0점, PP·TOP은 ~1.25 3점 / ~1.5 2점 / ~1.75 1점 / 그 이상 0점. ` +
+        `샘플이 한 번도 안 들어온 단계는 총점 평균에서 뺍니다. 위쪽 필터(Quarter/Item/TD/QA/Vendor)가 그대로 적용됩니다.</p>` +
+        `<div style="margin-bottom:8px">${metricHtml}</div>` +
+        `<table style="font-size:11px;border-collapse:collapse">` +
+        `<thead><tr style="color:#888"><th style="padding:4px 8px;text-align:left">협력사</th>` +
+        KINDS.map(([kind]) => `<th colspan="4" style="${tdc};border-left:1px solid #eee">${kind}</th>`).join('') +
+        `<th style="${tdc};border-left:1px solid #eee">총점</th></tr>` +
+        `<tr style="color:#bbb"><th></th>` +
+        KINDS.map(() => `<th style="${tdc};border-left:1px solid #eee">스타일</th><th style="${tdc}">샘플</th>` +
+          `<th style="${tdc}">비율</th><th style="${tdc}">점수</th>`).join('') +
+        `<th style="${tdc};border-left:1px solid #eee"></th></tr></thead><tbody>`;
+      EVAL_CATEGORY_ORDER.filter(cat => byCat[cat]).forEach(cat => {
+        html += `<tr><td colspan="${KINDS.length * 4 + 2}" style="padding:6px 8px;font-weight:700;background:#fafbfe">&lt;${esc(cat)}&gt;</td></tr>`;
+        byCat[cat].sort((a, b) => b.total - a.total).forEach(r => {
+          html += `<tr style="border-top:1px solid #eee"><td style="padding:4px 8px">${esc(r.vendor)}</td>` +
+            r.cells.map(c => `<td style="${tdc};border-left:1px solid #eee">${c.styles || '-'}</td>` +
+              `<td style="${tdc}">${c.rounds || '-'}</td>` +
+              `<td style="${tdc}">${c.ratio == null ? '-' : (Math.round(c.ratio * 100) / 100).toFixed(2)}</td>` +
+              `<td style="${tdc};font-weight:700;color:${c.score == null ? '#ccc' : (c.score >= 3 ? '#2e9e5b' : c.score === 0 ? '#c0392b' : '#1a1a2e')}">` +
+              `${c.score == null ? '-' : c.score}</td>`).join('') +
+            `<td style="${tdc};border-left:1px solid #eee;font-weight:700">${(Math.round(r.total * 100) / 100).toFixed(2)}</td></tr>`;
+        });
+      });
+      if (!Object.keys(byCat).length) html += `<tr><td colspan="${KINDS.length * 4 + 2}" style="padding:6px;color:#888">데이터 없음</td></tr>`;
+      html += `</tbody></table>`;
+    } else if (analysisLeadView === 'chart') {
       // 체크한 칸들을 한 차트에 묶음 막대로 겹쳐 그린다(x축 = 그룹, 막대 = 칸).
       // 위쪽 "주차별 일정 준수 현황"과 같은 groupedBarChart를 쓴다.
       const picked = leadChartOptions.filter(o => analysisLeadStages.includes(o.key));
