@@ -705,7 +705,11 @@ function groupedBarChart(periods, series, opts) {
   opts = opts || {};
   const width = opts.width || 900, height = opts.height || 240;
   const unit = opts.unit != null ? opts.unit : '%';
-  const padL = 34, padR = 10, padT = 10, padB = 30;
+  // showValues: 막대 위에 값을 세로로 적는다(막대가 얇아 가로로는 안 들어간다).
+  // rotateLabels: x축 이름이 길어 겹칠 때 비스듬히 눕힌다.
+  const showValues = !!opts.showValues;
+  const rotateLabels = !!opts.rotateLabels;
+  const padL = 34, padR = 10, padT = showValues ? 26 : 10, padB = rotateLabels ? 64 : 30;
   const chartW = width - padL - padR, chartH = height - padT - padB;
   const n = Math.max(periods.length, 1);
   const groupW = chartW / n;
@@ -732,12 +736,21 @@ function groupedBarChart(periods, series, opts) {
       // <title>은 브라우저 기본 툴팁 - 커서를 올리면 "주차 · 시리즈 · 값"이 그대로 뜬다.
       out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1, barW - 1).toFixed(1)}" height="${bh.toFixed(1)}" fill="${s.color}" opacity="${s.opacity != null ? s.opacity : 1}">` +
         `<title>${escSvg(p)} · ${escSvg(s.name)} ${escSvg(v)}${escSvg(unit)}</title></rect>`;
+      if (showValues) {
+        const tx = (x + barW / 2).toFixed(1), ty = (y - 3).toFixed(1);
+        out += `<text x="${tx}" y="${ty}" transform="rotate(-90 ${tx} ${ty})" text-anchor="start" ` +
+          `font-size="8" fill="#666">${escSvg(v)}</text>`;
+      }
     });
     const groupTip = series.map(s => s.values[gi] == null ? null : `${s.name} ${s.values[gi]}${unit}`)
       .filter(Boolean).join('  /  ');
     out += `<rect x="${gx.toFixed(1)}" y="${padT}" width="${groupW.toFixed(1)}" height="${chartH}" fill="transparent">` +
       `<title>${escSvg(p)}${groupTip ? ' - ' + escSvg(groupTip) : ''}</title></rect>`;
-    out += `<text x="${(gx + groupW / 2).toFixed(1)}" y="${height - 8}" text-anchor="middle" font-size="9" fill="#888">${escSvg(p)}</text>`;
+    const lx = (gx + groupW / 2).toFixed(1);
+    out += rotateLabels
+      ? `<text x="${lx}" y="${(padT + chartH + 10).toFixed(1)}" transform="rotate(-35 ${lx} ${(padT + chartH + 10).toFixed(1)})" ` +
+        `text-anchor="end" font-size="9" fill="#888">${escSvg(p)}</text>`
+      : `<text x="${lx}" y="${height - 8}" text-anchor="middle" font-size="9" fill="#888">${escSvg(p)}</text>`;
   });
   const legend = series.map((s, i) =>
     `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:14px;font-size:11px;color:#555">` +
@@ -1492,8 +1505,9 @@ function renderAnalysis() {
       const dataMax = Math.max(0, ...series.flatMap(x => x.values.filter(v => v != null)));
       html += (picked.length && names.length
         ? groupedBarChart(names, series, {
-            width: 900, height: 280, unit: chartUnit,
+            width: 1240, height: 340, unit: chartUnit,
             yMax: Math.max(1, Math.ceil(dataMax * 1.1)),
+            showValues: true, rotateLabels: names.length > 8,
           })
         : `<p class="sub">${picked.length ? '데이터 없음' : '띄울 칸을 하나 이상 체크하세요'}</p>`);
     } else {
