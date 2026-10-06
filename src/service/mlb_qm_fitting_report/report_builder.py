@@ -737,9 +737,10 @@ function groupedBarChart(periods, series, opts) {
       out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1, barW - 1).toFixed(1)}" height="${bh.toFixed(1)}" fill="${s.color}" opacity="${s.opacity != null ? s.opacity : 1}">` +
         `<title>${escSvg(p)} · ${escSvg(s.name)} ${escSvg(v)}${escSvg(unit)}</title></rect>`;
       if (showValues) {
-        const tx = (x + barW / 2).toFixed(1), ty = (y - 3).toFixed(1);
-        out += `<text x="${tx}" y="${ty}" transform="rotate(-90 ${tx} ${ty})" text-anchor="start" ` +
-          `font-size="8" fill="#666">${escSvg(v)}</text>`;
+        // 가로로 적는다. 막대가 얇아 글자가 서로 붙을 수 있어 막대 폭에 맞춰 글씨를 줄인다.
+        const fs = Math.max(6, Math.min(9, barW * 0.62));
+        out += `<text x="${(x + barW / 2).toFixed(1)}" y="${(y - 3).toFixed(1)}" text-anchor="middle" ` +
+          `font-size="${fs.toFixed(1)}" fill="#666">${escSvg(v)}</text>`;
       }
     });
     const groupTip = series.map(s => s.values[gi] == null ? null : `${s.name} ${s.values[gi]}${unit}`)
@@ -756,7 +757,11 @@ function groupedBarChart(periods, series, opts) {
     `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:14px;font-size:11px;color:#555">` +
     `<span style="width:10px;height:10px;border-radius:2px;background:${s.color};opacity:${s.opacity != null ? s.opacity : 1};display:inline-block"></span>${esc(s.name)}</span>`
   ).join('');
-  return `<div style="margin-bottom:6px">${legend}</div><svg width="${width}" height="${height}">${out}</svg>`;
+  // responsive면 폭을 컨테이너에 맞춰 줄인다(viewBox라 내부 좌표는 그대로, 넘치지 않는다).
+  const svgAttrs = opts.responsive
+    ? `width="100%" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMin meet" style="max-width:${width}px;height:auto"`
+    : `width="${width}" height="${height}"`;
+  return `<div style="margin-bottom:6px">${legend}</div><svg ${svgAttrs}>${out}</svg>`;
 }
 
 const CATEGORIES = ['KNIT', 'SWEATER', 'WOVEN', 'DENIM'];
@@ -900,16 +905,74 @@ function canonStatus(raw) {
 // 시즌 끝나고 쓰는 협력사 평가: 단계마다 "샘플 제작 수 / 스타일 수" 비율을 내고, 아래 기준표로
 // 점수(3/2/1/0)를 매긴 뒤 QC·PP·TOP 점수를 평균해 총점을 낸다. 기준은 QM 평가 양식 그대로다.
 // (샘플 제작 수 = 그 단계 회차 수, 스타일 수 = 그 단계 샘플이 한 번이라도 들어온 스타일 수)
-const EVAL_BANDS = {
-  QC: [[1.5, 3], [2, 2], [2.5, 1]],        // 1~1.5 미만 3점, ~2 미만 2점, ~2.5 미만 1점, 그 이상 0점
-  PP: [[1.25, 3], [1.5, 2], [1.75, 1]],
-  TOP: [[1.25, 3], [1.5, 2], [1.75, 1]],
+const EVAL_BANDS_DEFAULT = {
+  QC: [1.5, 2, 2.5],        // 이 값 미만이면 각각 3점 / 2점 / 1점, 그 이상은 0점
+  PP: [1.25, 1.5, 1.75],
+  TOP: [1.25, 1.5, 1.75],
 };
+// 배점 기준은 화면에서 고쳐 Supabase에 저장한다(저장값 없으면 위 기본값).
+const EVAL_BANDS_SETTING_KEY = 'mlb_qm_eval_bands';
+let EVAL_BANDS = JSON.parse(JSON.stringify(EVAL_BANDS_DEFAULT));
+try {
+  const saved = (typeof SETTINGS !== 'undefined') && SETTINGS.eval_bands;
+  if (saved && saved.QC && saved.PP && saved.TOP) EVAL_BANDS = saved;
+} catch (e) { /* 저장값이 깨졌으면 기본값 그대로 */ }
+
+function evalBandsPanelHtml() {
+  const row = (kind) => `<tr><td style="padding:3px 8px;font-weight:700">${kind}</td>` +
+    EVAL_BANDS[kind].map((v, i) =>
+      `<td style="padding:3px 6px">&lt; <input type="number" step="0.01" min="0" style="width:62px" ` +
+      `data-eval-kind="${kind}" data-eval-idx="${i}" value="${v}"> → ${3 - i}점</td>`).join('') +
+    `<td style="padding:3px 8px;color:#888">그 이상 0점</td></tr>`;
+  return `<details class="settings-bar" style="margin:0 0 10px">` +
+    `<summary>배점 기준 수정</summary>` +
+    `<p class="desc">비율(샘플 제작 수 ÷ 스타일 수)이 각 값보다 작으면 그 점수를 줍니다. 저장하면 모두에게 적용됩니다.</p>` +
+    `<table class="th-table"><tbody>${row('QC')}${row('PP')}${row('TOP')}</tbody></table>` +
+    `<div class="row"><button class="btn" onclick="applyEvalBands()">적용</button>` +
+    `<button class="btn" onclick="resetEvalBands()">기본값</button>` +
+    `<span id="eval-bands-status"></span></div></details>`;
+}
+
+async function applyEvalBands() {
+  const next = {QC: [...EVAL_BANDS.QC], PP: [...EVAL_BANDS.PP], TOP: [...EVAL_BANDS.TOP]};
+  document.querySelectorAll('[data-eval-kind]').forEach(inp => {
+    const v = parseFloat(inp.value);
+    if (!isNaN(v)) next[inp.dataset.evalKind][parseInt(inp.dataset.evalIdx, 10)] = v;
+  });
+  const statusEl = document.getElementById('eval-bands-status');
+  if (statusEl) statusEl.textContent = '저장 중...';
+  try {
+    const resp = await fetch(`${SETTINGS.supabase_url}/rest/v1/settings`, {
+      method: 'POST',
+      headers: {
+        'apikey': SETTINGS.supabase_anon_key,
+        'Authorization': `Bearer ${SETTINGS.supabase_anon_key}`,
+        'Content-Type': 'application/json',
+        'Prefer': 'resolution=merge-duplicates',
+      },
+      body: JSON.stringify({key: EVAL_BANDS_SETTING_KEY, value: JSON.stringify(next)}),
+    });
+    if (!resp.ok) throw new Error(await resp.text());
+    EVAL_BANDS = next;
+    renderAnalysis();
+    const el = document.getElementById('eval-bands-status');
+    if (el) el.textContent = '저장됨';
+  } catch (e) {
+    const el = document.getElementById('eval-bands-status');
+    if (el) el.textContent = '저장 실패: ' + e.message;
+  }
+}
+
+function resetEvalBands() {
+  EVAL_BANDS = JSON.parse(JSON.stringify(EVAL_BANDS_DEFAULT));
+  renderAnalysis();
+}
 const EVAL_CATEGORY_ORDER = ['KNIT', 'SWEATER', 'WOVEN', 'DENIM', '미분류'];
 
 function evalScore(kind, ratio) {
   if (ratio == null || !isFinite(ratio) || ratio <= 0) return null;
-  for (const [limit, score] of EVAL_BANDS[kind]) if (ratio < limit) return score;
+  const limits = EVAL_BANDS[kind] || EVAL_BANDS_DEFAULT[kind];
+  for (let i = 0; i < limits.length; i++) if (ratio < limits[i]) return 3 - i;
   return 0;
 }
 
@@ -1116,7 +1179,7 @@ let analysisGroupBy = 'vendor';
 // 그룹 표에 뭘 띄울지: 'days'=평균 소요일, 'rounds'=스타일당 회차 수.
 let analysisLeadMetric = 'days';
 // 그룹 표를 숫자표로 볼지 가로막대 차트로 볼지.
-let analysisLeadView = 'table';
+let analysisLeadView = 'chart';
 // 차트로 볼 때 한 차트에 같이 띄울 칸들. 체크박스로 켜고 끈다(표의 열 = 막대 한 줄).
 let analysisLeadStages = ['보정', 'FIT', 'PP', 'TOP'];
 
@@ -1442,8 +1505,7 @@ function renderAnalysis() {
       `<label style="font-weight:700;margin:0 8px 0 16px;font-size:12px">보기</label>` +
       `<select onchange="analysisLeadView=this.value;renderAnalysis()">` +
       `<option value="table"${analysisLeadView === 'table' ? ' selected' : ''}>표</option>` +
-      `<option value="chart"${analysisLeadView === 'chart' ? ' selected' : ''}>차트</option>` +
-      `<option value="eval"${analysisLeadView === 'eval' ? ' selected' : ''}>협력사 평가</option></select>` +
+      `<option value="chart"${analysisLeadView === 'chart' ? ' selected' : ''}>차트</option></select>` +
       (analysisLeadView === 'chart'
         ? `<span style="margin-left:16px;font-weight:700;font-size:12px">차트에 띄울 칸</span> ` +
           leadChartOptions.map(o =>
@@ -1464,7 +1526,7 @@ function renderAnalysis() {
     const th = `padding:4px 10px;text-align:center`;
     const colspan = WITHIN_STAGE_PIPELINE.length + 3;
 
-    if (analysisLeadView !== 'eval') html += `<h3 style="margin:0 0 4px">${esc(GROUP_LABELS[groupBy])}별 ` +
+    html += `<h3 style="margin:0 0 4px">${esc(GROUP_LABELS[groupBy])}별 ` +
       `${metric === 'rounds' ? '회차 수' : '소요일 수 (영업일)'}</h3>` +
       `<p class="sub">단계 칸 = 내보냄→들어옴(결과를 보낸 뒤 다음 샘플이 들어오기까지, 상대가 들고 있던 기간). ` +
       `맨 오른쪽 "들어옴→내보냄"은 샘플 접수 뒤 결과를 보내기까지 우리가 들고 있던 기간입니다. ` +
@@ -1504,52 +1566,7 @@ function renderAnalysis() {
     });
     tableHtml += `</tbody></table>`;
 
-    if (analysisLeadView === 'eval') {
-      // 평가표는 늘 협력사 기준이다(그룹 기준 선택과 무관). QC = FIT 단계.
-      const ev = computeRoundLeadTimes(rows, 'vendor').groups;
-      const KINDS = [['QC', 'FIT'], ['PP', 'PP'], ['TOP', 'TOP']];
-      const byCat = {};
-      Object.entries(ev).forEach(([vendor, b]) => {
-        const cat = VENDOR_CATEGORY[vendor] || '미분류';
-        const cells = KINDS.map(([kind, stage]) => {
-          const c = b.counts[stage] || {styles: 0, rounds: 0};
-          const ratio = c.styles ? c.rounds / c.styles : null;
-          return {kind, styles: c.styles, rounds: c.rounds, ratio, score: evalScore(kind, ratio)};
-        });
-        const scored = cells.filter(c => c.score != null);
-        if (!scored.length) return;
-        const total = scored.reduce((a, c) => a + c.score, 0) / scored.length;
-        (byCat[cat] || (byCat[cat] = [])).push({vendor, cells, total});
-      });
-      const tdc = 'padding:4px 8px;text-align:center';
-      html += `<h3 style="margin:0 0 4px">협력사 평가 (샘플 제작 수 ÷ 스타일 수)</h3>` +
-        `<p class="sub">단계마다 "샘플 제작 수 ÷ 스타일 수"를 내고 기준표로 점수를 매긴 뒤, QC·PP·TOP 점수를 평균해 총점을 냅니다. ` +
-        `QC는 1 미만~1.5 3점 / ~2 2점 / ~2.5 1점 / 그 이상 0점, PP·TOP은 ~1.25 3점 / ~1.5 2점 / ~1.75 1점 / 그 이상 0점. ` +
-        `샘플이 한 번도 안 들어온 단계는 총점 평균에서 뺍니다. 위쪽 필터(Quarter/Item/TD/QA/Vendor)가 그대로 적용됩니다.</p>` +
-        `<div style="margin-bottom:8px">${metricHtml}</div>` +
-        `<table style="font-size:11px;border-collapse:collapse">` +
-        `<thead><tr style="color:#888"><th style="padding:4px 8px;text-align:left">협력사</th>` +
-        KINDS.map(([kind]) => `<th colspan="4" style="${tdc};border-left:1px solid #eee">${kind}</th>`).join('') +
-        `<th style="${tdc};border-left:1px solid #eee">총점</th></tr>` +
-        `<tr style="color:#bbb"><th></th>` +
-        KINDS.map(() => `<th style="${tdc};border-left:1px solid #eee">스타일</th><th style="${tdc}">샘플</th>` +
-          `<th style="${tdc}">비율</th><th style="${tdc}">점수</th>`).join('') +
-        `<th style="${tdc};border-left:1px solid #eee"></th></tr></thead><tbody>`;
-      EVAL_CATEGORY_ORDER.filter(cat => byCat[cat]).forEach(cat => {
-        html += `<tr><td colspan="${KINDS.length * 4 + 2}" style="padding:6px 8px;font-weight:700;background:#fafbfe">&lt;${esc(cat)}&gt;</td></tr>`;
-        byCat[cat].sort((a, b) => b.total - a.total).forEach(r => {
-          html += `<tr style="border-top:1px solid #eee"><td style="padding:4px 8px">${esc(r.vendor)}</td>` +
-            r.cells.map(c => `<td style="${tdc};border-left:1px solid #eee">${c.styles || '-'}</td>` +
-              `<td style="${tdc}">${c.rounds || '-'}</td>` +
-              `<td style="${tdc}">${c.ratio == null ? '-' : (Math.round(c.ratio * 100) / 100).toFixed(2)}</td>` +
-              `<td style="${tdc};font-weight:700;color:${c.score == null ? '#ccc' : (c.score >= 3 ? '#2e9e5b' : c.score === 0 ? '#c0392b' : '#1a1a2e')}">` +
-              `${c.score == null ? '-' : c.score}</td>`).join('') +
-            `<td style="${tdc};border-left:1px solid #eee;font-weight:700">${(Math.round(r.total * 100) / 100).toFixed(2)}</td></tr>`;
-        });
-      });
-      if (!Object.keys(byCat).length) html += `<tr><td colspan="${KINDS.length * 4 + 2}" style="padding:6px;color:#888">데이터 없음</td></tr>`;
-      html += `</tbody></table>`;
-    } else if (analysisLeadView === 'chart') {
+    if (analysisLeadView === 'chart') {
       // 체크한 칸들을 한 차트에 묶음 막대로 겹쳐 그린다(x축 = 그룹, 막대 = 칸).
       // 위쪽 "주차별 일정 준수 현황"과 같은 groupedBarChart를 쓴다.
       const picked = leadChartOptions.filter(o => analysisLeadStages.includes(o.key));
@@ -1569,7 +1586,7 @@ function renderAnalysis() {
         ? groupedBarChart(names, series, {
             width: 1240, height: 340, unit: chartUnit,
             yMax: Math.max(1, Math.ceil(dataMax * 1.1)),
-            showValues: true, rotateLabels: names.length > 8,
+            showValues: true, rotateLabels: names.length > 8, responsive: true,
           })
         : `<p class="sub">${picked.length ? '데이터 없음' : '띄울 칸을 하나 이상 체크하세요'}</p>`);
     } else {
@@ -1578,6 +1595,62 @@ function renderAnalysis() {
 
     sec5.innerHTML = html;
     container.appendChild(sec5);
+
+    // 시즌 말 협력사 평가는 성격이 달라서(점수·배점) 소요일 섹션 아래 별도 칸으로 뺀다.
+    {
+      let evalHtml = '';
+
+      // 평가표는 늘 협력사 기준이다(그룹 기준 선택과 무관). QC = FIT 단계.
+      const ev = computeRoundLeadTimes(rows, 'vendor').groups;
+      const KINDS = [['QC', 'FIT'], ['PP', 'PP'], ['TOP', 'TOP']];
+      const byCat = {};
+      Object.entries(ev).forEach(([vendor, b]) => {
+        const cat = VENDOR_CATEGORY[vendor] || '미분류';
+        const cells = KINDS.map(([kind, stage]) => {
+          const c = b.counts[stage] || {styles: 0, rounds: 0};
+          const ratio = c.styles ? c.rounds / c.styles : null;
+          return {kind, styles: c.styles, rounds: c.rounds, ratio, score: evalScore(kind, ratio)};
+        });
+        const scored = cells.filter(c => c.score != null);
+        if (!scored.length) return;
+        const total = scored.reduce((a, c) => a + c.score, 0) / scored.length;
+        (byCat[cat] || (byCat[cat] = [])).push({vendor, cells, total});
+      });
+      const tdc = 'padding:4px 8px;text-align:center';
+      evalHtml += `<h3 style="margin:0 0 4px">협력사 평가 (샘플 제작 수 ÷ 스타일 수)</h3>` +
+        `<p class="sub">단계마다 "샘플 제작 수 ÷ 스타일 수"를 내고 기준표로 점수를 매긴 뒤, QC·PP·TOP 점수를 평균해 총점을 냅니다. ` +
+        `현재 기준 — QC: ${EVAL_BANDS.QC.map((v, i) => `~${v} ${3 - i}점`).join(' / ')} / 그 이상 0점, ` +
+        `PP·TOP: ${EVAL_BANDS.PP.map((v, i) => `~${v} ${3 - i}점`).join(' / ')} / 그 이상 0점. ` +
+        `샘플이 한 번도 안 들어온 단계는 총점 평균에서 뺍니다. 위쪽 필터(Quarter/Item/TD/QA/Vendor)가 그대로 적용됩니다.</p>` +
+                evalBandsPanelHtml() +
+        `<table style="font-size:11px;border-collapse:collapse">` +
+        `<thead><tr style="color:#888"><th style="padding:4px 8px;text-align:left">협력사</th>` +
+        KINDS.map(([kind]) => `<th colspan="4" style="${tdc};border-left:1px solid #eee">${kind}</th>`).join('') +
+        `<th style="${tdc};border-left:1px solid #eee">총점</th></tr>` +
+        `<tr style="color:#bbb"><th></th>` +
+        KINDS.map(() => `<th style="${tdc};border-left:1px solid #eee">스타일</th><th style="${tdc}">샘플</th>` +
+          `<th style="${tdc}">비율</th><th style="${tdc}">점수</th>`).join('') +
+        `<th style="${tdc};border-left:1px solid #eee"></th></tr></thead><tbody>`;
+      EVAL_CATEGORY_ORDER.filter(cat => byCat[cat]).forEach(cat => {
+        evalHtml += `<tr><td colspan="${KINDS.length * 4 + 2}" style="padding:6px 8px;font-weight:700;background:#fafbfe">&lt;${esc(cat)}&gt;</td></tr>`;
+        byCat[cat].sort((a, b) => b.total - a.total).forEach(r => {
+          evalHtml += `<tr style="border-top:1px solid #eee"><td style="padding:4px 8px">${esc(r.vendor)}</td>` +
+            r.cells.map(c => `<td style="${tdc};border-left:1px solid #eee">${c.styles || '-'}</td>` +
+              `<td style="${tdc}">${c.rounds || '-'}</td>` +
+              `<td style="${tdc}">${c.ratio == null ? '-' : (Math.round(c.ratio * 100) / 100).toFixed(2)}</td>` +
+              `<td style="${tdc};font-weight:700;color:${c.score == null ? '#ccc' : (c.score >= 3 ? '#2e9e5b' : c.score === 0 ? '#c0392b' : '#1a1a2e')}">` +
+              `${c.score == null ? '-' : c.score}</td>`).join('') +
+            `<td style="${tdc};border-left:1px solid #eee;font-weight:700">${(Math.round(r.total * 100) / 100).toFixed(2)}</td></tr>`;
+        });
+      });
+      if (!Object.keys(byCat).length) html += `<tr><td colspan="${KINDS.length * 4 + 2}" style="padding:6px;color:#888">데이터 없음</td></tr>`;
+      evalHtml += `</tbody></table>`;
+
+      const secEval = document.createElement('div');
+      secEval.className = 'analysis-section';
+      secEval.innerHTML = evalHtml;
+      container.appendChild(secEval);
+    }
   }
 }
 

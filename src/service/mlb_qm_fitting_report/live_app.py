@@ -190,9 +190,18 @@ def healthz():
     return {"status": "ok"}
 
 
+EVAL_BANDS_SETTING_KEY = "mlb_qm_eval_bands"
+
+
 @app.get("/")
 def root():
     settings = load_settings()
+    # 협력사 평가 배점 기준은 화면에서 고쳐 저장한다 - 저장값이 있으면 실어보낸다(없으면 화면 기본값).
+    try:
+        saved_bands = fetch_setting(settings, EVAL_BANDS_SETTING_KEY)
+        settings["eval_bands"] = json.loads(saved_bands) if saved_bands else None
+    except Exception:
+        settings["eval_bands"] = None
     payload, is_stale = _cache.get(lambda: build_snapshot_payload(settings))
     html = build_report_html(payload, settings)
     headers = {"X-Data-Stale": "true"} if is_stale else {}
