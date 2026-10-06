@@ -1098,7 +1098,7 @@ function toggleLeadStage(key) {
   renderAnalysis();
 }
 let complianceChartStage = 'FIT';
-const STAGE_COLORS = {FIT: '#4a65a9', PP: '#e0a72e', TOP: '#2e9e5b'};
+const STAGE_COLORS = {보정: '#8e6bbf', FIT: '#4a65a9', PP: '#e0a72e', TOP: '#2e9e5b'};
 
 // dim -> 선택된 값 배열(여러 개 선택 가능) | []면 전체.
 const analysisFilters = {quarter: [], item: [], td: [], qa: [], vendor: []};
@@ -1386,17 +1386,18 @@ function renderAnalysis() {
     const metric = analysisLeadMetric;
     // 한 칸에 두 줄: 윗줄은 고른 지표(평균 소요일 또는 스타일당 회차), 아랫줄은 모수
     // (회차 건수·스타일 수). 괄호 안 숫자가 스타일 수인 줄 알고 헷갈리는 일이 없게 둘 다 적는다.
+    // 한 줄로: 값 + 스타일 수만. 모수(회차 건수)는 커서를 올리면 title로 뜬다.
     const cell = (days, daysN, c) => {
       const counts = c || {styles: 0, rounds: 0};
       const head = metric === 'rounds'
         ? (counts.styles ? `${Math.round(counts.rounds / counts.styles * 10) / 10}회` : null)
         : (days == null ? null : `${days}일`);
       if (head == null && !counts.rounds) return '<span style="color:#ccc">-</span>';
-      const sub = metric === 'rounds'
-        ? `${counts.rounds}회차 · ${counts.styles}sty`
-        : `${daysN}건 · ${counts.styles}sty`;
-      return `<div style="font-weight:700">${head == null ? '-' : head}</div>` +
-        `<div style="color:#aaa;font-size:10px;font-weight:400">${sub}</div>`;
+      const tip = metric === 'rounds'
+        ? `회차 ${counts.rounds}건 ÷ 스타일 ${counts.styles}개`
+        : `평균을 낸 회차 ${daysN}건 · 스타일 ${counts.styles}개`;
+      return `<span title="${esc(tip)}"><b>${head == null ? '-' : head}</b>` +
+        `<span style="color:#aaa;font-weight:400"> · ${counts.styles}sty</span></span>`;
     };
     // 차트에서 고를 수 있는 칸 = 표의 열. 회차 지표일 땐 "들어옴→내보냄"(우리 검토 소요일)이
     // 의미가 없어서 뺀다.
