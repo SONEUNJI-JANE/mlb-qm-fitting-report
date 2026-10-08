@@ -9,15 +9,26 @@ _TEMPLATE = """<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>MLB QM Fitting 주간 보고</title>
 <style>
-body{font-family:'Malgun Gothic','Apple SD Gothic Neo',sans-serif;font-size:13px;background:#f0f1f4;color:#1a1a2e;margin:0}
-.hdr{background:#1a1a2e;color:#fff;padding:14px 24px;display:flex;align-items:center;gap:12px}
-.hdr h1{font-size:17px;margin:0}
-select{padding:6px 10px;border-radius:6px;border:1px solid #ccc;font-size:12px}
-.content{padding:20px;max-width:1100px;margin:0 auto}
-table{width:100%;table-layout:fixed;border-collapse:collapse;background:#fff;border-radius:8px;overflow:hidden;margin-bottom:16px}
-th,td{padding:6px 10px;border-bottom:1px solid #eee;text-align:left;font-size:12px}
-th{background:#f8f9fa;color:#555;font-weight:700}
-.grp-th{text-align:center;border-left:1px solid #eee}
+
+:root{color-scheme:light;--bg:#fafaf9;--surface:#fff;--soft:#f4f4f2;--ink:#0b0b0b;--ink2:#52514e;--muted:#8b8a85;
+--line:#ececea;--line2:#dcdcd8;--good:#0f7a4d;--bad:#c4314b;--warn:#a96a00;--accent:#2a78d6}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){color-scheme:dark;--bg:#111110;--surface:#1a1a19;--soft:#232322;
+--ink:#fff;--ink2:#c3c2b7;--muted:#8d8c85;--line:#2b2b29;--line2:#3a3a37;--good:#4cd49a;--bad:#ff7d95;--warn:#e8b04a;--accent:#3987e5}}
+:root[data-theme=dark]{color-scheme:dark;--bg:#111110;--surface:#1a1a19;--soft:#232322;
+--ink:#fff;--ink2:#c3c2b7;--muted:#8d8c85;--line:#2b2b29;--line2:#3a3a37;--good:#4cd49a;--bad:#ff7d95;--warn:#e8b04a;--accent:#3987e5}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 "Pretendard","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif}
+button,select,input{font:inherit;color:inherit}
+.hdr{height:52px;border-bottom:1px solid var(--line);background:var(--surface);color:var(--ink);display:flex;align-items:center;gap:12px;padding:0 24px;position:sticky;top:0;z-index:5}
+.hdr h1{font-size:15px;margin:0;font-weight:700}
+.hdr .sp{flex:1}
+.ib{width:34px;height:34px;border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:pointer}
+select{padding:6px 10px;border-radius:6px;border:1px solid var(--line2);font-size:12px}
+.content{padding:20px;max-width:1680px;margin:0 auto}
+table{width:100%;table-layout:fixed;border-collapse:collapse;background:var(--surface);border-radius:8px;overflow:hidden;margin-bottom:16px}
+th,td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:left;font-size:12px}
+th{background:var(--soft);color:var(--ink2);font-weight:700}
+.grp-th{text-align:center;border-left:1px solid var(--line)}
 .num-th,.num-td{text-align:center;font-variant-numeric:tabular-nums;width:90px}
 .num-td.pct{font-weight:700}
 .owner-col{width:64px;text-align:center}
@@ -26,45 +37,45 @@ th{background:#f8f9fa;color:#555;font-weight:700}
 .status-col{text-align:left;vertical-align:middle;padding:6px 12px;font-size:13px}
 .remark-col{width:280px;text-align:center;vertical-align:middle;padding:6px}
 .remark-input{border:1px solid transparent;background:transparent}
-.remark-input:not([readonly]){border-color:#c7c9d9;background:#fff}
-.grp-a{background:#eef3fc}
-.grp-b{background:#f4f1fb}
-th.grp-a,th.grp-th:first-of-type{border-left:1px solid #e5e7eb}
-.season-title{font-weight:700;font-size:15px;margin:20px 0 8px;padding-bottom:4px;border-bottom:2px solid #1a1a2e}
-.quarter-title{font-weight:700;font-size:12px;color:#555;margin:14px 0 4px}
+.remark-input:not([readonly]){border-color:var(--line2);background:var(--surface)}
+.grp-a{background:var(--soft)}
+.grp-b{background:var(--soft)}
+th.grp-a,th.grp-th:first-of-type{border-left:1px solid var(--line)}
+.season-title{font-weight:700;font-size:15px;margin:20px 0 8px;padding-bottom:4px;border-bottom:2px solid var(--line2)}
+.quarter-title{font-weight:700;font-size:12px;color:var(--ink2);margin:14px 0 4px}
 .season-title:first-child{margin-top:0}
-.btn{padding:3px 8px;border-radius:4px;border:1px solid #ccc;background:#fff;font-size:11px;cursor:pointer}
-.btn:hover{background:#f0f1f4}
+.btn{padding:3px 8px;border-radius:4px;border:1px solid var(--line2);background:var(--surface);font-size:11px;cursor:pointer}
+.btn:hover{background:var(--soft)}
 .edit-cell{display:inline-flex;align-items:center;gap:3px;white-space:nowrap}
 .edit-cell input{width:40px;padding:2px 3px;font-size:11px}
 .num-td.pct.grp-a:has(.edit-cell){overflow:visible;position:relative}
-.override-bar{position:sticky;bottom:0;background:#1a1a2e;color:#fff;padding:10px 20px;display:none;align-items:center;gap:12px;font-size:12px}
+.override-bar{position:sticky;bottom:0;background:var(--ink);color:var(--surface);padding:10px 20px;display:none;align-items:center;gap:12px;font-size:12px}
 .override-bar.show{display:flex}
-.override-bar .btn{background:#4a65a9;color:#fff;border:none}
-.settings-bar{background:#fff;border:1px solid #e5e7eb;border-radius:8px;margin:0 auto 12px;max-width:1100px;padding:12px 16px;font-size:12px}
-.settings-bar summary{cursor:pointer;font-weight:700;color:#1a1a2e}
+.override-bar .btn{background:var(--accent);color:#fff;border:none}
+.settings-bar{background:var(--surface);border:1px solid var(--line);border-radius:8px;margin:0 auto 12px;max-width:1680px;padding:12px 16px;font-size:12px}
+.settings-bar summary{cursor:pointer;font-weight:700;color:var(--ink)}
 .settings-bar .row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
-.settings-bar label{color:#555;white-space:nowrap}
-.settings-bar input,.settings-bar select{padding:4px 6px;font-size:11px;border:1px solid #ccc;border-radius:4px}
-.settings-bar .desc{color:#888;font-size:11px;margin:4px 0 0}
-.settings-btn{background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;color:#1a1a2e;cursor:pointer}
+.settings-bar label{color:var(--ink2);white-space:nowrap}
+.settings-bar input,.settings-bar select{padding:4px 6px;font-size:11px;border:1px solid var(--line2);border-radius:4px}
+.settings-bar .desc{color:var(--muted);font-size:11px;margin:4px 0 0}
+.settings-btn{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:6px 12px;font-size:12px;font-weight:700;color:var(--ink);cursor:pointer}
 .th-table{width:100%;border-collapse:collapse;margin-top:10px}
-.th-table th,.th-table td{padding:5px 8px;border-bottom:1px solid #f0f1f4;font-size:11px;text-align:left}
-.th-table th{color:#888;font-weight:700}
-.th-table td:first-child{color:#555}
+.th-table th,.th-table td{padding:5px 8px;border-bottom:1px solid var(--line);font-size:11px;text-align:left}
+.th-table th{color:var(--muted);font-weight:700}
+.th-table td:first-child{color:var(--ink2)}
 .th-table input{width:36px;text-align:right}
 .tabs{display:flex;gap:4px}
 .tab-btn{padding:6px 16px;border-radius:6px 6px 0 0;border:none;background:rgba(255,255,255,0.12);color:#fff;font-size:12px;font-weight:700;cursor:pointer}
-.tab-btn.active{background:#f0f1f4;color:#1a1a2e}
-.analysis-section{background:#fff;border-radius:8px;padding:16px 20px;margin-bottom:16px}
+.tab-btn.active{background:var(--soft);color:var(--ink)}
+.analysis-section{background:var(--surface);border-radius:8px;padding:16px 20px;margin-bottom:16px}
 .analysis-section h3{font-size:14px;margin:0 0 4px}
-.analysis-section .sub{color:#888;font-size:11px;margin:0 0 12px}
+.analysis-section .sub{color:var(--muted);font-size:11px;margin:0 0 12px}
 .donut-grid{display:flex;flex-wrap:wrap;gap:16px}
 .donut-cell{display:flex;flex-direction:column;align-items:center;width:88px}
-.donut-cell .name{font-size:10px;color:#555;text-align:center;margin-top:4px;line-height:1.3}
+.donut-cell .name{font-size:10px;color:var(--ink2);text-align:center;margin-top:4px;line-height:1.3}
 .big-stat{display:flex;align-items:center;gap:20px}
 .big-stat .num{font-size:36px;font-weight:700}
-.big-stat .detail{color:#888;font-size:12px}
+.big-stat .detail{color:var(--muted);font-size:12px}
 </style>
 </head>
 <body>
@@ -75,6 +86,8 @@ th.grp-a,th.grp-th:first-of-type{border-left:1px solid #e5e7eb}
     <button class="tab-btn active" id="tab-btn-main" onclick="switchTab('main')">요약</button>
     <button class="tab-btn" id="tab-btn-analysis" onclick="switchTab('analysis')">분석</button>
   </div>
+  <span class="sp"></span>
+  <button class="ib" onclick="toggleTheme()" title="밝게/어둡게">◐</button>
 </div>
 <div id="main-tab">
 <div style="max-width:1100px;margin:16px auto 0;display:flex;justify-content:flex-end">
@@ -112,6 +125,20 @@ th.grp-a,th.grp-th:first-of-type{border-left:1px solid #e5e7eb}
 <script id="settings-data" type="application/json">__SETTINGS_JSON__</script>
 <script id="due-offsets-data" type="application/json">__DUE_OFFSETS_JSON__</script>
 <script>
+// 화면 테마: 저장해둔 값이 있으면 그걸, 없으면 OS 설정을 따른다.
+try {
+  const savedTheme = localStorage.getItem('mlb_qm_theme');
+  if (savedTheme) document.documentElement.dataset.theme = savedTheme;
+} catch (e) { /* 저장소를 못 쓰는 환경이면 OS 설정 그대로 */ }
+
+function toggleTheme() {
+  const cur = document.documentElement.dataset.theme
+    || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.dataset.theme = next;
+  try { localStorage.setItem('mlb_qm_theme', next); } catch (e) { /* 무시 */ }
+}
+
 const DATA = JSON.parse(document.getElementById('snapshot-data').textContent);
 const SETTINGS = JSON.parse(document.getElementById('settings-data').textContent);
 const DUE_OFFSETS = JSON.parse(document.getElementById('due-offsets-data').textContent);
@@ -708,10 +735,10 @@ function hBarChart(items, opts) {
   items.forEach((it, i) => {
     const y = i * (barHeight + gap);
     const w = Math.max(2, (it.value / max) * chartWidth);
-    bars += `<text x="${labelWidth - 8}" y="${y + barHeight / 2}" text-anchor="end" dominant-baseline="central" font-size="11" fill="#555">${escSvg(it.label)}</text>` +
+    bars += `<text x="${labelWidth - 8}" y="${y + barHeight / 2}" text-anchor="end" dominant-baseline="central" font-size="11" fill="var(--ink2)">${escSvg(it.label)}</text>` +
       `<rect x="${labelWidth}" y="${y + 2}" width="${w.toFixed(1)}" height="${barHeight - 4}" rx="4" fill="${it.color || color}">` +
       `<title>${escSvg(it.label)} ${escSvg(it.value)}${escSvg(unit)}</title></rect>` +
-      `<text x="${labelWidth + w + 6}" y="${y + barHeight / 2}" dominant-baseline="central" font-size="11" fill="#1a1a2e">${escSvg(it.value)}${unit}</text>`;
+      `<text x="${labelWidth + w + 6}" y="${y + barHeight / 2}" dominant-baseline="central" font-size="11" fill="var(--ink)">${escSvg(it.value)}${unit}</text>`;
   });
   return `<svg width="${width}" height="${Math.max(height, 1)}">${bars}</svg>`;
 }
@@ -739,8 +766,8 @@ function groupedBarChart(periods, series, opts) {
   let out = '';
   ticks.forEach(v => {
     const y = padT + chartH - (v / yMax) * chartH;
-    out += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${width - padR}" y2="${y.toFixed(1)}" stroke="#eee"/>` +
-      `<text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="9" fill="#aaa">${v}</text>`;
+    out += `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${width - padR}" y2="${y.toFixed(1)}" stroke="var(--line)"/>` +
+      `<text x="${padL - 6}" y="${(y + 3).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--muted)">${v}</text>`;
   });
   periods.forEach((p, gi) => {
     const gx = padL + gi * groupW;
@@ -757,7 +784,7 @@ function groupedBarChart(periods, series, opts) {
         // 가로로 적는다. 막대가 얇아 글자가 서로 붙을 수 있어 막대 폭에 맞춰 글씨를 줄인다.
         const fs = Math.max(6, Math.min(9, barW * 0.62));
         out += `<text x="${(x + barW / 2).toFixed(1)}" y="${(y - 3).toFixed(1)}" text-anchor="middle" ` +
-          `font-size="${fs.toFixed(1)}" fill="#666">${escSvg(v)}</text>`;
+          `font-size="${fs.toFixed(1)}" fill="var(--ink2)">${escSvg(v)}</text>`;
       }
     });
     const groupTip = series.map(s => s.values[gi] == null ? null : `${s.name} ${s.values[gi]}${unit}`)
@@ -767,11 +794,11 @@ function groupedBarChart(periods, series, opts) {
     const lx = (gx + groupW / 2).toFixed(1);
     out += rotateLabels
       ? `<text x="${lx}" y="${(padT + chartH + 10).toFixed(1)}" transform="rotate(-35 ${lx} ${(padT + chartH + 10).toFixed(1)})" ` +
-        `text-anchor="end" font-size="9" fill="#888">${escSvg(p)}</text>`
-      : `<text x="${lx}" y="${height - 8}" text-anchor="middle" font-size="9" fill="#888">${escSvg(p)}</text>`;
+        `text-anchor="end" font-size="9" fill="var(--muted)">${escSvg(p)}</text>`
+      : `<text x="${lx}" y="${height - 8}" text-anchor="middle" font-size="9" fill="var(--muted)">${escSvg(p)}</text>`;
   });
   const legend = series.map((s, i) =>
-    `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:14px;font-size:11px;color:#555">` +
+    `<span style="display:inline-flex;align-items:center;gap:4px;margin-right:14px;font-size:11px;color:var(--ink2)">` +
     `<span style="width:10px;height:10px;border-radius:2px;background:${s.color};opacity:${s.opacity != null ? s.opacity : 1};display:inline-block"></span>${esc(s.name)}</span>`
   ).join('');
   // responsive면 폭을 컨테이너에 맞춰 줄인다(viewBox라 내부 좌표는 그대로, 넘치지 않는다).
@@ -888,7 +915,7 @@ function evalBandsPanelHtml() {
     EVAL_BANDS[kind].map((v, i) =>
       `<td style="padding:3px 6px">&lt; <input type="number" step="0.01" min="0" style="width:62px" ` +
       `data-eval-kind="${kind}" data-eval-idx="${i}" value="${v}"> → ${3 - i}점</td>`).join('') +
-    `<td style="padding:3px 8px;color:#888">그 이상 0점</td></tr>`;
+    `<td style="padding:3px 8px;color:var(--muted)">그 이상 0점</td></tr>`;
   return `<details class="settings-bar" style="margin:0 0 10px">` +
     `<summary>배점 기준 수정</summary>` +
     `<p class="desc">비율(샘플 제작 수 ÷ 스타일 수)이 각 값보다 작으면 그 점수를 줍니다. 저장하면 모두에게 적용됩니다.</p>` +
@@ -941,6 +968,19 @@ function evalScore(kind, ratio) {
   return 0;
 }
 
+// 완료/미완료를 한 줄 막대로. div 두 개라 테마(다크모드)를 알아서 따라간다.
+function progressBarHtml(done, total, color) {
+  const ratio = total ? done / total * 100 : 0;
+  return `<div style="height:10px;border-radius:5px;background:var(--line);overflow:hidden">` +
+    `<div style="width:${ratio.toFixed(1)}%;height:100%;background:${color}"></div></div>`;
+}
+
+// 차트가 주인공, 숫자는 필요할 때만. 표를 접어서 아래에 둔다.
+function collapsedTableHtml(label, tableHtml) {
+  return `<details style="margin-top:10px"><summary style="cursor:pointer;color:var(--muted);font-size:11px">${esc(label)}</summary>` +
+    `<div style="margin-top:8px">${tableHtml}</div></details>`;
+}
+
 function leadDetailId(rowId) { return `lead-detail-${rowId}`; }
 
 function leadToggleLink(rowId, label) {
@@ -964,14 +1004,14 @@ function leadDetailRow(rowId, byStageStatus, colspan) {
       const nextLabel = Object.entries(bucket.next).sort((a, b) => b[1] - a[1])[0][0];
       lines.push(`<tr><td style="padding:3px 10px;color:${STAGE_COLORS[stage] || '#555'};font-weight:700">${esc(stage)}</td>` +
         `<td style="padding:3px 10px">${esc(status)}</td>` +
-        `<td style="padding:3px 10px;color:#888">→ ${esc(nextLabel)}</td>` +
+        `<td style="padding:3px 10px;color:var(--muted)">→ ${esc(nextLabel)}</td>` +
         `<td style="padding:3px 10px;text-align:right;font-weight:700">${avg}일</td>` +
-        `<td style="padding:3px 10px;text-align:right;color:#888">${bucket.days.length}건</td></tr>`);
+        `<td style="padding:3px 10px;text-align:right;color:var(--muted)">${bucket.days.length}건</td></tr>`);
     });
   });
-  const body = lines.length ? lines.join('') : `<tr><td colspan="5" style="padding:4px 10px;color:#888">분해할 데이터 없음</td></tr>`;
+  const body = lines.length ? lines.join('') : `<tr><td colspan="5" style="padding:4px 10px;color:var(--muted)">분해할 데이터 없음</td></tr>`;
   return `<tr><td colspan="${colspan}" style="padding:0">` +
-    `<div id="${leadDetailId(rowId)}" style="display:none;padding:6px 10px 10px 24px;background:#fafbfe">` +
+    `<div id="${leadDetailId(rowId)}" style="display:none;padding:6px 10px 10px 24px;background:var(--soft)">` +
     `<table style="font-size:10px;border-collapse:collapse"><tbody>${body}</tbody></table></div></td></tr>`;
 }
 
@@ -1142,7 +1182,7 @@ function filterCheckboxesHtml(rows, dim) {
   const byCat = {};
   values.forEach(v => { const cat = VENDOR_CATEGORY[v] || '기타'; (byCat[cat] || (byCat[cat] = [])).push(v); });
   return ['KNIT', 'WOVEN', 'SWEATER', 'DENIM', '기타'].filter(c => byCat[c])
-    .map(cat => `<div style="font-weight:700;color:#555;margin-top:4px">${esc(cat)}</div>${byCat[cat].map(cb).join('')}`).join('');
+    .map(cat => `<div style="font-weight:700;color:var(--ink2);margin-top:4px">${esc(cat)}</div>${byCat[cat].map(cb).join('')}`).join('');
 }
 
 // 필터 = 칸마다 작은 드롭다운 버튼("전체" 또는 "N개 선택") + 클릭하면 검색창·전체·값 목록 팝업.
@@ -1153,10 +1193,10 @@ function filterRowHtml(rows) {
       const summary = cur.length ? `${cur.length}개 선택` : '전체';
       const isOpen = openFilterDim === dim;
       return `<span style="font-size:11px;position:relative" onclick="event.stopPropagation()">` +
-        `<label style="font-weight:700;color:#888;display:block;margin-bottom:2px">${esc(FILTER_DIM_LABELS[dim])}</label>` +
+        `<label style="font-weight:700;color:var(--muted);display:block;margin-bottom:2px">${esc(FILTER_DIM_LABELS[dim])}</label>` +
         `<button class="btn" style="min-width:88px;text-align:left;display:flex;justify-content:space-between;gap:6px" onclick="toggleFilterDropdown('${dim}', event)">` +
         `<span>${esc(summary)}</span><span>▾</span></button>` +
-        (isOpen ? `<div style="position:absolute;top:100%;left:0;z-index:50;margin-top:2px;background:#fff;border:1px solid #e5e7eb;border-radius:6px;padding:6px;min-width:160px;max-height:220px;overflow-y:auto;box-shadow:0 4px 14px rgba(0,0,0,0.12)">` +
+        (isOpen ? `<div style="position:absolute;top:100%;left:0;z-index:50;margin-top:2px;background:var(--surface);border:1px solid #e5e7eb;border-radius:6px;padding:6px;min-width:160px;max-height:220px;overflow-y:auto;box-shadow:0 4px 14px rgba(0,0,0,0.12)">` +
           `<input type="text" placeholder="검색..." oninput="filterDropdownSearch('${dim}', this.value)" style="width:100%;box-sizing:border-box;padding:4px 6px;font-size:11px;border:1px solid #ccc;border-radius:4px;margin-bottom:6px">` +
           `<label style="display:block;font-weight:700;white-space:nowrap;margin-bottom:2px">` +
           `<input type="checkbox"${cur.length ? '' : ' checked'} onchange="clearFilterDim('${dim}')"> 전체</label>` +
@@ -1217,13 +1257,16 @@ function renderAnalysis() {
       const late = b.baseline_all - b.baseline_done;
       const onTime = b.baseline_all ? Math.round(b.baseline_done / b.baseline_all * 1000) / 10 : null;
       const impacted = (b.overdue || []).filter(o => o.impacts_delivery).length;
-      return `<div style="flex:1;min-width:180px;border:1px solid #eee;border-radius:8px;padding:12px 14px">` +
-        `<div style="font-weight:700;font-size:12px;color:${STAGE_COLORS[st] || '#1a1a2e'}">${esc(st)}</div>` +
-        `<div style="font-size:26px;font-weight:700;margin:2px 0;color:${onTime == null ? '#ccc' : colorForPct(onTime)}">` +
-        `${onTime == null ? '-' : onTime + '%'}</div>` +
-        `<div style="font-size:11px;color:#888">DUE 도래 ${b.baseline_all}건 중 ${b.baseline_done}건 완료</div>` +
-        `<div style="font-size:11px;margin-top:4px">미완료 <b>${late}건</b>` +
-        `<span style="color:${impacted ? '#c0392b' : '#888'}"> · 납기영향 ${impacted}건</span></div></div>`;
+      const color = STAGE_COLORS[st] || 'var(--accent)';
+      return `<div style="flex:1;min-width:220px;border:1px solid var(--line);border-radius:10px;padding:14px 16px">` +
+        `<div style="display:flex;align-items:baseline;gap:8px">` +
+        `<span style="font-weight:700;font-size:12px;color:${color}">${esc(st)}</span>` +
+        `<span style="font-size:28px;font-weight:700">${onTime == null ? '-' : onTime + '%'}</span></div>` +
+        `<div style="margin:8px 0 6px">${progressBarHtml(b.baseline_done, b.baseline_all, color)}</div>` +
+        `<div style="font-size:11px;color:var(--muted)">DUE 도래 ${b.baseline_all} · 완료 ${b.baseline_done} · ` +
+        `미완료 <b style="color:var(--ink)">${late}</b></div>` +
+        `<div style="margin-top:6px;font-size:11px;color:${impacted ? 'var(--bad)' : 'var(--muted)'};` +
+        `font-weight:${impacted ? 700 : 400}">${impacted ? `납기영향 ${impacted}건` : '납기영향 없음'}</div></div>`;
     };
     secTop.innerHTML = `<h3>이번 주 한눈에 · 기준일 ${esc(asOfDate)}</h3>` +
       `<p class="sub">우리가 정한 DUE 대비 지금 상태입니다. 아래 필터는 이 탭 전체에 적용됩니다.</p>` +
@@ -1264,21 +1307,23 @@ function renderAnalysis() {
       `<p class="sub">DUE가 지났는데 아직 승인 안 난 건을 협력사별로 모았습니다. 초과일수는 영업일 기준입니다.</p>` +
       `<div style="margin-bottom:10px">${stageSegHtml}</div>` +
       (list.length
-        ? `<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">` +
+        ? hBarChart(list.map(r => ({label: r.vendor, value: r.late,
+            color: r.impacted ? 'var(--bad)' : (STAGE_COLORS[delayStage] || 'var(--accent)')})),
+            {unit: '건', width: 880, labelWidth: 120, barHeight: 18, gap: 6}) +
+          `<p class="sub" style="margin-top:6px">붉은 막대는 납기영향 건이 섞인 협력사입니다.</p>` +
+          collapsedTableHtml('숫자로 보기 (평균·최대 초과일, 납기영향, 가장 오래 밀린 스타일)',
           `<table style="font-size:11px;border-collapse:collapse">` +
-          `<thead><tr style="color:#888"><th style="padding:4px 10px;text-align:left">협력사</th>` +
+          `<thead><tr style="color:var(--muted)"><th style="padding:4px 10px;text-align:left">협력사</th>` +
           `<th style="${tdc}">미완료</th><th style="${tdc}">평균 초과</th><th style="${tdc}">최대 초과</th>` +
           `<th style="${tdc}">납기영향</th><th style="padding:4px 10px;text-align:left">가장 오래 밀린 스타일</th></tr></thead><tbody>` +
-          list.map(r => `<tr style="border-top:1px solid #eee">` +
+          list.map(r => `<tr style="border-top:1px solid var(--line)">` +
             `<td style="padding:4px 10px">${esc(r.vendor)}</td>` +
             `<td style="${tdc};font-weight:700">${r.late}건</td>` +
             `<td style="${tdc}">${r.avg == null ? '-' : '+' + r.avg + '일'}</td>` +
             `<td style="${tdc}">${r.max == null ? '-' : '+' + r.max + '일'}</td>` +
             `<td style="${tdc};color:${r.impacted ? '#c0392b' : '#888'};font-weight:${r.impacted ? 700 : 400}">${r.impacted}건</td>` +
-            `<td style="padding:4px 10px;color:#666">${r.worst ? `${esc(r.worst.style_code)} (+${r.worst.overdue_days}일, ${esc(r.worst.status)})` : '-'}</td>` +
-            `</tr>`).join('') + `</tbody></table>` +
-          `<div>${hBarChart(list.map(r => ({label: r.vendor, value: r.late})), {unit: '건', color: STAGE_COLORS[delayStage] || '#4a65a9', width: 360, labelWidth: 90, barHeight: 14, gap: 4})}</div>` +
-          `</div>`
+            `<td style="padding:4px 10px;color:var(--ink2)">${r.worst ? `${esc(r.worst.style_code)} (+${r.worst.overdue_days}일, ${esc(r.worst.status)})` : '-'}</td>` +
+            `</tr>`).join('') + `</tbody></table>`)
         : `<p class="sub">이 단계는 지금 미완료가 없습니다.</p>`);
     container.appendChild(secV);
   }
@@ -1303,16 +1348,20 @@ function renderAnalysis() {
       `<p class="sub">미완료 ${od.length}건 중 사유가 적힌 건 <b>${filled}건</b> (${pct(filled, od.length)}). ` +
       `사유 칸이 비어 있으면 아래 "(사유 미기입)"으로 잡힙니다.</p>` +
       (od.length
-        ? `<table style="font-size:11px;border-collapse:collapse">` +
-          `<thead><tr style="color:#888"><th style="padding:4px 10px;text-align:left">사유</th>` +
+        ? hBarChart(list.map(r => ({label: r.reason, value: r.n,
+            color: r.reason === '(사유 미기입)' ? 'var(--line2)' : (STAGE_COLORS[delayStage] || 'var(--accent)')})),
+            {unit: '건', width: 760, labelWidth: 160, barHeight: 18, gap: 6}) +
+          collapsedTableHtml('숫자로 보기 (비중·많은 협력사)',
+          `<table style="font-size:11px;border-collapse:collapse">` +
+          `<thead><tr style="color:var(--muted)"><th style="padding:4px 10px;text-align:left">사유</th>` +
           `<th style="padding:4px 10px;text-align:center">건수</th><th style="padding:4px 10px;text-align:center">비중</th>` +
           `<th style="padding:4px 10px;text-align:left">많은 협력사</th></tr></thead><tbody>` +
-          list.map(r => `<tr style="border-top:1px solid #eee">` +
+          list.map(r => `<tr style="border-top:1px solid var(--line)">` +
             `<td style="padding:4px 10px;color:${r.reason === '(사유 미기입)' ? '#aaa' : '#1a1a2e'}">${esc(r.reason)}</td>` +
             `<td style="padding:4px 10px;text-align:center;font-weight:700">${r.n}</td>` +
-            `<td style="padding:4px 10px;text-align:center;color:#888">${pct(r.n, od.length)}</td>` +
-            `<td style="padding:4px 10px;color:#666">${esc(r.top)}</td></tr>`).join('') +
-          `</tbody></table>`
+            `<td style="padding:4px 10px;text-align:center;color:var(--muted)">${pct(r.n, od.length)}</td>` +
+            `<td style="padding:4px 10px;color:var(--ink2)">${esc(r.top)}</td></tr>`).join('') +
+          `</tbody></table>`)
         : `<p class="sub">이 단계는 지금 미완료가 없습니다.</p>`);
     container.appendChild(secR);
   }
@@ -1334,16 +1383,19 @@ function renderAnalysis() {
       `<p class="sub">DUE에서 ETD까지 원래 있던 여유(영업일)를 이미 다 써버린 건입니다 - 지금 속도면 선적이 밀립니다. ` +
       `미완료 ${od.length}건 중 <b style="color:#c0392b">${impacted.length}건</b> (${pct(impacted.length, od.length)}).</p>` +
       (impacted.length
-        ? `<table style="font-size:11px;border-collapse:collapse">` +
-          `<thead><tr style="color:#888"><th style="padding:4px 10px;text-align:left">협력사</th>` +
+        ? hBarChart(list.map(r => ({label: r.vendor, value: r.n})),
+            {unit: '건', color: 'var(--bad)', width: 760, labelWidth: 120, barHeight: 18, gap: 6}) +
+          collapsedTableHtml('어떤 스타일인지 보기',
+          `<table style="font-size:11px;border-collapse:collapse">` +
+          `<thead><tr style="color:var(--muted)"><th style="padding:4px 10px;text-align:left">협력사</th>` +
           `<th style="padding:4px 10px;text-align:center">납기영향</th><th style="padding:4px 10px;text-align:left">스타일 (초과일 · ETD)</th></tr></thead><tbody>` +
-          list.map(r => `<tr style="border-top:1px solid #eee">` +
+          list.map(r => `<tr style="border-top:1px solid var(--line)">` +
             `<td style="padding:4px 10px;font-weight:700">${esc(r.vendor)}</td>` +
             `<td style="padding:4px 10px;text-align:center;color:#c0392b;font-weight:700">${r.n}건</td>` +
-            `<td style="padding:4px 10px;color:#666">` +
-            r.styles.slice(0, 6).map(o => `${esc(o.style_code)} <span style="color:#aaa">(+${o.overdue_days}일 · ${esc(shortDate(o.etd))})</span>`).join(', ') +
+            `<td style="padding:4px 10px;color:var(--ink2)">` +
+            r.styles.slice(0, 6).map(o => `${esc(o.style_code)} <span style="color:var(--muted)">(+${o.overdue_days}일 · ${esc(shortDate(o.etd))})</span>`).join(', ') +
             (r.styles.length > 6 ? ` 외 ${r.styles.length - 6}건` : '') + `</td></tr>`).join('') +
-          `</tbody></table>`
+          `</tbody></table>`)
         : `<p class="sub">납기에 영향 주는 건은 없습니다.</p>`);
     container.appendChild(secI);
   }
@@ -1390,12 +1442,12 @@ function renderAnalysis() {
       const head = metric === 'rounds'
         ? (counts.styles ? `${Math.round(counts.rounds / counts.styles * 10) / 10}회` : null)
         : (days == null ? null : `${days}일`);
-      if (head == null && !counts.rounds) return '<span style="color:#ccc">-</span>';
+      if (head == null && !counts.rounds) return '<span style="color:var(--line2)">-</span>';
       const tip = metric === 'rounds'
         ? `회차 ${counts.rounds}건 ÷ 스타일 ${counts.styles}개`
         : `평균을 낸 회차 ${daysN}건 · 스타일 ${counts.styles}개`;
       return `<span title="${esc(tip)}"><b>${head == null ? '-' : head}</b>` +
-        `<span style="color:#aaa;font-weight:400"> · ${counts.styles}sty</span></span>`;
+        `<span style="color:var(--muted);font-weight:400"> · ${counts.styles}sty</span></span>`;
     };
     // 차트에서 고를 수 있는 칸 = 표의 열. 회차 지표일 땐 "들어옴→내보냄"(우리 검토 소요일)이
     // 의미가 없어서 뺀다.
@@ -1445,29 +1497,29 @@ function renderAnalysis() {
       `<div style="margin-bottom:8px">${metricHtml}</div>`;
 
     let tableHtml = `<table style="font-size:11px;border-collapse:collapse">` +
-      `<thead><tr style="color:#888"><th style="padding:4px 10px;text-align:left">${esc(GROUP_LABELS[groupBy])}</th>` +
+      `<thead><tr style="color:var(--muted)"><th style="padding:4px 10px;text-align:left">${esc(GROUP_LABELS[groupBy])}</th>` +
       WITHIN_STAGE_PIPELINE.map(st => `<th style="${th};color:${STAGE_COLORS[st] || '#888'}">${esc(st)}</th>`).join('') +
-      `<th style="${th}">내보냄→들어옴</th><th style="${th};border-left:1px solid #eee">들어옴→내보냄</th>` +
+      `<th style="${th}">내보냄→들어옴</th><th style="${th};border-left:1px solid var(--line)">들어옴→내보냄</th>` +
       `</tr></thead><tbody>` +
-      `<tr style="font-weight:700;background:#fafbfe">` +
+      `<tr style="font-weight:700;background:var(--soft)">` +
       `<td style="padding:4px 10px">${leadToggleLink('all', '전체 평균')}</td>` +
       WITHIN_STAGE_PIPELINE.map(st => `<td style="${th}">${cell(avgOf(allByStage[st]), allByStage[st].length, allCounts[st])}</td>`).join('') +
       `<td style="${th}">${cell(avgOf(allResp), allResp.length, {...sumCounts(allCounts), styles: allStyles})}</td>` +
-      `<td style="${th};border-left:1px solid #eee">${cell(avgOf(allRev), allRev.length, {...sumCounts(allCounts), styles: allStyles})}</td></tr>` +
+      `<td style="${th};border-left:1px solid var(--line)">${cell(avgOf(allRev), allRev.length, {...sumCounts(allCounts), styles: allStyles})}</td></tr>` +
       leadDetailRow('all', roundLead.stages, colspan);
     if (!groupRows.length) {
-      tableHtml += `<tr><td colspan="${WITHIN_STAGE_PIPELINE.length + 3}" style="padding:6px;color:#888">데이터 없음</td></tr>`;
+      tableHtml += `<tr><td colspan="${WITHIN_STAGE_PIPELINE.length + 3}" style="padding:6px;color:var(--muted)">데이터 없음</td></tr>`;
     }
     groupRows.forEach(g => {
       const rowId = `lead-${groupBy}-${g.name}`.replace(/[^\\w-]/g, '_');
-      tableHtml += `<tr style="border-top:1px solid #eee">` +
+      tableHtml += `<tr style="border-top:1px solid var(--line)">` +
         `<td style="padding:4px 10px">${leadToggleLink(rowId, g.name)}</td>` +
         WITHIN_STAGE_PIPELINE.map(st => {
           const d = g.byStage[st] || [];
           return `<td style="${th}">${cell(avgOf(d), d.length, g.counts[st])}</td>`;
         }).join('') +
         `<td style="${th};font-weight:700">${cell(g.resp, g.respN, {...sumCounts(g.counts), styles: g.styles})}</td>` +
-        `<td style="${th};border-left:1px solid #eee">${cell(g.rev, g.revN, {...sumCounts(g.counts), styles: g.styles})}</td></tr>` +
+        `<td style="${th};border-left:1px solid var(--line)">${cell(g.rev, g.revN, {...sumCounts(g.counts), styles: g.styles})}</td></tr>` +
         leadDetailRow(rowId, g.byStageStatus, colspan);
     });
     tableHtml += `</tbody></table>`;
@@ -1530,26 +1582,26 @@ function renderAnalysis() {
         `샘플이 한 번도 안 들어온 단계는 총점 평균에서 뺍니다. 위쪽 필터(Quarter/Item/TD/QA/Vendor)가 그대로 적용됩니다.</p>` +
                 evalBandsPanelHtml() +
         `<table style="font-size:11px;border-collapse:collapse">` +
-        `<thead><tr style="color:#888"><th style="padding:4px 8px;text-align:left">협력사</th>` +
-        KINDS.map(([kind]) => `<th colspan="4" style="${tdc};border-left:1px solid #eee">${kind}</th>`).join('') +
-        `<th style="${tdc};border-left:1px solid #eee">총점</th></tr>` +
+        `<thead><tr style="color:var(--muted)"><th style="padding:4px 8px;text-align:left">협력사</th>` +
+        KINDS.map(([kind]) => `<th colspan="4" style="${tdc};border-left:1px solid var(--line)">${kind}</th>`).join('') +
+        `<th style="${tdc};border-left:1px solid var(--line)">총점</th></tr>` +
         `<tr style="color:#bbb"><th></th>` +
-        KINDS.map(() => `<th style="${tdc};border-left:1px solid #eee">스타일</th><th style="${tdc}">샘플</th>` +
+        KINDS.map(() => `<th style="${tdc};border-left:1px solid var(--line)">스타일</th><th style="${tdc}">샘플</th>` +
           `<th style="${tdc}">비율</th><th style="${tdc}">점수</th>`).join('') +
-        `<th style="${tdc};border-left:1px solid #eee"></th></tr></thead><tbody>`;
+        `<th style="${tdc};border-left:1px solid var(--line)"></th></tr></thead><tbody>`;
       EVAL_CATEGORY_ORDER.filter(cat => byCat[cat]).forEach(cat => {
-        evalHtml += `<tr><td colspan="${KINDS.length * 4 + 2}" style="padding:6px 8px;font-weight:700;background:#fafbfe">&lt;${esc(cat)}&gt;</td></tr>`;
+        evalHtml += `<tr><td colspan="${KINDS.length * 4 + 2}" style="padding:6px 8px;font-weight:700;background:var(--soft)">&lt;${esc(cat)}&gt;</td></tr>`;
         byCat[cat].sort((a, b) => b.total - a.total).forEach(r => {
-          evalHtml += `<tr style="border-top:1px solid #eee"><td style="padding:4px 8px">${esc(r.vendor)}</td>` +
-            r.cells.map(c => `<td style="${tdc};border-left:1px solid #eee">${c.styles || '-'}</td>` +
+          evalHtml += `<tr style="border-top:1px solid var(--line)"><td style="padding:4px 8px">${esc(r.vendor)}</td>` +
+            r.cells.map(c => `<td style="${tdc};border-left:1px solid var(--line)">${c.styles || '-'}</td>` +
               `<td style="${tdc}">${c.rounds || '-'}</td>` +
               `<td style="${tdc}">${c.ratio == null ? '-' : (Math.round(c.ratio * 100) / 100).toFixed(2)}</td>` +
               `<td style="${tdc};font-weight:700;color:${c.score == null ? '#ccc' : (c.score >= 3 ? '#2e9e5b' : c.score === 0 ? '#c0392b' : '#1a1a2e')}">` +
               `${c.score == null ? '-' : c.score}</td>`).join('') +
-            `<td style="${tdc};border-left:1px solid #eee;font-weight:700">${(Math.round(r.total * 100) / 100).toFixed(2)}</td></tr>`;
+            `<td style="${tdc};border-left:1px solid var(--line);font-weight:700">${(Math.round(r.total * 100) / 100).toFixed(2)}</td></tr>`;
         });
       });
-      if (!Object.keys(byCat).length) html += `<tr><td colspan="${KINDS.length * 4 + 2}" style="padding:6px;color:#888">데이터 없음</td></tr>`;
+      if (!Object.keys(byCat).length) html += `<tr><td colspan="${KINDS.length * 4 + 2}" style="padding:6px;color:var(--muted)">데이터 없음</td></tr>`;
       evalHtml += `</tbody></table>`;
 
       const secEval = document.createElement('div');
@@ -1582,11 +1634,11 @@ function overdueDetailRowHtml(overdue, overdueId, colspan, weekId, season, stage
   const impacted = overdue.filter(o => o.impacts_delivery).length;
   const impactedPct = pct(impacted, overdue.length);
   const impactedNote = ` <span style="color:${impacted > 0 ? '#c0392b' : '#888'};font-weight:700">(납기영향 ${impacted}건, ${impactedPct}%)</span>`;
-  return `<tr><td colspan="${colspan}" style="background:#fafbfe;padding:0">` +
+  return `<tr><td colspan="${colspan}" style="background:var(--soft);padding:0">` +
     `<div style="padding:4px 10px"><a href="#" onclick="toggleOverdue('${overdueId}');return false" style="font-size:11px;color:#4a65a9">미완료 ${overdue.length}건 상세 ▾</a>${impactedNote}</div>` +
     `<div id="${overdueId}" style="display:${overdueOpen.has(overdueId) ? 'block' : 'none'};padding:0 10px 8px;overflow-x:hidden">` +
     `<table style="width:auto;min-width:100%;table-layout:auto;overflow:visible;font-size:10px;border-collapse:collapse;white-space:nowrap">` +
-    `<thead><tr style="color:#888">` +
+    `<thead><tr style="color:var(--muted)">` +
     // 머리글을 누르면 그 칸으로 정렬, 다시 누르면 반대 방향. 비고(메모)는 정렬 대상이 아니다.
     [['스타일', 'style_code', 'center'], ['협력사', 'vendor', 'center'], ['DUE DATE', 'due', 'center'],
      ['납기(ETD)', 'etd', 'center'], ['초과일수', 'overdue_days', 'center'], ['현재 status', 'status', 'left'],
@@ -1602,7 +1654,7 @@ function overdueDetailRowHtml(overdue, overdueId, colspan, weekId, season, stage
     `<tbody>` + sortedOverdue(overdue, overdueId).map(o => {
       const remarkDomId = `overdue-${weekId}-${season}-${o.style_code}-${stage}`.replace(/[^\\w-]/g, '_');
       const remarkText = remarks[overdueRemarkKey(season, o.style_code, stage)] || '';
-      return `<tr style="border-top:1px solid #eee${o.impacts_delivery ? ';background:#fdeceb' : ''}">` +
+      return `<tr style="border-top:1px solid var(--line)${o.impacts_delivery ? ';background:#fdeceb' : ''}">` +
       `<td style="padding:4px 10px;text-align:center">${esc(o.style_code)}</td><td style="padding:4px 10px;text-align:center">${esc(vendorAlias(o.vendor) || '-')}</td><td style="padding:4px 10px;text-align:center">${esc(shortDate(o.due))}</td>` +
       `<td style="padding:4px 10px;text-align:center">${o.etd ? esc(shortDate(o.etd)) : '-'}</td>` +
       `<td style="padding:4px 10px;text-align:center">${o.overdue_days != null ? esc('+' + o.overdue_days) : '-'}</td>` +
@@ -1663,7 +1715,7 @@ function renderStageTable(stage, owner, season, quarters, quarterProgress, overa
   overallRow.innerHTML = overallRowHtml;
   if (canExpand) {
     const labelTd = overallRow.content.querySelector('td.owner-col');
-    labelTd.innerHTML = `<a href="#" onclick="toggleOverdue('${detailId}');return false" style="color:#1a1a2e;font-weight:700">▾ 전체</a>`;
+    labelTd.innerHTML = `<a href="#" onclick="toggleOverdue('${detailId}');return false" style="color:var(--ink);font-weight:700">▾ 전체</a>`;
   }
   tbody.append(...overallRow.content.childNodes);
 
@@ -1677,7 +1729,7 @@ function renderStageTable(stage, owner, season, quarters, quarterProgress, overa
       const {html} = progressRowHtml(q, m, key, q, weekId, season, owner, stage, remarkText, false, remarks);
       inner += html;
     });
-    detailRow.innerHTML = `<td colspan="5" style="background:#fafbfe;padding:0">` +
+    detailRow.innerHTML = `<td colspan="5" style="background:var(--soft);padding:0">` +
       `<div id="${detailId}" style="display:none">` +
       `<table style="width:100%;border-collapse:collapse">${inner}</table></div></td>`;
     tbody.appendChild(detailRow);
