@@ -625,9 +625,45 @@ function computeProgressFromRaw(rawRows, asOfDate, offsets) {
   return result;
 }
 
+// 펼쳐둔 상세표가 어떤 것들인지 기억해둔다 - 정렬하면 화면을 다시 그리는데,
+// 기억 안 하면 눌러둔 표가 도로 접혀버린다.
+const overdueOpen = new Set();
+// 상세표별 정렬 상태: overdueId -> {key, dir(1=오름차순, -1=내림차순)}
+const overdueSort = {};
+
 function toggleOverdue(id) {
   const el = document.getElementById(id);
-  if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+  if (!el) return;
+  const willOpen = el.style.display === 'none';
+  el.style.display = willOpen ? 'block' : 'none';
+  if (willOpen) overdueOpen.add(id); else overdueOpen.delete(id);
+}
+
+function sortOverdue(id, key) {
+  const cur = overdueSort[id];
+  overdueSort[id] = (cur && cur.key === key) ? {key, dir: -cur.dir} : {key, dir: 1};
+  overdueOpen.add(id);
+  render();
+}
+
+// 값 없는 칸은 방향과 상관없이 항상 뒤로 보낸다(빈칸이 위에 쌓이면 보기 나쁨).
+function compareOverdueValues(a, b) {
+  const aEmpty = a == null || a === '';
+  const bEmpty = b == null || b === '';
+  if (aEmpty || bEmpty) return aEmpty && bEmpty ? 0 : (aEmpty ? 1 : -1);
+  if (typeof a === 'number' && typeof b === 'number') return a - b;
+  if (typeof a === 'boolean' || typeof b === 'boolean') return (a ? 1 : 0) - (b ? 1 : 0);
+  return String(a).localeCompare(String(b), 'ko');
+}
+
+function sortedOverdue(overdue, overdueId) {
+  const st = overdueSort[overdueId];
+  if (!st) return overdue;
+  const pick = o => st.key === 'vendor' ? (vendorAlias(o.vendor) || '') : o[st.key];
+  return [...overdue].sort((x, y) => {
+    const c = compareOverdueValues(pick(x), pick(y));
+    return c === 0 ? 0 : c * st.dir;
+  });
 }
 
 let activeTab = 'main';
@@ -1678,13 +1714,22 @@ function overdueDetailRowHtml(overdue, overdueId, colspan, weekId, season, stage
   const impactedNote = ` <span style="color:${impacted > 0 ? '#c0392b' : '#888'};font-weight:700">(납기영향 ${impacted}건, ${impactedPct}%)</span>`;
   return `<tr><td colspan="${colspan}" style="background:#fafbfe;padding:0">` +
     `<div style="padding:4px 10px"><a href="#" onclick="toggleOverdue('${overdueId}');return false" style="font-size:11px;color:#4a65a9">미완료 ${overdue.length}건 상세 ▾</a>${impactedNote}</div>` +
-    `<div id="${overdueId}" style="display:none;padding:0 10px 8px;overflow-x:hidden">` +
+    `<div id="${overdueId}" style="display:${overdueOpen.has(overdueId) ? 'block' : 'none'};padding:0 10px 8px;overflow-x:hidden">` +
     `<table style="width:auto;min-width:100%;table-layout:auto;overflow:visible;font-size:10px;border-collapse:collapse;white-space:nowrap">` +
-    `<thead><tr style="color:#888"><th style="text-align:center;padding:4px 10px">스타일</th><th style="text-align:center;padding:4px 10px">협력사</th><th style="text-align:center;padding:4px 10px">DUE DATE</th><th style="text-align:center;padding:4px 10px">납기(ETD)</th><th style="text-align:center;padding:4px 10px">초과일수</th><th style="text-align:left;padding:4px 10px">현재 status</th>` +
-      `<th style="text-align:center;padding:4px 10px">이전 Stage</th><th style="text-align:center;padding:4px 10px">전달일</th>` +
-      `<th style="text-align:center;padding:4px 10px">사유</th><th style="text-align:center;padding:4px 10px">소요일</th>` +
-      `<th style="text-align:center;padding:4px 10px">납기영향</th><th style="text-align:center;padding:4px 10px">비고</th></tr></thead>` +
-    `<tbody>` + overdue.map(o => {
+    `<thead><tr style="color:#888">` +
+    // 머리글을 누르면 그 칸으로 정렬, 다시 누르면 반대 방향. 비고(메모)는 정렬 대상이 아니다.
+    [['스타일', 'style_code', 'center'], ['협력사', 'vendor', 'center'], ['DUE DATE', 'due', 'center'],
+     ['납기(ETD)', 'etd', 'center'], ['초과일수', 'overdue_days', 'center'], ['현재 status', 'status', 'left'],
+     ['이전 Stage', 'confirm_stage', 'center'], ['전달일', 'confirm_date', 'center'], ['사유', 'reason', 'center'],
+     ['소요일', 'elapsed_days', 'center'], ['납기영향', 'impacts_delivery', 'center']]
+      .map(([label, key, align]) => {
+        const st = overdueSort[overdueId];
+        const arrow = st && st.key === key ? (st.dir === 1 ? ' ▲' : ' ▼') : '';
+        return `<th style="text-align:${align};padding:4px 10px;cursor:pointer;user-select:none"` +
+          ` onclick="sortOverdue('${overdueId}','${key}')" title="눌러서 정렬">${esc(label)}${arrow}</th>`;
+      }).join('') +
+      `<th style="text-align:center;padding:4px 10px">비고</th></tr></thead>` +
+    `<tbody>` + sortedOverdue(overdue, overdueId).map(o => {
       const remarkDomId = `overdue-${weekId}-${season}-${o.style_code}-${stage}`.replace(/[^\\w-]/g, '_');
       const remarkText = remarks[overdueRemarkKey(season, o.style_code, stage)] || '';
       return `<tr style="border-top:1px solid #eee${o.impacts_delivery ? ';background:#fdeceb' : ''}">` +
