@@ -691,25 +691,6 @@ function colorForPct(pct) {
   return '#d9534f';
 }
 
-function donutSVG(pct, size, color, subLabel) {
-  size = size || 80;
-  const stroke = Math.round(size * 0.13);
-  const r = (size - stroke) / 2;
-  const c = size / 2;
-  const circumference = 2 * Math.PI * r;
-  const p = Math.max(0, Math.min(100, pct));
-  const offset = circumference * (1 - p / 100);
-  const col = color || colorForPct(p);
-  return `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
-    <circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="#eef0f4" stroke-width="${stroke}"/>
-    <circle cx="${c}" cy="${c}" r="${r}" fill="none" stroke="${col}" stroke-width="${stroke}"
-      stroke-dasharray="${circumference.toFixed(1)}" stroke-dashoffset="${offset.toFixed(1)}"
-      stroke-linecap="round" transform="rotate(-90 ${c} ${c})"/>
-    <text x="${c}" y="${subLabel ? c - 4 : c}" text-anchor="middle" dominant-baseline="central" font-size="${size * 0.22}" font-weight="700" fill="#1a1a2e">${Math.round(pct)}%</text>
-    ${subLabel ? `<text x="${c}" y="${c + size * 0.18}" text-anchor="middle" dominant-baseline="central" font-size="${size * 0.11}" fill="#999">${escSvg(subLabel)}</text>` : ''}
-  </svg>`;
-}
-
 function escSvg(s) { return esc(String(s == null ? '' : s)); }
 
 function hBarChart(items, opts) {
@@ -813,52 +794,6 @@ function groupKeyForRow(row, groupBy) {
   return vendorAlias(row.vendor) || '미상';
 }
 
-function analysisStats(rawRows, asOfDate, offsets, groupBy) {
-  const byGroup = {}, byCategory = {}, byStage = {FIT: {done: 0, total: 0}, PP: {done: 0, total: 0}, TOP: {done: 0, total: 0}};
-  let overallDone = 0, overallTotal = 0;
-  const groupOverdueDays = {};
-  const groupOverdueDaysByStage = {FIT: {}, PP: {}, TOP: {}};
-  for (const row of rawRows) {
-    const group = groupKeyForRow(row, groupBy);
-    const category = CATEGORIES.find(c => row.label && row.label.startsWith(c)) || '미분류';
-    for (const stage of STAGES) {
-      const isDone = row[`${stage.toLowerCase()}_done`];
-      const due = resolveDue(row, stage, offsets);
-      // due date를 못 구했어도 이미 완료된 건은 완료로 잡는다(안 그러면 통계에서 조용히 빠짐).
-      const isDue = !!(due && due <= asOfDate) || (!due && isDone);
-      if (!isDue) continue;
-      overallTotal++;
-      byStage[stage].total++;
-      if (!byGroup[group]) byGroup[group] = {done: 0, total: 0};
-      if (!byCategory[category]) byCategory[category] = {done: 0, total: 0};
-      byGroup[group].total++;
-      byCategory[category].total++;
-      if (isDone) {
-        overallDone++;
-        byStage[stage].done++;
-        byGroup[group].done++;
-        byCategory[category].done++;
-        // 정시(due 이내)에 승인 안 됐으면 "늦게 승인된" 건으로 초과일수에 넣는다(0일 초과는 제외).
-        const confirmDate = due ? effectiveConfirmDate(row, stage) : null;
-        if (confirmDate && confirmDate > due) {
-          const lateDays = businessDaysSince(due, confirmDate) || 0;
-          if (lateDays > 0) {
-            (groupOverdueDays[group] || (groupOverdueDays[group] = [])).push(lateDays);
-            const byStageMap = groupOverdueDaysByStage[stage];
-            (byStageMap[group] || (byStageMap[group] = [])).push(lateDays);
-          }
-        }
-      } else {
-        const days = businessDaysSince(due, asOfDate) || 0;
-        (groupOverdueDays[group] || (groupOverdueDays[group] = [])).push(days);
-        const byStageMap = groupOverdueDaysByStage[stage];
-        (byStageMap[group] || (byStageMap[group] = [])).push(days);
-      }
-    }
-  }
-  return {byGroup, byCategory, byStage, overallDone, overallTotal, groupOverdueDays, groupOverdueDaysByStage};
-}
-
 // ISO 8601 주차 라벨 (예: "2026-W35"). 목요일 기준 계산이라 연말/연초 경계도 정확함.
 function isoWeekLabel(iso) {
   const d = new Date(iso + 'T00:00:00');
@@ -881,12 +816,6 @@ function isoWeekLabelToAsOfDay(weekStr) {
   const asOfDay = new Date(monday);
   asOfDay.setDate(monday.getDate() + 2);
   return asOfDay;
-}
-
-function periodDisplayLabel(key, period) {
-  if (period === 'month') return key;
-  const f = isoWeekLabelToAsOfDay(key);
-  return `${key} (${f.getMonth() + 1}/${f.getDate()})`;
 }
 
 function periodShortLabel(key, period) {
@@ -1122,100 +1051,16 @@ function computeRoundLeadTimes(rawRows, groupBy) {
   return {stages, groups};
 }
 
-// stage별 원자료: 실제 due date가 있는 건은 {duePeriod, confirmPeriod, onTime, hasRealDue:true}로,
-// due date를 못 구했지만 이미 완료된 건(라벨/ETD 누락 등)은 hasRealDue:false로 따로 표시한다.
-// 후자는 "주차별" 표를 오염시키면 안 되니(그 주에 실제 일어난 일이 아님) 주차별 집계에선 빼고
-// 누적 집계에만 기준일 시점에 반영한다.
-function dueDateRecordsByStage(rawRows, offsets, todayIso, period) {
-  const records = {FIT: [], PP: [], TOP: []};
-  for (const row of rawRows) {
-    for (const stage of STAGES) {
-      const due = resolveDue(row, stage, offsets);
-      const isDone = row[`${stage.toLowerCase()}_done`];
-      if (due) {
-        if (due > todayIso) continue;
-        // 승인 완료(isDone) 상태가 아니면 confirm_date가 있어도(예: 최신 회차가 Rejected인데
-        // 전달일만 채워진 경우) 정시 승인으로 치면 안 된다 — 완료 건수보다 정시 건수가 많아지는
-        // 모순이 생김.
-        const confirmDate = isDone ? effectiveConfirmDate(row, stage) : null;
-        records[stage].push({
-          duePeriod: periodLabel(due, period),
-          confirmPeriod: confirmDate ? periodLabel(confirmDate, period) : null,
-          onTime: !!(confirmDate && confirmDate <= due),
-          hasRealDue: true,
-        });
-      } else if (isDone) {
-        records[stage].push({duePeriod: null, confirmPeriod: periodLabel(todayIso, period), onTime: true, hasRealDue: false});
-      }
-    }
-  }
-  return records;
-}
-
-// "주차별" = 그 주에 due였던 것 중 실제 승인일이 due date 이내였던 비율(due date 있는 것만, 영구 고정).
-function dueDateOnTimeComplianceByStage(records) {
-  const byStagePeriod = {FIT: {}, PP: {}, TOP: {}};
-  STAGES.forEach(st => {
-    records[st].forEach(rec => {
-      if (!rec.hasRealDue) return;
-      const byPeriod = byStagePeriod[st];
-      if (!byPeriod[rec.duePeriod]) byPeriod[rec.duePeriod] = {onTime: 0, total: 0};
-      byPeriod[rec.duePeriod].total++;
-      if (rec.onTime) byPeriod[rec.duePeriod].onTime++;
-    });
-  });
-  return byStagePeriod;
-}
-
-// 누적은 분자/분모가 서로 다른 시계로 따로 쌓인다(사용자 확정 정의):
-//   분모(cumTotal) = 그 기간까지 due였던 것의 누적 개수 — "이때까지 끝났어야 하는 것"
-//   분자(cumDone)  = 그 기간까지 실제 승인이 일어난 것의 누적 개수 — "이때까지 실제 끝난 것",
-//                    승인일 기준으로 쌓이므로 자기 due보다 먼저 끝난 조기완료 건도 그 승인 시점에 바로 잡힘
-// 그래서 분자가 분모를 앞지르는 것도(조기완료 많으면) 정상이고, 반대로 밀리면 분자가 계속 뒤처진 채로
-// 간다. 100%는 시즌이 실제로 다 끝났을 때만 자연스럽게 나온다(중간에 인위적으로 100% 안 뜸).
-function cumulativeDueAndDoneRecords(rawRows, offsets, todayIso, period) {
-  const due = {FIT: [], PP: [], TOP: []};
-  const done = {FIT: [], PP: [], TOP: []};
-  for (const row of rawRows) {
-    for (const stage of STAGES) {
-      const dueDate = resolveDue(row, stage, offsets);
-      const isDone = row[`${stage.toLowerCase()}_done`];
-      if (dueDate) {
-        if (dueDate <= todayIso) due[stage].push({period: periodLabel(dueDate, period)});
-      } else if (isDone) {
-        due[stage].push({period: periodLabel(todayIso, period)});
-      }
-      if (isDone) {
-        const confirmDate = effectiveConfirmDate(row, stage);
-        done[stage].push({period: periodLabel(confirmDate || todayIso, period)});
-      }
-    }
-  }
-  return {due, done};
-}
-
-// 기간 순서대로 분모/분자 각자의 시계로 런닝 합계.
-function withIndependentCumulative(dueAndDone, sortedPeriods) {
-  const {due, done} = dueAndDone;
-  const result = {};
-  STAGES.forEach(st => {
-    result[st] = {};
-    let cumTotal = 0, cumDone = 0;
-    sortedPeriods.forEach(p => {
-      cumTotal += due[st].filter(r => r.period === p).length;
-      cumDone += done[st].filter(r => r.period === p).length;
-      result[st][p] = {cumDone, cumTotal};
-    });
-  });
-  return result;
-}
-
 let analysisPeriod = 'week';
 let analysisGroupBy = 'vendor';
 // 그룹 표에 뭘 띄울지: 'days'=평균 소요일, 'rounds'=스타일당 회차 수.
 let analysisLeadMetric = 'days';
 // 그룹 표를 숫자표로 볼지 가로막대 차트로 볼지.
 let analysisLeadView = 'chart';
+// 지연 분석 카드들이 보는 단계(FIT/PP/TOP). 세그먼트 버튼으로 고른다.
+let analysisDelayStage = 'FIT';
+
+function setDelayStage(st) { analysisDelayStage = st; renderAnalysis(); }
 // 차트로 볼 때 한 차트에 같이 띄울 칸들. 체크박스로 켜고 끈다(표의 열 = 막대 한 줄).
 let analysisLeadStages = ['보정', 'FIT', 'PP', 'TOP'];
 
@@ -1352,130 +1197,155 @@ function renderAnalysis() {
   const rows = applyAnalysisFilters(allRows);
   const offsets = currentOffsets(season);
   const asOfDate = (sel.value === weekIds[0]) ? resolveAsOfDate(season) : week.as_of_date;
-  const stats = analysisStats(rows, asOfDate, offsets, groupBy);
-  const periodLabelKr = period === 'month' ? '월' : '주';
-
-  // 주차별(정시) 표는 dueDateRecordsByStage/dueDateOnTimeComplianceByStage 그대로 씀(고정값, 안 바뀜).
-  const dueRecords = dueDateRecordsByStage(rows, offsets, asOfDate, period);
-  const onTimeByStage = dueRecords ? dueDateOnTimeComplianceByStage(dueRecords) : null;
-  // 누적은 분모(due 누적)/분자(실제 승인 누적)가 서로 다른 시계로 쌓인다 — 아래 함수 주석 참고.
-  const dueAndDone = cumulativeDueAndDoneRecords(rows, offsets, asOfDate, period);
-  const allPeriods = onTimeByStage
-    ? [...new Set([
-        ...STAGES.flatMap(st => Object.keys(onTimeByStage[st])),
-        ...(dueAndDone ? STAGES.flatMap(st => [...dueAndDone.due[st], ...dueAndDone.done[st]].map(r => r.period)) : []),
-        periodLabel(asOfDate, period),
-      ])].sort()
-    : [];
-  const doneCum = dueAndDone ? withIndependentCumulative(dueAndDone, allPeriods) : null;
-  // 요약 도넛(오른쪽) = 주차별 누적치(그 주까지의 누적 승인율)들의 단순평균. 최신 주 값 하나가 아니라
-  // 매주 누적%가 어떻게 쌓여왔는지의 평균을 보여준다. 아래 상세표는 주차별 누적을 그대로 보여준다.
-  const finalDonePct = {};
-  STAGES.forEach(st => {
-    if (!doneCum) { finalDonePct[st] = null; return; }
-    const pcts = allPeriods.map(p => doneCum[st][p]).filter(b => b && b.cumTotal > 0).map(b => b.cumDone / b.cumTotal * 100);
-    finalDonePct[st] = pcts.length ? Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length * 10) / 10 : null;
-  });
-
-  // 주차별 정시율 단순평균(왼쪽) — 데이터 있는 주만 평균낸다.
-  const avgOnTimePct = {};
-  STAGES.forEach(st => {
-    if (!onTimeByStage) { avgOnTimePct[st] = null; return; }
-    const pcts = Object.values(onTimeByStage[st]).filter(b => b.total > 0).map(b => b.onTime / b.total * 100);
-    avgOnTimePct[st] = pcts.length ? Math.round(pcts.reduce((a, b) => a + b, 0) / pcts.length * 10) / 10 : null;
-  });
-
-  // 단계별 Due Date 달성률: 왼쪽 = 전체 기간 주차별 정시율 평균, 오른쪽 = 주차별 누적 승인율의 평균. 서로 다른 개념, 다른 숫자가 정상.
-  const sec1 = document.createElement('div');
-  sec1.className = 'analysis-section';
-  const cumHalf = `<div><div style="font-weight:700;font-size:14px;color:#1a1a2e;margin-bottom:8px">주차별 Due Date 준수율</div><div style="display:flex;gap:16px">` +
-    STAGES.map(st => {
-      const p = avgOnTimePct[st];
-      return `<div>${donutSVG(p ?? 0, 76)}<div style="text-align:center;font-size:11px;color:#888;margin-top:4px">${st} ${p != null ? `(${p}%)` : '-'}</div></div>`;
-    }).join('') + `</div></div>`;
-  const avgHalf = `<div><div style="font-weight:700;font-size:14px;color:#1a1a2e;margin-bottom:8px">누적 Due Date 준수율</div><div style="display:flex;gap:16px">` +
-    STAGES.map(st => {
-      const v = finalDonePct[st];
-      return `<div>${donutSVG(v ?? 0, 76)}<div style="text-align:center;font-size:11px;color:#888;margin-top:4px">${st} ${v != null ? `(${v}%)` : '-'}</div></div>`;
-    }).join('') + `</div></div>`;
-  sec1.innerHTML = `<div style="display:flex;gap:40px;flex-wrap:wrap">${cumHalf}${avgHalf}</div>`;
-  container.appendChild(sec1);
-
-  const controlsHtml = `<label style="font-weight:700;margin-right:8px">기간 단위</label>` +
-    `<select onchange="analysisPeriod=this.value;renderAnalysis()" style="margin-right:16px"><option value="week"${period === 'week' ? ' selected' : ''}>주</option><option value="month"${period === 'month' ? ' selected' : ''}>월</option></select>`;
   const groupByHtml = `<label style="font-weight:700;margin-right:8px;font-size:12px">그룹 기준</label>` +
     `<select onchange="analysisGroupBy=this.value;renderAnalysis()" style="margin-right:16px">` +
     Object.entries(GROUP_LABELS).map(([k, v]) => `<option value="${k}"${groupBy === k ? ' selected' : ''}>${v}</option>`).join('') +
     `</select>`;
 
-  // 핵심 지표: 스타일 due date가 속한 기간별 "정시 승인율"(FIT/PP/TOP 각각, 주차별 + 누적). 필터도 이 표 위에 바로 붙임.
+  // 우리가 정한 DUE 대비 지금 어디가 밀렸는지. 요약 탭의 미완료 상세와 같은 계산(computeProgressFromRaw)을
+  // 그대로 써서 두 화면 숫자가 어긋나지 않게 한다.
+  const prog = computeProgressFromRaw(rows, asOfDate, offsets);
+  const bucketOf = st => ((OWNER_BY_STAGE[st] === 'TD' ? prog.TD : prog.QA)[st]) ||
+    {total_all: 0, total_done: 0, baseline_all: 0, baseline_done: 0, overdue: []};
+
+  // 카드 1 - 이번 주 한눈에: 단계별 due 도래 / 미완료 / 정시율 / 납기영향. 필터도 여기 붙인다.
   {
-    const chartStages = complianceChartStage === 'ALL' ? STAGES : [complianceChartStage];
-    const barSeries = [];
-    chartStages.forEach(st => {
-      barSeries.push({
-        name: `${st} 주차별`, color: STAGE_COLORS[st], opacity: 1,
-        values: allPeriods.map(p => { const b = onTimeByStage[st][p]; return b && b.total ? Math.round(b.onTime / b.total * 1000) / 10 : null; }),
-      });
-      barSeries.push({
-        name: `${st} 누적`, color: STAGE_COLORS[st], opacity: 0.4,
-        values: allPeriods.map(p => { const b = doneCum[st][p]; return b && b.cumTotal ? Math.round(b.cumDone / b.cumTotal * 1000) / 10 : null; }),
-      });
-    });
-    const periodShortLabels = allPeriods.map(p => periodShortLabel(p, period));
-    const chartStageSelectHtml = `<label style="font-weight:700;margin-right:8px;font-size:12px">차트 단계</label>` +
-      `<select onchange="complianceChartStage=this.value;renderAnalysis()" style="margin-bottom:10px">` +
-      `<option value="ALL"${complianceChartStage === 'ALL' ? ' selected' : ''}>전체(FIT+PP+TOP)</option>` +
-      STAGES.map(st => `<option value="${st}"${complianceChartStage === st ? ' selected' : ''}>${st}</option>`).join('') +
-      `</select>`;
-    const secOnTime = document.createElement('div');
-    secOnTime.className = 'analysis-section';
-    secOnTime.innerHTML = `<h3>주차별 일정 준수 현황</h3>` +
+    const secTop = document.createElement('div');
+    secTop.className = 'analysis-section';
+    const tile = st => {
+      const b = bucketOf(st);
+      const late = b.baseline_all - b.baseline_done;
+      const onTime = b.baseline_all ? Math.round(b.baseline_done / b.baseline_all * 1000) / 10 : null;
+      const impacted = (b.overdue || []).filter(o => o.impacts_delivery).length;
+      return `<div style="flex:1;min-width:180px;border:1px solid #eee;border-radius:8px;padding:12px 14px">` +
+        `<div style="font-weight:700;font-size:12px;color:${STAGE_COLORS[st] || '#1a1a2e'}">${esc(st)}</div>` +
+        `<div style="font-size:26px;font-weight:700;margin:2px 0;color:${onTime == null ? '#ccc' : colorForPct(onTime)}">` +
+        `${onTime == null ? '-' : onTime + '%'}</div>` +
+        `<div style="font-size:11px;color:#888">DUE 도래 ${b.baseline_all}건 중 ${b.baseline_done}건 완료</div>` +
+        `<div style="font-size:11px;margin-top:4px">미완료 <b>${late}건</b>` +
+        `<span style="color:${impacted ? '#c0392b' : '#888'}"> · 납기영향 ${impacted}건</span></div></div>`;
+    };
+    secTop.innerHTML = `<h3>이번 주 한눈에 · 기준일 ${esc(asOfDate)}</h3>` +
+      `<p class="sub">우리가 정한 DUE 대비 지금 상태입니다. 아래 필터는 이 탭 전체에 적용됩니다.</p>` +
       filterRowHtml(allRows) +
-      controlsHtml +
-      chartStageSelectHtml +
-      (allPeriods.length ? groupedBarChart(periodShortLabels, barSeries, {width: 900, height: 240}) : `<p class="sub">데이터가 부족함</p>`) +
-      `<table style="width:100%;font-size:11px;border-collapse:collapse;margin-top:10px">` +
-      `<thead><tr><th style="text-align:center;padding:4px" rowspan="2">${periodLabelKr}</th>` +
-      STAGES.map(st => `<th style="text-align:center;padding:4px" colspan="2">${st}</th>`).join('') + `</tr>` +
-      `<tr>` + STAGES.map(() => `<th style="text-align:center;padding:4px;font-weight:400;color:#888">주차별(정시)</th><th style="text-align:center;padding:4px;font-weight:400;color:#888">누적(완료)</th>`).join('') + `</tr></thead><tbody>` +
-      allPeriods.map(p => `<tr><td style="padding:4px;text-align:center">${esc(periodDisplayLabel(p, period))}</td>` +
-        STAGES.map(st => {
-          const wk = onTimeByStage[st][p];
-          const cm = doneCum[st][p];
-          const curPct = wk && wk.total ? Math.round(wk.onTime / wk.total * 1000) / 10 : null;
-          const cumPct = cm && cm.cumTotal ? Math.round(cm.cumDone / cm.cumTotal * 1000) / 10 : null;
-          const cur = curPct != null ? `${curPct}% (${wk.onTime}/${wk.total})` : '-';
-          const cum = cumPct != null ? `${cumPct}% (${cm.cumDone}/${cm.cumTotal})` : '-';
-          const curColor = curPct != null ? colorForPct(curPct) : '#ccc';
-          const cumColor = cumPct != null ? colorForPct(cumPct) : '#ccc';
-          return `<td style="text-align:right;padding:4px;color:${curColor}">${cur}</td><td style="text-align:right;padding:4px;color:${cumColor}">${cum}</td>`;
-        }).join('') + `</tr>`).join('') + `</tbody></table>`;
-    container.appendChild(secOnTime);
+      `<div style="display:flex;gap:12px;flex-wrap:wrap">${STAGES.map(tile).join('')}</div>`;
+    container.appendChild(secTop);
   }
 
-  // 그룹별 평균 초과일수 — 초과 없는 그룹도 0으로 다 보여준다. FIT/PP/TOP 한 화면에 나란히, 단계별 색 다르게.
-  const overdueGroups = Object.keys(stats.byGroup);
-  const stageOverdueEntries = {};
-  STAGES.forEach(st => {
-    const src = stats.groupOverdueDaysByStage[st];
-    stageOverdueEntries[st] = overdueGroups
-      .map(g => {
-        const days = src[g];
-        return {label: g, value: days && days.length ? Math.round(days.reduce((a, b) => a + b, 0) / days.length) : 0};
-      })
-      .sort((a, b) => b.value - a.value);
-  });
-  if (overdueGroups.length) {
-    const sec4 = document.createElement('div');
-    sec4.className = 'analysis-section';
-    sec4.innerHTML = `<div style="margin-bottom:10px">${groupByHtml}</div>` +
-      `<h3>평균 Due Date 초과일 수 (영업일 기준)</h3>` +
-      `<div style="display:flex;gap:12px;flex-wrap:nowrap">` +
-      STAGES.map(st => `<div style="flex:1;min-width:0"><div style="font-weight:700;font-size:12px;color:${STAGE_COLORS[st]};margin-bottom:6px">${st}</div>` +
-        hBarChart(stageOverdueEntries[st], {unit: '일', color: STAGE_COLORS[st], width: 336, labelWidth: 80, barHeight: 14, gap: 4}) + `</div>`).join('') +
-      `</div>`;
-    container.appendChild(sec4);
+  // 지연 카드 3종(협력사 / 사유 / 납기영향)은 한 단계를 같이 본다.
+  const delayStage = analysisDelayStage;
+  const stageSegHtml = `<span style="font-weight:700;font-size:12px;margin-right:8px">단계</span>` +
+    STAGES.map(st => `<button onclick="setDelayStage('${st}')" style="margin-right:4px;padding:4px 12px;border-radius:6px;cursor:pointer;` +
+      `border:1px solid ${delayStage === st ? (STAGE_COLORS[st] || '#4a65a9') : '#ddd'};` +
+      `background:${delayStage === st ? (STAGE_COLORS[st] || '#4a65a9') : '#fff'};` +
+      `color:${delayStage === st ? '#fff' : '#555'};font-size:11px">${esc(st)}</button>`).join('');
+  const od = bucketOf(delayStage).overdue || [];
+  const avgOfArr = a => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length * 10) / 10 : null;
+
+  // 카드 2 - 어떤 협력사가 늦나: 미완료 건수 / 평균·최대 초과일 / 납기영향.
+  {
+    const byVendor = {};
+    od.forEach(o => {
+      const v = vendorAlias(o.vendor) || '미상';
+      const b = byVendor[v] || (byVendor[v] = {late: 0, days: [], impacted: 0, worst: null});
+      b.late++;
+      if (o.overdue_days != null) b.days.push(o.overdue_days);
+      if (o.impacts_delivery) b.impacted++;
+      if (!b.worst || (o.overdue_days || 0) > (b.worst.overdue_days || 0)) b.worst = o;
+    });
+    const list = Object.entries(byVendor)
+      .map(([v, b]) => ({vendor: v, late: b.late, avg: avgOfArr(b.days), max: b.days.length ? Math.max(...b.days) : null,
+                         impacted: b.impacted, worst: b.worst}))
+      .sort((a, b) => b.late - a.late || (b.avg || 0) - (a.avg || 0));
+    const secV = document.createElement('div');
+    secV.className = 'analysis-section';
+    const tdc = 'padding:4px 10px;text-align:center';
+    secV.innerHTML = `<h3>어떤 협력사가 늦나 · ${esc(delayStage)}</h3>` +
+      `<p class="sub">DUE가 지났는데 아직 승인 안 난 건을 협력사별로 모았습니다. 초과일수는 영업일 기준입니다.</p>` +
+      `<div style="margin-bottom:10px">${stageSegHtml}</div>` +
+      (list.length
+        ? `<div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start">` +
+          `<table style="font-size:11px;border-collapse:collapse">` +
+          `<thead><tr style="color:#888"><th style="padding:4px 10px;text-align:left">협력사</th>` +
+          `<th style="${tdc}">미완료</th><th style="${tdc}">평균 초과</th><th style="${tdc}">최대 초과</th>` +
+          `<th style="${tdc}">납기영향</th><th style="padding:4px 10px;text-align:left">가장 오래 밀린 스타일</th></tr></thead><tbody>` +
+          list.map(r => `<tr style="border-top:1px solid #eee">` +
+            `<td style="padding:4px 10px">${esc(r.vendor)}</td>` +
+            `<td style="${tdc};font-weight:700">${r.late}건</td>` +
+            `<td style="${tdc}">${r.avg == null ? '-' : '+' + r.avg + '일'}</td>` +
+            `<td style="${tdc}">${r.max == null ? '-' : '+' + r.max + '일'}</td>` +
+            `<td style="${tdc};color:${r.impacted ? '#c0392b' : '#888'};font-weight:${r.impacted ? 700 : 400}">${r.impacted}건</td>` +
+            `<td style="padding:4px 10px;color:#666">${r.worst ? `${esc(r.worst.style_code)} (+${r.worst.overdue_days}일, ${esc(r.worst.status)})` : '-'}</td>` +
+            `</tr>`).join('') + `</tbody></table>` +
+          `<div>${hBarChart(list.map(r => ({label: r.vendor, value: r.late})), {unit: '건', color: STAGE_COLORS[delayStage] || '#4a65a9', width: 360, labelWidth: 90, barHeight: 14, gap: 4})}</div>` +
+          `</div>`
+        : `<p class="sub">이 단계는 지금 미완료가 없습니다.</p>`);
+    container.appendChild(secV);
+  }
+
+  // 카드 3 - 사유: 기입된 사유를 묶어서 센다. 기입률이 낮으면 그 자체가 먼저 할 일이라 같이 보여준다.
+  {
+    const byReason = {};
+    od.forEach(o => {
+      const key = (o.reason || '').trim() || '(사유 미기입)';
+      const b = byReason[key] || (byReason[key] = {n: 0, vendors: {}});
+      b.n++;
+      const v = vendorAlias(o.vendor) || '미상';
+      b.vendors[v] = (b.vendors[v] || 0) + 1;
+    });
+    const filled = od.filter(o => (o.reason || '').trim()).length;
+    const list = Object.entries(byReason).map(([reason, b]) => ({reason, n: b.n,
+      top: Object.entries(b.vendors).sort((x, y) => y[1] - x[1]).slice(0, 3).map(([v, n]) => `${v} ${n}`).join(', ')}))
+      .sort((a, b) => b.n - a.n);
+    const secR = document.createElement('div');
+    secR.className = 'analysis-section';
+    secR.innerHTML = `<h3>사유 · ${esc(delayStage)}</h3>` +
+      `<p class="sub">미완료 ${od.length}건 중 사유가 적힌 건 <b>${filled}건</b> (${pct(filled, od.length)}). ` +
+      `사유 칸이 비어 있으면 아래 "(사유 미기입)"으로 잡힙니다.</p>` +
+      (od.length
+        ? `<table style="font-size:11px;border-collapse:collapse">` +
+          `<thead><tr style="color:#888"><th style="padding:4px 10px;text-align:left">사유</th>` +
+          `<th style="padding:4px 10px;text-align:center">건수</th><th style="padding:4px 10px;text-align:center">비중</th>` +
+          `<th style="padding:4px 10px;text-align:left">많은 협력사</th></tr></thead><tbody>` +
+          list.map(r => `<tr style="border-top:1px solid #eee">` +
+            `<td style="padding:4px 10px;color:${r.reason === '(사유 미기입)' ? '#aaa' : '#1a1a2e'}">${esc(r.reason)}</td>` +
+            `<td style="padding:4px 10px;text-align:center;font-weight:700">${r.n}</td>` +
+            `<td style="padding:4px 10px;text-align:center;color:#888">${pct(r.n, od.length)}</td>` +
+            `<td style="padding:4px 10px;color:#666">${esc(r.top)}</td></tr>`).join('') +
+          `</tbody></table>`
+        : `<p class="sub">이 단계는 지금 미완료가 없습니다.</p>`);
+    container.appendChild(secR);
+  }
+
+  // 카드 4 - 납기영향: DUE~ETD 사이 버퍼를 이미 다 까먹은 건(impacts_delivery)만 추린다.
+  {
+    const impacted = od.filter(o => o.impacts_delivery);
+    const byVendor = {};
+    impacted.forEach(o => {
+      const v = vendorAlias(o.vendor) || '미상';
+      const b = byVendor[v] || (byVendor[v] = {n: 0, styles: []});
+      b.n++; b.styles.push(o);
+    });
+    const list = Object.entries(byVendor).map(([v, b]) => ({vendor: v, n: b.n,
+      styles: b.styles.sort((x, y) => (y.overdue_days || 0) - (x.overdue_days || 0))})).sort((a, b) => b.n - a.n);
+    const secI = document.createElement('div');
+    secI.className = 'analysis-section';
+    secI.innerHTML = `<h3>납기영향 · ${esc(delayStage)}</h3>` +
+      `<p class="sub">DUE에서 ETD까지 원래 있던 여유(영업일)를 이미 다 써버린 건입니다 - 지금 속도면 선적이 밀립니다. ` +
+      `미완료 ${od.length}건 중 <b style="color:#c0392b">${impacted.length}건</b> (${pct(impacted.length, od.length)}).</p>` +
+      (impacted.length
+        ? `<table style="font-size:11px;border-collapse:collapse">` +
+          `<thead><tr style="color:#888"><th style="padding:4px 10px;text-align:left">협력사</th>` +
+          `<th style="padding:4px 10px;text-align:center">납기영향</th><th style="padding:4px 10px;text-align:left">스타일 (초과일 · ETD)</th></tr></thead><tbody>` +
+          list.map(r => `<tr style="border-top:1px solid #eee">` +
+            `<td style="padding:4px 10px;font-weight:700">${esc(r.vendor)}</td>` +
+            `<td style="padding:4px 10px;text-align:center;color:#c0392b;font-weight:700">${r.n}건</td>` +
+            `<td style="padding:4px 10px;color:#666">` +
+            r.styles.slice(0, 6).map(o => `${esc(o.style_code)} <span style="color:#aaa">(+${o.overdue_days}일 · ${esc(shortDate(o.etd))})</span>`).join(', ') +
+            (r.styles.length > 6 ? ` 외 ${r.styles.length - 6}건` : '') + `</td></tr>`).join('') +
+          `</tbody></table>`
+        : `<p class="sub">납기에 영향 주는 건은 없습니다.</p>`);
+    container.appendChild(secI);
   }
 
   // 단계별(보정/FIT/PP/TOP) 소요일수: 단계마다 표를 따로 만들고, 그 안에서 상태(APPROVED가
