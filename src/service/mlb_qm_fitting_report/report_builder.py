@@ -1454,7 +1454,7 @@ function renderAnalysis() {
     secR.className = 'analysis-section';
     secR.innerHTML = `<h3>사유 · ${esc(delayStage)}</h3>` +
       `<p class="sub">미완료 ${od.length}건 = 샘플 들어와 리젝된 <b>${reviewed.length}건</b> + 아직 안 들어온 <b>${notReceived}건</b>. ` +
-      `리젝된 ${reviewed.length}건 중 사유가 적힌 건 <b>${filled}건</b> (${pct(filled, reviewed.length)}). ` +
+      `리젝된 ${reviewed.length}건 중 사유가 적힌 건 <b>${filled}건</b> (${pct(filled, reviewed.length)}%). ` +
       `접수 전은 사유가 있을 수 없어 따로 셉니다.</p>` +
       (od.length
         ? hBarChart(list.map(r => ({label: r.reason, value: r.n,
@@ -1478,7 +1478,7 @@ function renderAnalysis() {
           list.map(r => `<tr style="border-top:1px solid var(--line)">` +
             `<td style="padding:4px 10px;color:${r.reason === '(리젝 사유 미기입)' ? 'var(--muted)' : 'var(--ink)'}">${esc(r.reason)}</td>` +
             `<td style="padding:4px 10px;text-align:center;font-weight:700">${r.n}</td>` +
-            `<td style="padding:4px 10px;text-align:center;color:var(--muted)">${pct(r.n, od.length)}</td>` +
+            `<td style="padding:4px 10px;text-align:center;color:var(--muted)">${pct(r.n, od.length)}%</td>` +
             `<td style="padding:4px 10px;color:var(--ink2)">${esc(r.top)}</td></tr>`).join('') +
           `</tbody></table>`)
         : `<p class="sub">이 단계는 지금 미완료가 없습니다.</p>`);
