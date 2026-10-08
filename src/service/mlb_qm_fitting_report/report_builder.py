@@ -23,7 +23,7 @@ button,select,input{font:inherit;color:inherit}
 .hdr h1{font-size:15px;margin:0;font-weight:700}
 .hdr .sp{flex:1}
 .ib{width:34px;height:34px;border:1px solid rgba(255,255,255,.3);border-radius:8px;background:transparent;color:#fff;cursor:pointer}
-select{padding:6px 10px;border-radius:6px;border:1px solid var(--line2);font-size:12px}
+select{padding:6px 10px;border-radius:6px;border:1px solid var(--line2);font-size:12px;background:var(--surface);color:var(--ink)}
 .content{padding:20px;max-width:1100px;margin:0 auto}
 /* 분석 탭만 넓게 - 차트와 협력사 표가 1100에서는 잘린다. 요약은 기존 폭 유지. */
 #analysis-tab{max-width:1680px}
@@ -723,6 +723,10 @@ function colorForPct(pct) {
   return '#d9534f';
 }
 
+// onclick 속성으로 넘길 값. 따옴표·역슬래시가 섞여도 깨지지 않게 URI 인코딩해서 보내고
+// 핸들러(decodeURIComponent)에서 원래 문자열로 되돌린다.
+function attrArg(v) { return encodeURIComponent(String(v == null ? '' : v)); }
+
 function escSvg(s) { return esc(String(s == null ? '' : s)); }
 
 function hBarChart(items, opts) {
@@ -741,7 +745,8 @@ function hBarChart(items, opts) {
     const y = i * (barHeight + gap);
     const w = Math.max(2, (it.value / max) * chartWidth);
     bars += `<text x="${labelWidth - 8}" y="${y + barHeight / 2}" text-anchor="end" dominant-baseline="central" font-size="11" fill="var(--ink2)">${escSvg(it.label)}</text>` +
-      `<rect x="${labelWidth}" y="${y + 2}" width="${w.toFixed(1)}" height="${barHeight - 4}" rx="4" fill="${it.color || color}">` +
+      `<rect x="${labelWidth}" y="${y + 2}" width="${w.toFixed(1)}" height="${barHeight - 4}" rx="4" fill="${it.color || color}"` +
+      (opts.barClickFn ? ` style="cursor:pointer" onclick="${opts.barClickFn}(decodeURIComponent('${attrArg(it.label)}'))"` : '') + `>` +
       `<title>${escSvg(it.label)} ${escSvg(it.value)}${escSvg(unit)}</title></rect>` +
       `<text x="${labelWidth + w + 6}" y="${y + barHeight / 2}" dominant-baseline="central" font-size="11" fill="var(--ink)">${escSvg(it.value)}${unit}</text>`;
   });
@@ -783,7 +788,9 @@ function groupedBarChart(periods, series, opts) {
       const x = gx + si * barW + 1;
       const y = padT + chartH - bh;
       // <title>은 브라우저 기본 툴팁 - 커서를 올리면 "주차 · 시리즈 · 값"이 그대로 뜬다.
-      out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1, barW - 1).toFixed(1)}" height="${bh.toFixed(1)}" fill="${s.color}" opacity="${s.opacity != null ? s.opacity : 1}">` +
+      const clickAttr = opts.barClickFn
+        ? ` style="cursor:pointer" onclick="${opts.barClickFn}(decodeURIComponent('${attrArg(p)}'))"` : '';
+      out += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1, barW - 1).toFixed(1)}" height="${bh.toFixed(1)}" fill="${s.color}" opacity="${s.opacity != null ? s.opacity : 1}"${clickAttr}>` +
         `<title>${escSvg(p)} · ${escSvg(s.name)} ${escSvg(v)}${escSvg(unit)}</title></rect>`;
       if (showValues) {
         // 가로로 적는다. 막대가 얇아 글자가 서로 붙을 수 있어 막대 폭에 맞춰 글씨를 줄인다.
@@ -794,7 +801,9 @@ function groupedBarChart(periods, series, opts) {
     });
     const groupTip = series.map(s => s.values[gi] == null ? null : `${s.name} ${s.values[gi]}${unit}`)
       .filter(Boolean).join('  /  ');
-    out += `<rect x="${gx.toFixed(1)}" y="${padT}" width="${groupW.toFixed(1)}" height="${chartH}" fill="transparent">` +
+    const groupClick = opts.barClickFn
+      ? ` style="cursor:pointer" onclick="${opts.barClickFn}(decodeURIComponent('${attrArg(p)}'))"` : '';
+    out += `<rect x="${gx.toFixed(1)}" y="${padT}" width="${groupW.toFixed(1)}" height="${chartH}" fill="transparent"${groupClick}>` +
       `<title>${escSvg(p)}${groupTip ? ' - ' + escSvg(groupTip) : ''}</title></rect>`;
     const lx = (gx + groupW / 2).toFixed(1);
     out += rotateLabels
@@ -986,6 +995,28 @@ function collapsedTableHtml(label, tableHtml) {
     `<div style="margin-top:8px">${tableHtml}</div></details>`;
 }
 
+// 드릴다운에 쓰는 스타일 목록. 어느 단계 건인지 같이 보여줘야 FIT/PP/TOP가 섞여도 읽힌다.
+function overdueListHtml(items, emptyText) {
+  if (!items.length) return `<p class="sub">${esc(emptyText || '해당하는 건이 없습니다.')}</p>`;
+  const th = 'padding:4px 10px;text-align:center';
+  return `<table style="font-size:11px;border-collapse:collapse;white-space:nowrap">` +
+    `<thead><tr style="color:var(--muted)">` +
+    `<th style="padding:4px 10px;text-align:left">스타일</th><th style="${th}">단계</th>` +
+    `<th style="padding:4px 10px;text-align:left">협력사</th><th style="${th}">DUE</th>` +
+    `<th style="${th}">초과일</th><th style="padding:4px 10px;text-align:left">현재 status</th>` +
+    `<th style="padding:4px 10px;text-align:left">사유</th><th style="${th}">ETD</th></tr></thead><tbody>` +
+    items.map(o => `<tr style="border-top:1px solid var(--line)">` +
+      `<td style="padding:4px 10px">${esc(o.style_code)}</td>` +
+      `<td style="${th};color:${STAGE_COLORS[o.stage] || 'var(--ink2)'};font-weight:700">${esc(o.stage)}</td>` +
+      `<td style="padding:4px 10px">${esc(vendorAlias(o.vendor) || '-')}</td>` +
+      `<td style="${th}">${esc(shortDate(o.due))}</td>` +
+      `<td style="${th};font-weight:700">${o.overdue_days != null ? '+' + o.overdue_days : '-'}</td>` +
+      `<td style="padding:4px 10px">${esc(o.status)}</td>` +
+      `<td style="padding:4px 10px;color:var(--ink2)">${esc(o.reason || '-')}</td>` +
+      `<td style="${th};color:var(--muted)">${o.etd ? esc(shortDate(o.etd)) : '-'}</td></tr>`).join('') +
+    `</tbody></table>`;
+}
+
 function leadDetailId(rowId) { return `lead-detail-${rowId}`; }
 
 function leadToggleLink(rowId, label) {
@@ -1106,6 +1137,12 @@ let analysisLeadView = 'chart';
 let analysisDelayStage = 'FIT';
 // 분석 탭 갈래: 'week' = 이번 주 지연, 'season' = 시즌 누적(소요일·평가).
 let analysisSubTab = 'week';
+// 차트에서 고른 협력사 / 사유. 고르면 그 아래에 해당 스타일 목록이 펼쳐진다.
+let delayPickedVendor = null;
+let delayPickedReason = null;
+
+function pickDelayVendor(v) { delayPickedVendor = (delayPickedVendor === v) ? null : v; renderAnalysis(); }
+function pickDelayReason(r) { delayPickedReason = (delayPickedReason === r) ? null : r; renderAnalysis(); }
 
 function setAnalysisSubTab(t) { analysisSubTab = t; renderAnalysis(); }
 
@@ -1277,7 +1314,6 @@ function renderAnalysis() {
       const b = bucketOf(st);
       const late = b.baseline_all - b.baseline_done;
       const onTime = b.baseline_all ? Math.round(b.baseline_done / b.baseline_all * 1000) / 10 : null;
-      const impacted = (b.overdue || []).filter(o => o.impacts_delivery).length;
       const color = STAGE_COLORS[st] || 'var(--accent)';
       return `<div style="flex:1;min-width:220px;border:1px solid var(--line);border-radius:10px;padding:14px 16px">` +
         `<div style="display:flex;align-items:baseline;gap:8px">` +
@@ -1286,8 +1322,7 @@ function renderAnalysis() {
         `<div style="margin:8px 0 6px">${progressBarHtml(b.baseline_done, b.baseline_all, color)}</div>` +
         `<div style="font-size:11px;color:var(--muted)">DUE 도래 ${b.baseline_all} · 완료 ${b.baseline_done} · ` +
         `미완료 <b style="color:var(--ink)">${late}</b></div>` +
-        `<div style="margin-top:6px;font-size:11px;color:${impacted ? 'var(--bad)' : 'var(--muted)'};` +
-        `font-weight:${impacted ? 700 : 400}">${impacted ? `납기영향 ${impacted}건` : '납기영향 없음'}</div></div>`;
+        `</div>`;
     };
     secTop.innerHTML = `<h3>이번 주 한눈에 · 기준일 ${esc(asOfDate)}</h3>` +
       `<p class="sub">우리가 정한 DUE 대비 지금 상태입니다. 아래 필터는 이 탭 전체에 적용됩니다.</p>` +
@@ -1304,6 +1339,8 @@ function renderAnalysis() {
       `background:${delayStage === st ? (STAGE_COLORS[st] || '#4a65a9') : '#fff'};` +
       `color:${delayStage === st ? '#fff' : '#555'};font-size:11px">${esc(st)}</button>`).join('');
   const od = bucketOf(delayStage).overdue || [];
+  // 드릴다운은 FIT/PP/TOP를 다 보여줘야 해서, 단계 표시를 붙여 한 배열로 모아둔다.
+  const odAll = STAGES.flatMap(st => (bucketOf(st).overdue || []).map(o => ({...o, stage: st})));
   const avgOfArr = a => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length * 10) / 10 : null;
 
   // 카드 2 - 어떤 협력사가 늦나: 미완료 건수 / 평균·최대 초과일 / 납기영향.
@@ -1347,16 +1384,24 @@ function renderAnalysis() {
               values: list.map(r => (vendorStageLate[r.vendor] || {})[st] || null),
             })),
             {width: 1240, height: 320, unit: '건', showValues: true,
-             rotateLabels: list.length > 8, responsive: true,
+             rotateLabels: list.length > 8, responsive: true, barClickFn: 'pickDelayVendor',
              yMax: Math.max(1, Math.ceil(Math.max(0, ...Object.values(vendorStageLate)
                .flatMap(m => STAGES.map(st => m[st] || 0))) * 1.15))}) +
           `<p class="sub" style="margin-top:6px">막대 = 그 단계에서 DUE 지나고 아직 승인 안 난 건수. ` +
-          `세 단계를 나란히 두면 "FIT은 괜찮은데 PP에서 막힌다" 같은 게 바로 보입니다.</p>` +
+          `<b>막대를 누르면</b> 그 협력사의 FIT·PP·TOP 미완료 스타일이 아래에 펼쳐집니다.</p>` +
+          (delayPickedVendor
+            ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">` +
+              `<div style="font-weight:700;margin-bottom:6px">${esc(delayPickedVendor)} 미완료 ` +
+              `${odAll.filter(o => (vendorAlias(o.vendor) || '미상') === delayPickedVendor).length}건 ` +
+              `<a href="#" onclick="pickDelayVendor(null);return false" style="font-size:11px;color:var(--muted);font-weight:400">닫기</a></div>` +
+              overdueListHtml(odAll.filter(o => (vendorAlias(o.vendor) || '미상') === delayPickedVendor)
+                .sort((a, b) => (b.overdue_days || 0) - (a.overdue_days || 0))) + `</div>`
+            : '') +
           collapsedTableHtml('숫자로 보기 (평균·최대 초과일, 납기영향, 가장 오래 밀린 스타일)',
           `<table style="font-size:11px;border-collapse:collapse">` +
           `<thead><tr style="color:var(--muted)"><th style="padding:4px 10px;text-align:left">협력사</th>` +
           `<th style="${tdc}">미완료</th><th style="${tdc}">평균 초과</th><th style="${tdc}">최대 초과</th>` +
-          `<th style="${tdc}">납기영향</th><th style="padding:4px 10px;text-align:left">가장 오래 밀린 스타일</th></tr></thead><tbody>` +
+          `<th style="padding:4px 10px;text-align:left">가장 오래 밀린 스타일</th></tr></thead><tbody>` +
           list.map(r => `<tr style="border-top:1px solid var(--line)">` +
             `<td style="padding:4px 10px">${esc(r.vendor)}</td>` +
             `<td style="${tdc};font-weight:700">${r.late}건</td>` +
@@ -1391,7 +1436,16 @@ function renderAnalysis() {
       (od.length
         ? hBarChart(list.map(r => ({label: r.reason, value: r.n,
             color: r.reason === '(사유 미기입)' ? 'var(--line2)' : (STAGE_COLORS[delayStage] || 'var(--accent)')})),
-            {unit: '건', width: 760, labelWidth: 160, barHeight: 18, gap: 6}) +
+            {unit: '건', width: 760, labelWidth: 160, barHeight: 18, gap: 6, barClickFn: 'pickDelayReason'}) +
+          `<p class="sub" style="margin-top:6px"><b>막대를 누르면</b> 그 사유가 걸린 협력사·스타일이 펼쳐집니다.</p>` +
+          (delayPickedReason
+            ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">` +
+              `<div style="font-weight:700;margin-bottom:6px">${esc(delayPickedReason)} ` +
+              `<a href="#" onclick="pickDelayReason(null);return false" style="font-size:11px;color:var(--muted);font-weight:400">닫기</a></div>` +
+              overdueListHtml(od.filter(o => ((o.reason || '').trim() || '(사유 미기입)') === delayPickedReason)
+                .map(o => ({...o, stage: delayStage}))
+                .sort((a, b) => (b.overdue_days || 0) - (a.overdue_days || 0))) + `</div>`
+            : '') +
           collapsedTableHtml('숫자로 보기 (비중·많은 협력사)',
           `<table style="font-size:11px;border-collapse:collapse">` +
           `<thead><tr style="color:var(--muted)"><th style="padding:4px 10px;text-align:left">사유</th>` +
@@ -1407,39 +1461,6 @@ function renderAnalysis() {
     container.appendChild(secR);
   }
 
-  // 카드 4 - 납기영향: DUE~ETD 사이 버퍼를 이미 다 까먹은 건(impacts_delivery)만 추린다.
-  if (showWeek) {
-    const impacted = od.filter(o => o.impacts_delivery);
-    const byVendor = {};
-    impacted.forEach(o => {
-      const v = vendorAlias(o.vendor) || '미상';
-      const b = byVendor[v] || (byVendor[v] = {n: 0, styles: []});
-      b.n++; b.styles.push(o);
-    });
-    const list = Object.entries(byVendor).map(([v, b]) => ({vendor: v, n: b.n,
-      styles: b.styles.sort((x, y) => (y.overdue_days || 0) - (x.overdue_days || 0))})).sort((a, b) => b.n - a.n);
-    const secI = document.createElement('div');
-    secI.className = 'analysis-section';
-    secI.innerHTML = `<h3>납기영향 · ${esc(delayStage)}</h3>` +
-      `<p class="sub">DUE에서 ETD까지 원래 있던 여유(영업일)를 이미 다 써버린 건입니다 - 지금 속도면 선적이 밀립니다. ` +
-      `미완료 ${od.length}건 중 <b style="color:#c0392b">${impacted.length}건</b> (${pct(impacted.length, od.length)}).</p>` +
-      (impacted.length
-        ? hBarChart(list.map(r => ({label: r.vendor, value: r.n})),
-            {unit: '건', color: 'var(--bad)', width: 760, labelWidth: 120, barHeight: 18, gap: 6}) +
-          collapsedTableHtml('어떤 스타일인지 보기',
-          `<table style="font-size:11px;border-collapse:collapse">` +
-          `<thead><tr style="color:var(--muted)"><th style="padding:4px 10px;text-align:left">협력사</th>` +
-          `<th style="padding:4px 10px;text-align:center">납기영향</th><th style="padding:4px 10px;text-align:left">스타일 (초과일 · ETD)</th></tr></thead><tbody>` +
-          list.map(r => `<tr style="border-top:1px solid var(--line)">` +
-            `<td style="padding:4px 10px;font-weight:700">${esc(r.vendor)}</td>` +
-            `<td style="padding:4px 10px;text-align:center;color:#c0392b;font-weight:700">${r.n}건</td>` +
-            `<td style="padding:4px 10px;color:var(--ink2)">` +
-            r.styles.slice(0, 6).map(o => `${esc(o.style_code)} <span style="color:var(--muted)">(+${o.overdue_days}일 · ${esc(shortDate(o.etd))})</span>`).join(', ') +
-            (r.styles.length > 6 ? ` 외 ${r.styles.length - 6}건` : '') + `</td></tr>`).join('') +
-          `</tbody></table>`)
-        : `<p class="sub">납기에 영향 주는 건은 없습니다.</p>`);
-    container.appendChild(secI);
-  }
 
   // 단계별(보정/FIT/PP/TOP) 소요일수: 단계마다 표를 따로 만들고, 그 안에서 상태(APPROVED가
   // 맨 위, 나머지는 이름순) → 회차(1ST/2ND/3RD/4TH/5TH) 순으로 묶어서 보여준다.
