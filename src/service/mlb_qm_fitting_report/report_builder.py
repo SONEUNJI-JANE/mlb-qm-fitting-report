@@ -24,7 +24,9 @@ button,select,input{font:inherit;color:inherit}
 .hdr .sp{flex:1}
 .ib{width:34px;height:34px;border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:pointer}
 select{padding:6px 10px;border-radius:6px;border:1px solid var(--line2);font-size:12px}
-.content{padding:20px;max-width:1680px;margin:0 auto}
+.content{padding:20px;max-width:1100px;margin:0 auto}
+/* 분석 탭만 넓게 - 차트와 협력사 표가 1100에서는 잘린다. 요약은 기존 폭 유지. */
+#analysis-tab{max-width:1680px}
 table{width:100%;table-layout:fixed;border-collapse:collapse;background:var(--surface);border-radius:8px;overflow:hidden;margin-bottom:16px}
 th,td{padding:6px 10px;border-bottom:1px solid var(--line);text-align:left;font-size:12px}
 th{background:var(--soft);color:var(--ink2);font-weight:700}
@@ -52,7 +54,7 @@ th.grp-a,th.grp-th:first-of-type{border-left:1px solid var(--line)}
 .override-bar{position:sticky;bottom:0;background:var(--ink);color:var(--surface);padding:10px 20px;display:none;align-items:center;gap:12px;font-size:12px}
 .override-bar.show{display:flex}
 .override-bar .btn{background:var(--accent);color:#fff;border:none}
-.settings-bar{background:var(--surface);border:1px solid var(--line);border-radius:8px;margin:0 auto 12px;max-width:1680px;padding:12px 16px;font-size:12px}
+.settings-bar{background:var(--surface);border:1px solid var(--line);border-radius:8px;margin:0 auto 12px;max-width:1100px;padding:12px 16px;font-size:12px}
 .settings-bar summary{cursor:pointer;font-weight:700;color:var(--ink)}
 .settings-bar .row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:10px}
 .settings-bar label{color:var(--ink2);white-space:nowrap}
