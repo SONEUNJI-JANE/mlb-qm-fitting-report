@@ -999,22 +999,36 @@ function collapsedTableHtml(label, tableHtml) {
 function overdueListHtml(items, emptyText) {
   if (!items.length) return `<p class="sub">${esc(emptyText || '해당하는 건이 없습니다.')}</p>`;
   const th = 'padding:4px 10px;text-align:center';
+  // 요약 탭 미완료 상세와 같은 칸을 쓴다. "접수 전"은 그 단계 샘플이 한 번도 안 들어온 것이라
+  // 회차가 없고, 그럴 땐 이전 Stage/전달일이 "마지막으로 무슨 일이 있었나"를 알려준다.
   return `<table style="font-size:11px;border-collapse:collapse;white-space:nowrap">` +
     `<thead><tr style="color:var(--muted)">` +
     `<th style="padding:4px 10px;text-align:left">스타일</th><th style="${th}">단계</th>` +
     `<th style="padding:4px 10px;text-align:left">협력사</th><th style="${th}">DUE</th>` +
     `<th style="${th}">초과일</th><th style="padding:4px 10px;text-align:left">현재 status</th>` +
+    `<th style="${th}">이전 Stage</th><th style="${th}">전달일</th><th style="${th}">소요일</th>` +
     `<th style="padding:4px 10px;text-align:left">사유</th><th style="${th}">ETD</th></tr></thead><tbody>` +
-    items.map(o => `<tr style="border-top:1px solid var(--line)">` +
-      `<td style="padding:4px 10px">${esc(o.style_code)}</td>` +
-      `<td style="${th};color:${STAGE_COLORS[o.stage] || 'var(--ink2)'};font-weight:700">${esc(o.stage)}</td>` +
-      `<td style="padding:4px 10px">${esc(vendorAlias(o.vendor) || '-')}</td>` +
-      `<td style="${th}">${esc(shortDate(o.due))}</td>` +
-      `<td style="${th};font-weight:700">${o.overdue_days != null ? '+' + o.overdue_days : '-'}</td>` +
-      `<td style="padding:4px 10px">${esc(o.status)}</td>` +
-      `<td style="padding:4px 10px;color:var(--ink2)">${esc(o.reason || '-')}</td>` +
-      `<td style="${th};color:var(--muted)">${o.etd ? esc(shortDate(o.etd)) : '-'}</td></tr>`).join('') +
-    `</tbody></table>`;
+    items.map(o => {
+      // 그 단계에 회차 기록이 있으면 confirm_stage가 "2ND FIT"처럼 그 단계 자신을 가리킨다.
+      // 없으면(=접수 전) 이전 단계의 마지막 활동(예: "1ST 보정")이 들어온다.
+      const ownRound = o.confirm_stage && o.confirm_stage.endsWith(o.stage) ? o.confirm_stage : null;
+      const statusText = ownRound ? `${ownRound} ${o.status}` : o.status;
+      return `<tr style="border-top:1px solid var(--line)">` +
+        `<td style="padding:4px 10px">${esc(o.style_code)}</td>` +
+        `<td style="${th};color:${STAGE_COLORS[o.stage] || 'var(--ink2)'};font-weight:700">${esc(o.stage)}</td>` +
+        `<td style="padding:4px 10px">${esc(vendorAlias(o.vendor) || '-')}</td>` +
+        `<td style="${th}">${esc(shortDate(o.due))}</td>` +
+        `<td style="${th};font-weight:700">${o.overdue_days != null ? '+' + o.overdue_days : '-'}</td>` +
+        `<td style="padding:4px 10px">${esc(statusText)}</td>` +
+        `<td style="${th};color:var(--ink2)">${esc(o.confirm_stage || '-')}</td>` +
+        `<td style="${th}">${esc(o.confirm_date || '-')}</td>` +
+        `<td style="${th}">${o.elapsed_days != null ? o.elapsed_days : '-'}</td>` +
+        `<td style="padding:4px 10px;color:var(--ink2)">${esc(o.reason || '-')}</td>` +
+        `<td style="${th};color:var(--muted)">${o.etd ? esc(shortDate(o.etd)) : '-'}</td></tr>`;
+    }).join('') +
+    `</tbody></table>` +
+    `<p class="sub" style="margin-top:4px">현재 status가 <b>접수 전</b>이면 그 단계 샘플이 아직 한 번도 안 들어온 것입니다 — ` +
+    `직전에 무엇을 했는지는 "이전 Stage"와 "전달일"에 있습니다. 소요일은 전달일부터 기준일까지 영업일.</p>`;
 }
 
 function leadDetailId(rowId) { return `lead-detail-${rowId}`; }
@@ -1416,33 +1430,43 @@ function renderAnalysis() {
 
   // 카드 3 - 사유: 기입된 사유를 묶어서 센다. 기입률이 낮으면 그 자체가 먼저 할 일이라 같이 보여준다.
   if (showWeek) {
+    // 접수 전은 애초에 사유가 있을 수 없는 건이라 "미기입"과 섞으면 안 된다 - 따로 센다.
+    const isNotReceived = o => (o.status || '') === '접수 전';
+    const reasonKeyOf = o => isNotReceived(o)
+      ? '접수 전 (샘플 미입고)'
+      : ((o.reason || '').trim() || '(리젝 사유 미기입)');
     const byReason = {};
     od.forEach(o => {
-      const key = (o.reason || '').trim() || '(사유 미기입)';
+      const key = reasonKeyOf(o);
       const b = byReason[key] || (byReason[key] = {n: 0, vendors: {}});
       b.n++;
       const v = vendorAlias(o.vendor) || '미상';
       b.vendors[v] = (b.vendors[v] || 0) + 1;
     });
-    const filled = od.filter(o => (o.reason || '').trim()).length;
+    // 기입률은 "사유가 있어야 하는 건"(=접수된 뒤 리젝된 건)만 분모로 본다.
+    const reviewed = od.filter(o => !isNotReceived(o));
+    const filled = reviewed.filter(o => (o.reason || '').trim()).length;
+    const notReceived = od.length - reviewed.length;
     const list = Object.entries(byReason).map(([reason, b]) => ({reason, n: b.n,
       top: Object.entries(b.vendors).sort((x, y) => y[1] - x[1]).slice(0, 3).map(([v, n]) => `${v} ${n}`).join(', ')}))
       .sort((a, b) => b.n - a.n);
     const secR = document.createElement('div');
     secR.className = 'analysis-section';
     secR.innerHTML = `<h3>사유 · ${esc(delayStage)}</h3>` +
-      `<p class="sub">미완료 ${od.length}건 중 사유가 적힌 건 <b>${filled}건</b> (${pct(filled, od.length)}). ` +
-      `사유 칸이 비어 있으면 아래 "(사유 미기입)"으로 잡힙니다.</p>` +
+      `<p class="sub">미완료 ${od.length}건 = 샘플 들어와 리젝된 <b>${reviewed.length}건</b> + 아직 안 들어온 <b>${notReceived}건</b>. ` +
+      `리젝된 ${reviewed.length}건 중 사유가 적힌 건 <b>${filled}건</b> (${pct(filled, reviewed.length)}). ` +
+      `접수 전은 사유가 있을 수 없어 따로 셉니다.</p>` +
       (od.length
         ? hBarChart(list.map(r => ({label: r.reason, value: r.n,
-            color: r.reason === '(사유 미기입)' ? 'var(--line2)' : (STAGE_COLORS[delayStage] || 'var(--accent)')})),
+            color: r.reason.startsWith('접수 전') ? 'var(--warn)'
+              : (r.reason === '(리젝 사유 미기입)' ? 'var(--line2)' : (STAGE_COLORS[delayStage] || 'var(--accent)'))})),
             {unit: '건', width: 760, labelWidth: 160, barHeight: 18, gap: 6, barClickFn: 'pickDelayReason'}) +
           `<p class="sub" style="margin-top:6px"><b>막대를 누르면</b> 그 사유가 걸린 협력사·스타일이 펼쳐집니다.</p>` +
           (delayPickedReason
             ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid var(--line)">` +
               `<div style="font-weight:700;margin-bottom:6px">${esc(delayPickedReason)} ` +
               `<a href="#" onclick="pickDelayReason(null);return false" style="font-size:11px;color:var(--muted);font-weight:400">닫기</a></div>` +
-              overdueListHtml(od.filter(o => ((o.reason || '').trim() || '(사유 미기입)') === delayPickedReason)
+              overdueListHtml(od.filter(o => reasonKeyOf(o) === delayPickedReason)
                 .map(o => ({...o, stage: delayStage}))
                 .sort((a, b) => (b.overdue_days || 0) - (a.overdue_days || 0))) + `</div>`
             : '') +
@@ -1452,7 +1476,7 @@ function renderAnalysis() {
           `<th style="padding:4px 10px;text-align:center">건수</th><th style="padding:4px 10px;text-align:center">비중</th>` +
           `<th style="padding:4px 10px;text-align:left">많은 협력사</th></tr></thead><tbody>` +
           list.map(r => `<tr style="border-top:1px solid var(--line)">` +
-            `<td style="padding:4px 10px;color:${r.reason === '(사유 미기입)' ? '#aaa' : '#1a1a2e'}">${esc(r.reason)}</td>` +
+            `<td style="padding:4px 10px;color:${r.reason === '(리젝 사유 미기입)' ? 'var(--muted)' : 'var(--ink)'}">${esc(r.reason)}</td>` +
             `<td style="padding:4px 10px;text-align:center;font-weight:700">${r.n}</td>` +
             `<td style="padding:4px 10px;text-align:center;color:var(--muted)">${pct(r.n, od.length)}</td>` +
             `<td style="padding:4px 10px;color:var(--ink2)">${esc(r.top)}</td></tr>`).join('') +
