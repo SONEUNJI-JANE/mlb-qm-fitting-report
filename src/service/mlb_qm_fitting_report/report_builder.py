@@ -19,10 +19,10 @@ _TEMPLATE = """<!DOCTYPE html>
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 "Pretendard","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif}
 button,select,input{font:inherit;color:inherit}
-.hdr{height:52px;border-bottom:1px solid var(--line);background:var(--surface);color:var(--ink);display:flex;align-items:center;gap:12px;padding:0 24px;position:sticky;top:0;z-index:5}
+.hdr{height:52px;background:#1a1a2e;color:#fff;display:flex;align-items:center;gap:12px;padding:0 24px;position:sticky;top:0;z-index:5}
 .hdr h1{font-size:15px;margin:0;font-weight:700}
 .hdr .sp{flex:1}
-.ib{width:34px;height:34px;border:1px solid var(--line);border-radius:8px;background:var(--surface);cursor:pointer}
+.ib{width:34px;height:34px;border:1px solid rgba(255,255,255,.3);border-radius:8px;background:transparent;color:#fff;cursor:pointer}
 select{padding:6px 10px;border-radius:6px;border:1px solid var(--line2);font-size:12px}
 .content{padding:20px;max-width:1100px;margin:0 auto}
 /* 분석 탭만 넓게 - 차트와 협력사 표가 1100에서는 잘린다. 요약은 기존 폭 유지. */
@@ -68,7 +68,10 @@ th.grp-a,th.grp-th:first-of-type{border-left:1px solid var(--line)}
 .th-table input{width:36px;text-align:right}
 .tabs{display:flex;gap:4px}
 .tab-btn{padding:6px 16px;border-radius:6px 6px 0 0;border:none;background:rgba(255,255,255,0.12);color:#fff;font-size:12px;font-weight:700;cursor:pointer}
-.tab-btn.active{background:var(--soft);color:var(--ink)}
+.tab-btn.active{background:#fff;color:#1a1a2e}
+.subtabs{display:flex;gap:4px;margin:0 0 14px;border-bottom:1px solid var(--line)}
+.subtabs button{border:0;background:none;padding:9px 18px;font:inherit;font-weight:600;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent}
+.subtabs button.on{color:var(--ink);border-bottom-color:var(--ink)}
 .analysis-section{background:var(--surface);border-radius:8px;padding:16px 20px;margin-bottom:16px}
 .analysis-section h3{font-size:14px;margin:0 0 4px}
 .analysis-section .sub{color:var(--muted);font-size:11px;margin:0 0 12px}
@@ -1101,6 +1104,10 @@ let analysisLeadMetric = 'days';
 let analysisLeadView = 'chart';
 // 지연 분석 카드들이 보는 단계(FIT/PP/TOP). 세그먼트 버튼으로 고른다.
 let analysisDelayStage = 'FIT';
+// 분석 탭 갈래: 'week' = 이번 주 지연, 'season' = 시즌 누적(소요일·평가).
+let analysisSubTab = 'week';
+
+function setAnalysisSubTab(t) { analysisSubTab = t; renderAnalysis(); }
 
 function setDelayStage(st) { analysisDelayStage = st; renderAnalysis(); }
 // 차트로 볼 때 한 차트에 같이 띄울 칸들. 체크박스로 켜고 끈다(표의 열 = 막대 한 줄).
@@ -1250,8 +1257,20 @@ function renderAnalysis() {
   const bucketOf = st => ((OWNER_BY_STAGE[st] === 'TD' ? prog.TD : prog.QA)[st]) ||
     {total_all: 0, total_done: 0, baseline_all: 0, baseline_done: 0, overdue: []};
 
-  // 카드 1 - 이번 주 한눈에: 단계별 due 도래 / 미완료 / 정시율 / 납기영향. 필터도 여기 붙인다.
+  // 분석 탭 갈래 선택. 이번 주(지금 뭐가 밀렸나)와 시즌(쌓인 성적)은 쓰는 목적이 달라서 나눠 둔다.
   {
+    const nav = document.createElement('div');
+    nav.className = 'subtabs';
+    nav.innerHTML = [['week', '이번 주'], ['season', '시즌']]
+      .map(([k, label]) => `<button class="${analysisSubTab === k ? 'on' : ''}" onclick="setAnalysisSubTab('${k}')">${label}</button>`)
+      .join('');
+    container.appendChild(nav);
+  }
+  const showWeek = analysisSubTab === 'week';
+  const showSeason = analysisSubTab === 'season';
+
+  // 카드 1 - 이번 주 한눈에: 단계별 due 도래 / 미완료 / 정시율 / 납기영향. 필터도 여기 붙인다.
+  if (showWeek) {
     const secTop = document.createElement('div');
     secTop.className = 'analysis-section';
     const tile = st => {
@@ -1288,7 +1307,7 @@ function renderAnalysis() {
   const avgOfArr = a => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length * 10) / 10 : null;
 
   // 카드 2 - 어떤 협력사가 늦나: 미완료 건수 / 평균·최대 초과일 / 납기영향.
-  {
+  if (showWeek) {
     const byVendor = {};
     od.forEach(o => {
       const v = vendorAlias(o.vendor) || '미상';
@@ -1302,17 +1321,37 @@ function renderAnalysis() {
       .map(([v, b]) => ({vendor: v, late: b.late, avg: avgOfArr(b.days), max: b.days.length ? Math.max(...b.days) : null,
                          impacted: b.impacted, worst: b.worst}))
       .sort((a, b) => b.late - a.late || (b.avg || 0) - (a.avg || 0));
+    // 차트는 선택한 단계 하나가 아니라 FIT/PP/TOP를 같이 보여준다 - 단계별로 따로 센다.
+    const vendorStageLate = {};
+    STAGES.forEach(st => {
+      (bucketOf(st).overdue || []).forEach(o => {
+        const v = vendorAlias(o.vendor) || '미상';
+        const m = vendorStageLate[v] || (vendorStageLate[v] = {});
+        m[st] = (m[st] || 0) + 1;
+      });
+    });
+    // 한 단계에만 걸린 협력사도 차트에 나오도록, 표에 없는 협력사를 뒤에 붙인다.
+    Object.keys(vendorStageLate).forEach(v => {
+      if (!list.some(r => r.vendor === v)) list.push({vendor: v, late: 0, avg: null, max: null, impacted: 0, worst: null});
+    });
     const secV = document.createElement('div');
     secV.className = 'analysis-section';
     const tdc = 'padding:4px 10px;text-align:center';
-    secV.innerHTML = `<h3>어떤 협력사가 늦나 · ${esc(delayStage)}</h3>` +
-      `<p class="sub">DUE가 지났는데 아직 승인 안 난 건을 협력사별로 모았습니다. 초과일수는 영업일 기준입니다.</p>` +
+    secV.innerHTML = `<h3>어떤 협력사가 늦나</h3>` +
+      `<p class="sub">DUE가 지났는데 아직 승인 안 난 건입니다. 차트는 FIT·PP·TOP를 같이, 아래 표는 고른 단계(${esc(delayStage)})만 보여줍니다.</p>` +
       `<div style="margin-bottom:10px">${stageSegHtml}</div>` +
       (list.length
-        ? hBarChart(list.map(r => ({label: r.vendor, value: r.late,
-            color: r.impacted ? 'var(--bad)' : (STAGE_COLORS[delayStage] || 'var(--accent)')})),
-            {unit: '건', width: 880, labelWidth: 120, barHeight: 18, gap: 6}) +
-          `<p class="sub" style="margin-top:6px">붉은 막대는 납기영향 건이 섞인 협력사입니다.</p>` +
+        ? groupedBarChart(list.map(r => r.vendor),
+            STAGES.map(st => ({
+              name: st, color: STAGE_COLORS[st],
+              values: list.map(r => (vendorStageLate[r.vendor] || {})[st] || null),
+            })),
+            {width: 1240, height: 320, unit: '건', showValues: true,
+             rotateLabels: list.length > 8, responsive: true,
+             yMax: Math.max(1, Math.ceil(Math.max(0, ...Object.values(vendorStageLate)
+               .flatMap(m => STAGES.map(st => m[st] || 0))) * 1.15))}) +
+          `<p class="sub" style="margin-top:6px">막대 = 그 단계에서 DUE 지나고 아직 승인 안 난 건수. ` +
+          `세 단계를 나란히 두면 "FIT은 괜찮은데 PP에서 막힌다" 같은 게 바로 보입니다.</p>` +
           collapsedTableHtml('숫자로 보기 (평균·최대 초과일, 납기영향, 가장 오래 밀린 스타일)',
           `<table style="font-size:11px;border-collapse:collapse">` +
           `<thead><tr style="color:var(--muted)"><th style="padding:4px 10px;text-align:left">협력사</th>` +
@@ -1331,7 +1370,7 @@ function renderAnalysis() {
   }
 
   // 카드 3 - 사유: 기입된 사유를 묶어서 센다. 기입률이 낮으면 그 자체가 먼저 할 일이라 같이 보여준다.
-  {
+  if (showWeek) {
     const byReason = {};
     od.forEach(o => {
       const key = (o.reason || '').trim() || '(사유 미기입)';
@@ -1369,7 +1408,7 @@ function renderAnalysis() {
   }
 
   // 카드 4 - 납기영향: DUE~ETD 사이 버퍼를 이미 다 까먹은 건(impacts_delivery)만 추린다.
-  {
+  if (showWeek) {
     const impacted = od.filter(o => o.impacts_delivery);
     const byVendor = {};
     impacted.forEach(o => {
@@ -1404,7 +1443,7 @@ function renderAnalysis() {
 
   // 단계별(보정/FIT/PP/TOP) 소요일수: 단계마다 표를 따로 만들고, 그 안에서 상태(APPROVED가
   // 맨 위, 나머지는 이름순) → 회차(1ST/2ND/3RD/4TH/5TH) 순으로 묶어서 보여준다.
-  {
+  if (showSeason) {
     const roundLead = computeRoundLeadTimes(rows, groupBy);
     const avgOf = days => days.length ? Math.round(days.reduce((a, b) => a + b, 0) / days.length * 10) / 10 : null;
 
