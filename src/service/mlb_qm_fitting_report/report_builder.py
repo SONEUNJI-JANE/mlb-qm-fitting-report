@@ -1001,14 +1001,29 @@ function overdueListHtml(items, emptyText) {
   const th = 'padding:4px 10px;text-align:center';
   // 요약 탭 미완료 상세와 같은 칸을 쓴다. "접수 전"은 그 단계 샘플이 한 번도 안 들어온 것이라
   // 회차가 없고, 그럴 땐 이전 Stage/전달일이 "마지막으로 무슨 일이 있었나"를 알려준다.
+  const COLS = [
+    ['스타일', 'style_code', 'left'], ['단계', 'stage', 'center'], ['협력사', 'vendor', 'left'],
+    ['DUE', 'due', 'center'], ['초과일', 'overdue_days', 'center'], ['현재 status', 'status', 'left'],
+    ['이전 Stage', 'confirm_stage', 'center'], ['전달일', 'confirm_date', 'center'],
+    ['소요일', 'elapsed_days', 'center'], ['사유', 'reason', 'left'], ['ETD', 'etd', 'center'],
+  ];
+  // 머리글을 누르면 그 칸으로 정렬(다시 누르면 반대). 빈 칸은 항상 뒤로.
+  const sorted = drillSort
+    ? [...items].sort((a, b) => {
+        const pick = o => drillSort.key === 'vendor' ? (vendorAlias(o.vendor) || '') : o[drillSort.key];
+        const c = compareOverdueValues(pick(a), pick(b));
+        return c === 0 ? 0 : c * drillSort.dir;
+      })
+    : items;
   return `<table style="font-size:11px;border-collapse:collapse;white-space:nowrap">` +
     `<thead><tr style="color:var(--muted)">` +
-    `<th style="padding:4px 10px;text-align:left">스타일</th><th style="${th}">단계</th>` +
-    `<th style="padding:4px 10px;text-align:left">협력사</th><th style="${th}">DUE</th>` +
-    `<th style="${th}">초과일</th><th style="padding:4px 10px;text-align:left">현재 status</th>` +
-    `<th style="${th}">이전 Stage</th><th style="${th}">전달일</th><th style="${th}">소요일</th>` +
-    `<th style="padding:4px 10px;text-align:left">사유</th><th style="${th}">ETD</th></tr></thead><tbody>` +
-    items.map(o => {
+    COLS.map(([label, key, align]) => {
+      const arrow = drillSort && drillSort.key === key ? (drillSort.dir === 1 ? ' ▲' : ' ▼') : '';
+      return `<th style="padding:4px 10px;text-align:${align};cursor:pointer;user-select:none"` +
+        ` onclick="sortDrill('${key}')" title="눌러서 정렬">${esc(label)}${arrow}</th>`;
+    }).join('') +
+    `</tr></thead><tbody>` +
+    sorted.map(o => {
       // 그 단계에 회차 기록이 있으면 confirm_stage가 "2ND FIT"처럼 그 단계 자신을 가리킨다.
       // 없으면(=접수 전) 이전 단계의 마지막 활동(예: "1ST 보정")이 들어온다.
       const ownRound = o.confirm_stage && o.confirm_stage.endsWith(o.stage) ? o.confirm_stage : null;
@@ -1154,6 +1169,13 @@ let analysisSubTab = 'week';
 // 차트에서 고른 협력사 / 사유. 고르면 그 아래에 해당 스타일 목록이 펼쳐진다.
 let delayPickedVendor = null;
 let delayPickedReason = null;
+// 드릴다운(스타일 목록) 정렬. 머리글을 누르면 바뀐다.
+let drillSort = null;
+
+function sortDrill(key) {
+  drillSort = (drillSort && drillSort.key === key) ? {key, dir: -drillSort.dir} : {key, dir: 1};
+  renderAnalysis();
+}
 
 function pickDelayVendor(v) { delayPickedVendor = (delayPickedVendor === v) ? null : v; renderAnalysis(); }
 function pickDelayReason(r) { delayPickedReason = (delayPickedReason === r) ? null : r; renderAnalysis(); }
