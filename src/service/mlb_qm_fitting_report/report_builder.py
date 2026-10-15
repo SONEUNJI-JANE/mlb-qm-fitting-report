@@ -817,7 +817,7 @@ function groupedBarChart(periods, series, opts) {
   ).join('');
   // responsive면 폭을 컨테이너에 맞춰 줄인다(viewBox라 내부 좌표는 그대로, 넘치지 않는다).
   const svgAttrs = opts.responsive
-    ? `width="100%" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMin meet" style="max-width:${width}px;height:auto"`
+    ? `width="100%" viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMin meet" style="display:block;width:100%;height:auto"`
     : `width="${width}" height="${height}"`;
   return `<div style="margin-bottom:6px">${legend}</div><svg ${svgAttrs}>${out}</svg>`;
 }
@@ -1348,7 +1348,7 @@ function renderAnalysis() {
   const showWeek = analysisSubTab === 'week';
   const showSeason = analysisSubTab === 'season';
 
-  // 카드 1 - 이번 주 한눈에: 단계별 due 도래 / 미완료 / 정시율 / 납기영향. 필터도 여기 붙인다.
+  // 카드 1 - 이번 주 한눈에: 단계별 due 도래 / 미완료 / 정시율. 필터도 여기 붙인다.
   if (showWeek) {
     const secTop = document.createElement('div');
     secTop.className = 'analysis-section';
@@ -1373,7 +1373,7 @@ function renderAnalysis() {
     container.appendChild(secTop);
   }
 
-  // 지연 카드 3종(협력사 / 사유 / 납기영향)은 한 단계를 같이 본다.
+  // 지연 카드(협력사 / 사유)는 한 단계를 같이 본다.
   const delayStage = analysisDelayStage;
   const stageSegHtml = `<span style="font-weight:700;font-size:12px;margin-right:8px">단계</span>` +
     STAGES.map(st => `<button onclick="setDelayStage('${st}')" style="margin-right:4px;padding:4px 12px;border-radius:6px;cursor:pointer;` +
@@ -1385,20 +1385,19 @@ function renderAnalysis() {
   const odAll = STAGES.flatMap(st => (bucketOf(st).overdue || []).map(o => ({...o, stage: st})));
   const avgOfArr = a => a.length ? Math.round(a.reduce((x, y) => x + y, 0) / a.length * 10) / 10 : null;
 
-  // 카드 2 - 어떤 협력사가 늦나: 미완료 건수 / 평균·최대 초과일 / 납기영향.
+  // 카드 2 - 어떤 협력사가 늦나: 미완료 건수 / 평균·최대 초과일.
   if (showWeek) {
     const byVendor = {};
     od.forEach(o => {
       const v = vendorAlias(o.vendor) || '미상';
-      const b = byVendor[v] || (byVendor[v] = {late: 0, days: [], impacted: 0, worst: null});
+      const b = byVendor[v] || (byVendor[v] = {late: 0, days: [], worst: null});
       b.late++;
       if (o.overdue_days != null) b.days.push(o.overdue_days);
-      if (o.impacts_delivery) b.impacted++;
       if (!b.worst || (o.overdue_days || 0) > (b.worst.overdue_days || 0)) b.worst = o;
     });
     const list = Object.entries(byVendor)
       .map(([v, b]) => ({vendor: v, late: b.late, avg: avgOfArr(b.days), max: b.days.length ? Math.max(...b.days) : null,
-                         impacted: b.impacted, worst: b.worst}))
+                         worst: b.worst}))
       .sort((a, b) => b.late - a.late || (b.avg || 0) - (a.avg || 0));
     // 차트는 선택한 단계 하나가 아니라 FIT/PP/TOP를 같이 보여준다 - 단계별로 따로 센다.
     const vendorStageLate = {};
@@ -1411,7 +1410,7 @@ function renderAnalysis() {
     });
     // 한 단계에만 걸린 협력사도 차트에 나오도록, 표에 없는 협력사를 뒤에 붙인다.
     Object.keys(vendorStageLate).forEach(v => {
-      if (!list.some(r => r.vendor === v)) list.push({vendor: v, late: 0, avg: null, max: null, impacted: 0, worst: null});
+      if (!list.some(r => r.vendor === v)) list.push({vendor: v, late: 0, avg: null, max: null, worst: null});
     });
     const secV = document.createElement('div');
     secV.className = 'analysis-section';
@@ -1425,7 +1424,7 @@ function renderAnalysis() {
               name: st, color: STAGE_COLORS[st],
               values: list.map(r => (vendorStageLate[r.vendor] || {})[st] || null),
             })),
-            {width: 1240, height: 320, unit: '건', showValues: true,
+            {width: 1600, height: 340, unit: '건', showValues: true,
              rotateLabels: list.length > 8, responsive: true, barClickFn: 'pickDelayVendor',
              yMax: Math.max(1, Math.ceil(Math.max(0, ...Object.values(vendorStageLate)
                .flatMap(m => STAGES.map(st => m[st] || 0))) * 1.15))}) +
@@ -1439,7 +1438,7 @@ function renderAnalysis() {
               overdueListHtml(odAll.filter(o => (vendorAlias(o.vendor) || '미상') === delayPickedVendor)
                 .sort((a, b) => (b.overdue_days || 0) - (a.overdue_days || 0))) + `</div>`
             : '') +
-          collapsedTableHtml('숫자로 보기 (평균·최대 초과일, 납기영향, 가장 오래 밀린 스타일)',
+          collapsedTableHtml('숫자로 보기 (평균·최대 초과일, 가장 오래 밀린 스타일)',
           `<table style="font-size:11px;border-collapse:collapse">` +
           `<thead><tr style="color:var(--muted)"><th style="padding:4px 10px;text-align:left">협력사</th>` +
           `<th style="${tdc}">미완료</th><th style="${tdc}">평균 초과</th><th style="${tdc}">최대 초과</th>` +
@@ -1449,7 +1448,6 @@ function renderAnalysis() {
             `<td style="${tdc};font-weight:700">${r.late}건</td>` +
             `<td style="${tdc}">${r.avg == null ? '-' : '+' + r.avg + '일'}</td>` +
             `<td style="${tdc}">${r.max == null ? '-' : '+' + r.max + '일'}</td>` +
-            `<td style="${tdc};color:${r.impacted ? '#c0392b' : '#888'};font-weight:${r.impacted ? 700 : 400}">${r.impacted}건</td>` +
             `<td style="padding:4px 10px;color:var(--ink2)">${r.worst ? `${esc(r.worst.style_code)} (+${r.worst.overdue_days}일, ${esc(r.worst.status)})` : '-'}</td>` +
             `</tr>`).join('') + `</tbody></table>`)
         : `<p class="sub">이 단계는 지금 미완료가 없습니다.</p>`);
@@ -1702,7 +1700,7 @@ function renderAnalysis() {
       const dataMax = Math.max(0, ...series.flatMap(x => x.values.filter(v => v != null)));
       html += (picked.length && names.length
         ? groupedBarChart(names, series, {
-            width: 1240, height: 340, unit: chartUnit,
+            width: 1600, height: 360, unit: chartUnit,
             yMax: Math.max(1, Math.ceil(dataMax * 1.1)),
             showValues: true, rotateLabels: names.length > 8, responsive: true,
           })
