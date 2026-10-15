@@ -1394,6 +1394,33 @@ function renderAnalysis() {
     container.appendChild(secTop);
   }
 
+  // 시즌 KPI - 이번 주 카드와 같은 모양이되, due 도래분이 아니라 "시즌 전체 스타일 수" 기준.
+  // 시즌이 끝났을 때 최종 성적을 보는 자리라 분모가 달라야 한다.
+  if (showSeason) {
+    const secSeason = document.createElement('div');
+    secSeason.className = 'analysis-section';
+    const tile = st => {
+      const b = bucketOf(st);
+      const left = b.total_all - b.total_done;
+      const donePct = b.total_all ? Math.round(b.total_done / b.total_all * 1000) / 10 : null;
+      const color = STAGE_COLORS[st] || 'var(--accent)';
+      return `<div style="flex:1;min-width:220px;border:1px solid var(--line);border-radius:10px;padding:14px 16px">` +
+        `<div style="display:flex;align-items:baseline;gap:8px">` +
+        `<span style="font-weight:700;font-size:12px;color:${color}">${esc(st)}</span>` +
+        `<span style="font-size:28px;font-weight:700">${donePct == null ? '-' : donePct + '%'}</span></div>` +
+        `<div style="margin:8px 0 6px">${progressBarHtml(b.total_done, b.total_all, color)}</div>` +
+        `<div style="font-size:11px;color:var(--muted)">전체 ${b.total_all}sty · 완료 ${b.total_done} · ` +
+        `남음 <b style="color:var(--ink)">${left}</b></div>` +
+        `</div>`;
+    };
+    secSeason.innerHTML = `<h3>시즌 진행률 · ${esc(season)}</h3>` +
+      `<p class="sub">시즌 전체 스타일 수 기준입니다(이번 주 카드는 DUE 도래분 기준이라 분모가 다릅니다). ` +
+      `아래 필터는 이 탭 전체에 적용됩니다.</p>` +
+      filterRowHtml(allRows) +
+      `<div style="display:flex;gap:12px;flex-wrap:wrap">${STAGES.map(tile).join('')}</div>`;
+    container.appendChild(secSeason);
+  }
+
   // 지연 카드(협력사 / 사유)는 한 단계를 같이 본다.
   const delayStage = analysisDelayStage;
   const stageSegHtml = `<span style="font-weight:700;font-size:12px;margin-right:8px">단계</span>` +
