@@ -1086,7 +1086,8 @@ function computeRoundLeadTimes(rawRows, groupBy) {
   // 그룹(협력사/아이템/TD/QA)별 왕복 리드타임. response = 우리가 결과를 내보낸 뒤 다음 샘플이
   // 들어오기까지(상대가 들고 있던 기간), review = 샘플이 들어온 뒤 결과를 내보내기까지(우리가 들고 있던 기간).
   const groups = {};
-  const groupBucket = g => groups[g] || (groups[g] = {response: [], review: [], byStage: {}, byStageStatus: {}, counts: {}, styles: 0});
+  const groupBucket = g => groups[g] || (groups[g] = {response: [], review: [], byStage: {}, byStageStatus: {},
+    handoff: {}, rework: {}, counts: {}, styles: 0});
 
   for (const row of rawRows) {
     if (!row.detail) continue;
@@ -1145,6 +1146,11 @@ function computeRoundLeadTimes(rawRows, groupBy) {
         const gb = groupBucket(group);
         gb.response.push(days);
         (gb.byStage[stage] || (gb.byStage[stage] = [])).push(days);
+        // 같은 단계로 돌아오면 재작업(1차→2차), 다른 단계로 가면 전환(승인→다음 단계 샘플).
+        // 둘은 성격이 완전히 달라서 한 칸에 섞으면 "승인 후 안 움직이는 것"이 보이지 않는다.
+        const transKey = nextStageLabel === stage ? stage : `${stage}→${nextStageLabel}`;
+        const bag = nextStageLabel === stage ? gb.rework : gb.handoff;
+        (bag[transKey] || (bag[transKey] = [])).push(days);
         // 접었다 폈을 때 보여줄 상태별 분해(Approved→PP 28.7일 / Rejected→FIT 14.2일 식).
         const byStatus = gb.byStageStatus[stage] || (gb.byStageStatus[stage] = {});
         const sb = byStatus[status] || (byStatus[status] = {days: [], next: {}});
@@ -1184,7 +1190,7 @@ function setAnalysisSubTab(t) { analysisSubTab = t; renderAnalysis(); }
 
 function setDelayStage(st) { analysisDelayStage = st; renderAnalysis(); }
 // 차트로 볼 때 한 차트에 같이 띄울 칸들. 체크박스로 켜고 끈다(표의 열 = 막대 한 줄).
-let analysisLeadStages = ['보정', 'FIT', 'PP', 'TOP'];
+let analysisLeadStages = ['h:보정→FIT', 'h:FIT→PP', 'h:PP→TOP'];
 
 function toggleLeadStage(key) {
   const i = analysisLeadStages.indexOf(key);
@@ -1524,6 +1530,7 @@ function renderAnalysis() {
       .map(([name, b]) => ({name, resp: avgOf(b.response), respN: b.response.length,
                             rev: avgOf(b.review), revN: b.review.length,
                             byStage: b.byStage, byStageStatus: b.byStageStatus,
+                            handoff: b.handoff, rework: b.rework,
                             counts: b.counts, styles: b.styles}))
       .filter(g => g.respN || g.revN)
       .sort((a, b) => (b.resp == null ? -1 : b.resp) - (a.resp == null ? -1 : a.resp));
@@ -1559,10 +1566,15 @@ function renderAnalysis() {
     };
     // 차트에서 고를 수 있는 칸 = 표의 열. 회차 지표일 땐 "들어옴→내보냄"(우리 검토 소요일)이
     // 의미가 없어서 뺀다.
+    // 전환(승인→다음 단계 샘플)과 재작업(1차→2차)은 따로 고른다.
+    const HANDOFF_KEYS = ['보정→FIT', '보정→PP', 'FIT→PP', 'PP→TOP'];
+    const handoffKeys = HANDOFF_KEYS.filter(k =>
+      Object.values(roundLead.groups).some(b => (b.handoff[k] || []).length));
     const leadChartOptions = [
-      ...WITHIN_STAGE_PIPELINE.map(st => ({key: st, label: st, color: STAGE_COLORS[st]})),
-      {key: 'resp', label: '내보냄→들어옴 (상대가 들고 있던 기간)', color: '#c0392b'},
-      ...(metric === 'days' ? [{key: 'rev', label: '들어옴→내보냄 (우리가 들고 있던 기간)', color: '#2e9e5b'}] : []),
+      ...handoffKeys.map(k => ({key: 'h:' + k, label: k, color: STAGE_COLORS[k.split('→')[0]]})),
+      ...WITHIN_STAGE_PIPELINE.map(st => ({key: 'r:' + st, label: st + ' 재작업', color: STAGE_COLORS[st]})),
+      {key: 'resp', label: '내보냄→들어옴 (상대가 들고 있던 기간)', color: 'var(--bad)'},
+      ...(metric === 'days' ? [{key: 'rev', label: '들어옴→내보냄 (우리가 들고 있던 기간)', color: 'var(--good)'}] : []),
     ];
     const metricHtml = `<label style="font-weight:700;margin-right:8px;font-size:12px">지표</label>` +
       `<select onchange="analysisLeadMetric=this.value;renderAnalysis()">` +
@@ -1592,43 +1604,80 @@ function renderAnalysis() {
     const th = `padding:4px 10px;text-align:center`;
     const colspan = WITHIN_STAGE_PIPELINE.length + 3;
 
-    html += `<h3 style="margin:0 0 4px">${esc(GROUP_LABELS[groupBy])}별 ` +
-      `${metric === 'rounds' ? '회차 수' : '소요일 수 (영업일)'}</h3>` +
-      `<p class="sub">단계 칸 = 내보냄→들어옴(결과를 보낸 뒤 다음 샘플이 들어오기까지, 상대가 들고 있던 기간). ` +
-      `맨 오른쪽 "들어옴→내보냄"은 샘플 접수 뒤 결과를 보내기까지 우리가 들고 있던 기간입니다. ` +
-      `${esc(GROUP_LABELS[groupBy])} 이름을 누르면 상태별(Approved/Rejected/Int Rej) 분해가 펼쳐집니다.<br>` +
-      (metric === 'rounds'
-        ? `윗줄 = 스타일 1개를 평균 몇 회차 봤는지(회차 ÷ 스타일). 아랫줄 = 그 모수(총 회차 · 스타일 수).`
-        : `윗줄 = 평균 소요일. 아랫줄 = 그 모수(평균을 낸 <b>회차 건수</b> · <b>스타일 수</b>) — ` +
-          `한 스타일이 1차·2차·3차를 거치면 회차는 그만큼 여러 번 셉니다.`) +
-      ` 소요일은 접수일·전달일이 기입된 회차만, 회차 수는 기록이 있는 회차를 다 셉니다.</p>` +
+    html += `<h3 style="margin:0 0 4px">${esc(GROUP_LABELS[groupBy])}별 소요일 수 (영업일)</h3>` +
+      `<p class="sub">접수일·전달일이 둘 다 기입된 회차만 집계합니다. 괄호 안은 평균을 낸 건수입니다.</p>` +
       `<div style="margin-bottom:8px">${metricHtml}</div>`;
 
-    let tableHtml = `<table style="font-size:11px;border-collapse:collapse">` +
+    // 표 두 개로 나눈다.
+    //  (1) 단계 전환: 승인하고 다음 단계 샘플이 들어오기까지 - "승인 났는데 안 움직이는" 구간
+    //  (2) 단계 내 재작업: 리젝 주고 다음 차수 샘플이 들어오기까지 - "고쳐서 다시 내는" 구간
+    // 둘을 한 칸에 섞으면 평균이 뭉개져서 어느 쪽이 문제인지 안 보인다.
+    const avgOfBag = (bag, key) => avgOf(bag[key] || []);
+    const nOfBag = (bag, key) => (bag[key] || []).length;
+    const sumBag = key => groupRows.flatMap(g => (g.handoff[key] || g.rework[key] || []));
+    const dayCell = (days, n) => n
+      ? `<b>${days}일</b> <span style="color:var(--muted);font-weight:400">(${n}건)</span>`
+      : '<span style="color:var(--line2)">-</span>';
+
+    const leadTableHtml = (title, desc, keys, bagName, detailByStage) => {
+      if (!keys.length) return '';
+      const allCells = keys.map(k => {
+        const all = groupRows.flatMap(g => (g[bagName][k] || []));
+        return {key: k, days: avgOf(all), n: all.length};
+      });
+      let out = `<h4 style="margin:18px 0 2px;font-size:13px">${esc(title)}</h4>` +
+        `<p class="sub" style="margin:0 0 8px">${desc}</p>` +
+        `<table style="font-size:11px;border-collapse:collapse">` +
+        `<thead><tr style="color:var(--muted)"><th style="padding:4px 10px;text-align:left">${esc(GROUP_LABELS[groupBy])}</th>` +
+        keys.map(k => `<th style="${th};color:${STAGE_COLORS[k.split('→')[0]] || 'var(--muted)'}">${esc(k)}</th>`).join('') +
+        `</tr></thead><tbody>` +
+        `<tr style="font-weight:700;background:var(--soft)"><td style="padding:4px 10px">전체 평균</td>` +
+        allCells.map(c => `<td style="${th}">${dayCell(c.days, c.n)}</td>`).join('') + `</tr>`;
+      groupRows.forEach(g => {
+        const bag = g[bagName];
+        if (!keys.some(k => nOfBag(bag, k))) return;
+        out += `<tr style="border-top:1px solid var(--line)"><td style="padding:4px 10px">${esc(g.name)}</td>` +
+          keys.map(k => `<td style="${th}">${dayCell(avgOfBag(bag, k), nOfBag(bag, k))}</td>`).join('') + `</tr>`;
+      });
+      return out + `</tbody></table>`;
+    };
+
+    // 어떤 전환/재작업이 실제로 있었는지 데이터에서 뽑는다(FIT 생략하고 보정→PP로 간 경우 등).
+    const handoffCols = ['보정→FIT', '보정→PP', 'FIT→PP', 'PP→TOP']
+      .filter(k => groupRows.some(g => (g.handoff[k] || []).length));
+    const reworkCols = WITHIN_STAGE_PIPELINE
+      .filter(st => groupRows.some(g => (g.rework[st] || []).length));
+
+    let tableHtml =
+      leadTableHtml('단계 전환 — 승인 후 다음 단계 샘플이 들어오기까지',
+        '그 단계를 통과시키고 다음 단계 샘플을 받기까지 걸린 영업일입니다. 여기가 길면 "승인은 났는데 안 움직이는" 것입니다.',
+        handoffCols, 'handoff') +
+      leadTableHtml('단계 내 재작업 — 리젝 후 다음 차수 샘플이 들어오기까지',
+        '리젝(또는 Int Rej)을 주고 고쳐 온 샘플을 받기까지 걸린 영업일입니다. 1차→2차, 2차→3차를 모두 합쳐 셉니다.',
+        reworkCols, 'rework') +
+      `<h4 style="margin:18px 0 2px;font-size:13px">합계 · 우리가 들고 있던 기간</h4>` +
+      `<p class="sub" style="margin:0 0 8px">왼쪽은 위 두 표를 전부 합친 값(상대가 들고 있던 총 기간), ` +
+      `오른쪽은 샘플 접수 뒤 결과를 보내기까지 우리가 쥐고 있던 기간입니다. ` +
+      `${esc(GROUP_LABELS[groupBy])} 이름을 누르면 단계·상태별로 펼쳐집니다.</p>` +
+      `<table style="font-size:11px;border-collapse:collapse">` +
       `<thead><tr style="color:var(--muted)"><th style="padding:4px 10px;text-align:left">${esc(GROUP_LABELS[groupBy])}</th>` +
-      WITHIN_STAGE_PIPELINE.map(st => `<th style="${th};color:${STAGE_COLORS[st] || '#888'}">${esc(st)}</th>`).join('') +
       `<th style="${th}">내보냄→들어옴</th><th style="${th};border-left:1px solid var(--line)">들어옴→내보냄</th>` +
       `</tr></thead><tbody>` +
       `<tr style="font-weight:700;background:var(--soft)">` +
       `<td style="padding:4px 10px">${leadToggleLink('all', '전체 평균')}</td>` +
-      WITHIN_STAGE_PIPELINE.map(st => `<td style="${th}">${cell(avgOf(allByStage[st]), allByStage[st].length, allCounts[st])}</td>`).join('') +
       `<td style="${th}">${cell(avgOf(allResp), allResp.length, {...sumCounts(allCounts), styles: allStyles})}</td>` +
       `<td style="${th};border-left:1px solid var(--line)">${cell(avgOf(allRev), allRev.length, {...sumCounts(allCounts), styles: allStyles})}</td></tr>` +
-      leadDetailRow('all', roundLead.stages, colspan);
+      leadDetailRow('all', roundLead.stages, 3);
     if (!groupRows.length) {
-      tableHtml += `<tr><td colspan="${WITHIN_STAGE_PIPELINE.length + 3}" style="padding:6px;color:var(--muted)">데이터 없음</td></tr>`;
+      tableHtml += `<tr><td colspan="3" style="padding:6px;color:var(--muted)">데이터 없음</td></tr>`;
     }
     groupRows.forEach(g => {
       const rowId = `lead-${groupBy}-${g.name}`.replace(/[^\\w-]/g, '_');
       tableHtml += `<tr style="border-top:1px solid var(--line)">` +
         `<td style="padding:4px 10px">${leadToggleLink(rowId, g.name)}</td>` +
-        WITHIN_STAGE_PIPELINE.map(st => {
-          const d = g.byStage[st] || [];
-          return `<td style="${th}">${cell(avgOf(d), d.length, g.counts[st])}</td>`;
-        }).join('') +
         `<td style="${th};font-weight:700">${cell(g.resp, g.respN, {...sumCounts(g.counts), styles: g.styles})}</td>` +
         `<td style="${th};border-left:1px solid var(--line)">${cell(g.rev, g.revN, {...sumCounts(g.counts), styles: g.styles})}</td></tr>` +
-        leadDetailRow(rowId, g.byStageStatus, colspan);
+        leadDetailRow(rowId, g.byStageStatus, 3);
     });
     tableHtml += `</tbody></table>`;
 
@@ -1639,7 +1688,10 @@ function renderAnalysis() {
       const valueOf = (g, key) => {
         if (key === 'resp') return metricValue(g.resp, {...sumCounts(g.counts), styles: g.styles});
         if (key === 'rev') return g.rev;
-        return metricValue(avgOf(g.byStage[key] || []), g.counts[key]);
+        const bag = key.startsWith('h:') ? g.handoff : g.rework;
+        const days = bag[key.slice(2)] || [];
+        if (metric === 'rounds') return days.length || null;  // 회차 지표에서는 '몇 번 일어났나'
+        return avgOf(days);
       };
       const names = groupRows.map(g => g.name);
       const series = picked.map(o => ({
@@ -1739,11 +1791,8 @@ function overdueRemarkKey(season, styleCode, stage) { return `od|${season}|${sty
 
 function overdueDetailRowHtml(overdue, overdueId, colspan, weekId, season, stage, remarks) {
   if (!overdue.length) return '';
-  const impacted = overdue.filter(o => o.impacts_delivery).length;
-  const impactedPct = pct(impacted, overdue.length);
-  const impactedNote = ` <span style="color:${impacted > 0 ? '#c0392b' : '#888'};font-weight:700">(납기영향 ${impacted}건, ${impactedPct}%)</span>`;
   return `<tr><td colspan="${colspan}" style="background:var(--soft);padding:0">` +
-    `<div style="padding:4px 10px"><a href="#" onclick="toggleOverdue('${overdueId}');return false" style="font-size:11px;color:#4a65a9">미완료 ${overdue.length}건 상세 ▾</a>${impactedNote}</div>` +
+    `<div style="padding:4px 10px"><a href="#" onclick="toggleOverdue('${overdueId}');return false" style="font-size:11px;color:#4a65a9">미완료 ${overdue.length}건 상세 ▾</a></div>` +
     `<div id="${overdueId}" style="display:${overdueOpen.has(overdueId) ? 'block' : 'none'};padding:0 10px 8px;overflow-x:hidden">` +
     `<table style="width:auto;min-width:100%;table-layout:auto;overflow:visible;font-size:10px;border-collapse:collapse;white-space:nowrap">` +
     `<thead><tr style="color:var(--muted)">` +
@@ -1751,7 +1800,7 @@ function overdueDetailRowHtml(overdue, overdueId, colspan, weekId, season, stage
     [['스타일', 'style_code', 'center'], ['협력사', 'vendor', 'center'], ['DUE DATE', 'due', 'center'],
      ['납기(ETD)', 'etd', 'center'], ['초과일수', 'overdue_days', 'center'], ['현재 status', 'status', 'left'],
      ['이전 Stage', 'confirm_stage', 'center'], ['전달일', 'confirm_date', 'center'], ['사유', 'reason', 'center'],
-     ['소요일', 'elapsed_days', 'center'], ['납기영향', 'impacts_delivery', 'center']]
+     ['소요일', 'elapsed_days', 'center']]
       .map(([label, key, align]) => {
         const st = overdueSort[overdueId];
         const arrow = st && st.key === key ? (st.dir === 1 ? ' ▲' : ' ▼') : '';
@@ -1762,7 +1811,7 @@ function overdueDetailRowHtml(overdue, overdueId, colspan, weekId, season, stage
     `<tbody>` + sortedOverdue(overdue, overdueId).map(o => {
       const remarkDomId = `overdue-${weekId}-${season}-${o.style_code}-${stage}`.replace(/[^\\w-]/g, '_');
       const remarkText = remarks[overdueRemarkKey(season, o.style_code, stage)] || '';
-      return `<tr style="border-top:1px solid var(--line)${o.impacts_delivery ? ';background:#fdeceb' : ''}">` +
+      return `<tr style="border-top:1px solid var(--line)">` +
       `<td style="padding:4px 10px;text-align:center">${esc(o.style_code)}</td><td style="padding:4px 10px;text-align:center">${esc(vendorAlias(o.vendor) || '-')}</td><td style="padding:4px 10px;text-align:center">${esc(shortDate(o.due))}</td>` +
       `<td style="padding:4px 10px;text-align:center">${o.etd ? esc(shortDate(o.etd)) : '-'}</td>` +
       `<td style="padding:4px 10px;text-align:center">${o.overdue_days != null ? esc('+' + o.overdue_days) : '-'}</td>` +
@@ -1770,8 +1819,6 @@ function overdueDetailRowHtml(overdue, overdueId, colspan, weekId, season, stage
       `<td style="padding:4px 10px;text-align:center">${esc(o.confirm_stage || '-')}</td><td style="padding:4px 10px;text-align:center">${esc(o.confirm_date || '-')}</td>` +
       `<td style="padding:4px 10px;text-align:center">${esc(o.reason || '-')}</td>` +
       `<td style="padding:4px 10px;text-align:center">${o.elapsed_days != null ? esc(String(o.elapsed_days)) : '-'}</td>` +
-      `<td style="padding:4px 10px;text-align:center" title="${o.etd ? `ETD ${esc(shortDate(o.etd))}, 원래 버퍼 ${o.etd_buffer_days}영업일` : ''}">` +
-      `${o.impacts_delivery == null ? '판단불가' : (o.impacts_delivery ? 'O' : 'X')}</td>` +
       `<td style="padding:4px 10px;text-align:center"><input type="text" class="remark-input" id="${remarkDomId}" value="${esc(remarkText)}" readonly ` +
       `ondblclick="unlockRemark('${remarkDomId}')" onblur="saveOverdueRemark('${weekId}','${season}','${o.style_code}','${stage}')" ` +
       `style="width:220px;font-size:10px;padding:2px 4px;text-align:left" title="더블클릭해서 수정"></td></tr>`;
