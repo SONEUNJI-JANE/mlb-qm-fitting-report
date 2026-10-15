@@ -43,7 +43,10 @@ th{background:var(--soft);color:var(--ink2);font-weight:700}
 .grp-a{background:var(--soft)}
 .grp-b{background:var(--soft)}
 th.grp-a,th.grp-th:first-of-type{border-left:1px solid var(--line)}
-.season-title{font-weight:700;font-size:15px;margin:20px 0 8px;padding-bottom:4px;border-bottom:2px solid var(--line2)}
+.season-title{font-weight:700;font-size:15px;margin:20px 0 8px;padding-bottom:4px;border-bottom:2px solid var(--line2);cursor:pointer;list-style:none}
+.season-title::-webkit-details-marker{display:none}
+.season-title::before{content:'▾ ';color:var(--muted);font-size:11px}
+details:not([open]) > .season-title::before{content:'▸ '}
 .quarter-title{font-weight:700;font-size:12px;color:var(--ink2);margin:14px 0 4px}
 .season-title:first-child{margin-top:0}
 .btn{padding:3px 8px;border-radius:4px;border:1px solid var(--line2);background:var(--surface);font-size:11px;cursor:pointer}
@@ -95,7 +98,10 @@ th.grp-a,th.grp-th:first-of-type{border-left:1px solid var(--line)}
   <button class="ib" onclick="toggleTheme()" title="밝게/어둡게">◐</button>
 </div>
 <div id="main-tab">
-<div style="max-width:1100px;margin:16px auto 0;display:flex;justify-content:flex-end">
+<div style="max-width:1100px;margin:16px auto 0;display:flex;align-items:center;gap:8px">
+  <label style="font-weight:700;font-size:12px">시즌</label>
+  <select id="summary-season-select" onchange="summarySeason=this.value;render()"></select>
+  <span style="flex:1"></span>
   <button class="settings-btn" onclick="switchTab('settings')">⚙ 설정</button>
 </div>
 <div class="content" id="seasons"></div>
@@ -169,7 +175,7 @@ weekIds.forEach((w, i) => {
   sel.appendChild(o);
 });
 
-const seasons = weekIds.length ? Object.keys(DATA.weeks[weekIds[0]].raw || {}).sort() : [];
+const seasons = weekIds.length ? sortSeasonsDesc(Object.keys(DATA.weeks[weekIds[0]].raw || {})) : [];
 const asOfBySeason = SETTINGS.as_of_by_season || {};
 
 const asOfRowsEl = document.getElementById('as-of-rows');
@@ -659,6 +665,21 @@ function computeProgressFromRaw(rawRows, asOfDate, offsets) {
 
 // 펼쳐둔 상세표가 어떤 것들인지 기억해둔다 - 정렬하면 화면을 다시 그리는데,
 // 기억 안 하면 눌러둔 표가 도로 접혀버린다.
+// 시즌 블록 펼침 상태. 끝난 시즌은 기본으로 접고, 사용자가 손대면 그 선택을 기억한다.
+const seasonOpen = {};
+// 요약 탭에서 볼 시즌. ''(전체)이면 전부 띄우고, 기본은 가장 최신 시즌 하나.
+let summarySeason = null;
+
+function toggleSeason(season, open) {
+  seasonOpen[season] = open;
+  try { localStorage.setItem('mlb_qm_season_open', JSON.stringify(seasonOpen)); } catch (e) { /* 무시 */ }
+}
+
+try {
+  const saved = JSON.parse(localStorage.getItem('mlb_qm_season_open') || '{}');
+  Object.assign(seasonOpen, saved);
+} catch (e) { /* 저장소를 못 쓰면 기본값 */ }
+
 const overdueOpen = new Set();
 // 상세표별 정렬 상태: overdueId -> {key, dir(1=오름차순, -1=내림차순)}
 const overdueSort = {};
@@ -1306,7 +1327,7 @@ function applyAnalysisFilters(rows) {
 
 function renderAnalysis() {
   const seasonSelect = document.getElementById('analysis-season-select');
-  const weekSeasonsAll = weekIds.length ? Object.keys(DATA.weeks[weekIds[0]].raw || {}).sort() : [];
+  const weekSeasonsAll = weekIds.length ? sortSeasonsDesc(Object.keys(DATA.weeks[weekIds[0]].raw || {})) : [];
   if (!seasonSelect.options.length) {
     weekSeasonsAll.forEach(s => { const o = document.createElement('option'); o.value = s; o.textContent = s; seasonSelect.appendChild(o); });
   }
@@ -1772,6 +1793,18 @@ function renderAnalysis() {
 
 const QUARTER_ORDER = ['Main TS', '2nd TS', 'Spot', 'After TS', '기타'];
 
+// "26FW" -> 정렬용 숫자. 한 해 안에서는 SS가 먼저, FW가 나중이다.
+function seasonOrder(season) {
+  const m = String(season).match(/^(\\d{2})(SS|FW)$/);
+  if (!m) return -1;
+  return Number(m[1]) * 10 + (m[2] === 'FW' ? 1 : 0);
+}
+
+// 최신 시즌이 위로.
+function sortSeasonsDesc(list) {
+  return [...list].sort((a, b) => seasonOrder(b) - seasonOrder(a) || String(b).localeCompare(String(a)));
+}
+
 function normalizeQuarter(raw) {
   const s = (raw || '').trim();
   if (!s) return '기타';
@@ -1894,7 +1927,20 @@ function render() {
   const week = DATA.weeks[sel.value];
   if (!week) return;
   const isLatest = sel.value === weekIds[0];
-  const weekSeasons = Object.keys(week.raw && Object.keys(week.raw).length ? week.raw : week.progress).sort();
+  const allSeasons = sortSeasonsDesc(Object.keys(week.raw && Object.keys(week.raw).length ? week.raw : week.progress));
+  // 시즌 선택기: 기본은 최신 시즌만. '전체'를 고르면 다 펼쳐 보여준다(끝난 시즌은 접힌 채).
+  const seasonSel = document.getElementById('summary-season-select');
+  if (summarySeason == null) summarySeason = allSeasons[0] || '';
+  if (seasonSel) {
+    const want = ['', ...allSeasons].join('|');
+    if (seasonSel.dataset.built !== want) {
+      seasonSel.innerHTML = `<option value="">전체</option>` +
+        allSeasons.map(x => `<option value="${esc(x)}">${esc(x)}</option>`).join('');
+      seasonSel.dataset.built = want;
+    }
+    seasonSel.value = allSeasons.includes(summarySeason) ? summarySeason : '';
+  }
+  const weekSeasons = summarySeason && allSeasons.includes(summarySeason) ? [summarySeason] : allSeasons;
   const container = document.getElementById('seasons');
   container.innerHTML = '';
   const weekId = sel.value;
@@ -1903,12 +1949,31 @@ function render() {
     const asOfDate = isLatest ? resolveAsOfDate(season) : week.as_of_date;
     const offsets = currentOffsets(season);
 
-    const title = document.createElement('div');
-    title.className = 'season-title';
-    title.textContent = season;
-    container.appendChild(title);
+    const seasonRows0 = week.raw && week.raw[season];
+    // 모든 단계가 due 도래분까지 다 끝났으면 "끝난 시즌"으로 보고 접어둔다.
+    const seasonDone = (() => {
+      if (!seasonRows0) return false;
+      const prog = computeProgressFromRaw(seasonRows0, asOfDate, offsets);
+      return STAGES.every(st => {
+        const b = (OWNER_BY_STAGE[st] === 'TD' ? prog.TD : prog.QA)[st];
+        return b && b.total_all > 0 && b.total_done === b.total_all;
+      });
+    })();
+    const isOpen = seasonOpen[season] != null ? seasonOpen[season] : !seasonDone;
 
-    const seasonRows = week.raw && week.raw[season];
+    const block = document.createElement('details');
+    block.open = isOpen;
+    block.addEventListener('toggle', () => toggleSeason(season, block.open));
+    const summary = document.createElement('summary');
+    summary.className = 'season-title';
+    summary.innerHTML = `${esc(season)}` +
+      (seasonDone ? ` <span style="font-weight:400;font-size:11px;color:var(--good)">완료</span>` : '');
+    block.appendChild(summary);
+    container.appendChild(block);
+    // 이 시즌의 표들은 모두 이 블록 안에 들어간다.
+    const seasonBox = block;
+
+    const seasonRows = seasonRows0;
     if (!seasonRows) {
       // raw 데이터가 없는 예전 스냅샷 등 — quarter별로 못 나누고 통짜 progress 하나만 있음.
       const progress = week.progress[season];
@@ -1918,8 +1983,8 @@ function render() {
         const stageTitle = document.createElement('div');
         stageTitle.className = 'quarter-title';
         stageTitle.textContent = `${stage} (${owner})`;
-        container.appendChild(stageTitle);
-        container.appendChild(renderStageTable(stage, owner, season, ['전체'], {'전체': progress}, progress, weekId, remarks));
+        seasonBox.appendChild(stageTitle);
+        seasonBox.appendChild(renderStageTable(stage, owner, season, ['전체'], {'전체': progress}, progress, weekId, remarks));
       });
       continue;
     }
@@ -1939,8 +2004,8 @@ function render() {
       const stageTitle = document.createElement('div');
       stageTitle.className = 'quarter-title';
       stageTitle.textContent = `${stage} (${owner})`;
-      container.appendChild(stageTitle);
-      container.appendChild(renderStageTable(stage, owner, season, quarters, quarterProgress, overallProgress, weekId, remarks));
+      seasonBox.appendChild(stageTitle);
+      seasonBox.appendChild(renderStageTable(stage, owner, season, quarters, quarterProgress, overallProgress, weekId, remarks));
     });
   }
 }
