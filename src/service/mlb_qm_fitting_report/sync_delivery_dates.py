@@ -6,7 +6,7 @@ DELIVERY_DATE_SETTING_KEY = "mlb_qm_delivery_date_overrides"
 _PRODUCT_CODE_PREFIX = re.compile(r"^[A-Z]\d{2}[A-Z](.+)$")
 
 _KG_PROXY_URL = "https://dcsai.fnf.co.kr/server/proxy/kg"
-_DAISY_ENDPOINT = "/metrics/kr/scm/sourcing/order-recaps"
+_DAISY_ENDPOINT = "/metrics/glb/scm/sourcing/order-recaps"
 _BRAND_CODE = "M"  # MLB
 _SEASONS = ["26F", "27S"]
 _PAGE_SIZE = 5000
