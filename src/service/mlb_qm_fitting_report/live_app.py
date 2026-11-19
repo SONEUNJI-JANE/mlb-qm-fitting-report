@@ -94,6 +94,8 @@ def _compute_week_data(settings: dict, as_of_date: date) -> dict:
         valid_26fw_codes = set(json.loads(valid_26fw))
         styles = [s for s in styles if s.get("season") != "26FW" or s["style_code"] in valid_26fw_codes]
 
+    # 소싱팀 DUE 파일(27SS)의 J열 EARLIEST ETD가 있는 스타일은 그게 납기 기준이다.
+    etd_from_due_file = set()
     due_overrides_raw = fetch_setting(settings, DUE_OVERRIDE_SETTING_KEY)
     if due_overrides_raw:
         due_overrides = json.loads(due_overrides_raw)
@@ -101,6 +103,8 @@ def _compute_week_data(settings: dict, as_of_date: date) -> dict:
             override = due_overrides.get(s["style_code"])
             if override:
                 s.update(override)
+                if override.get("earliest_etd"):
+                    etd_from_due_file.add(s["style_code"])
 
     # 소싱 에이전트(DCS AI, Snowflake DW_SOURCING_ORDER_RECAP)의 입고예정일이 "최종 협의된
     # 납기일자"라 PLM 쪽 earliest_etd보다 우선한다. 스타일당 여러 PO/컬러 중 가장 빠른 날짜.
@@ -109,7 +113,7 @@ def _compute_week_data(settings: dict, as_of_date: date) -> dict:
         delivery_overrides = json.loads(delivery_overrides_raw)
         for s in styles:
             override = delivery_overrides.get(s["style_code"])
-            if override:
+            if override and s["style_code"] not in etd_from_due_file:
                 s["earliest_etd"] = override
 
     records = fetch_fitting_records(settings)

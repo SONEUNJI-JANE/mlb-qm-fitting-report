@@ -37,6 +37,28 @@ def test_read_due_overrides_maps_o_p_r_s_columns(tmp_path):
     }
 
 
+def test_read_due_overrides_includes_earliest_etd_from_j_column_only_when_filled(tmp_path):
+    import openpyxl
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "▶27SS DATA "
+    for _ in range(3):
+        ws.append([None] * 25)
+    with_etd = [None] * 25
+    with_etd[4], with_etd[9] = "3ADKS3171", "2026-12-26 00:00:00"
+    without_etd = [None] * 25
+    without_etd[4] = "3ADPS5473"
+    ws.append(with_etd)
+    ws.append(without_etd)
+    path = tmp_path / "due.xlsx"
+    wb.save(path)
+
+    overrides = read_due_overrides(str(path))
+    assert overrides["3ADKS3171"]["earliest_etd"] == "2026-12-26"
+    assert "earliest_etd" not in overrides["3ADPS5473"]
+
+
 def test_read_due_overrides_skips_rows_without_style(tmp_path):
     import openpyxl
 
@@ -60,6 +82,8 @@ if __name__ == "__main__":
 
     with tempfile.TemporaryDirectory() as d:
         test_read_due_overrides_maps_o_p_r_s_columns(Path(d))
+    with tempfile.TemporaryDirectory() as d:
+        test_read_due_overrides_includes_earliest_etd_from_j_column_only_when_filled(Path(d))
     with tempfile.TemporaryDirectory() as d:
         test_read_due_overrides_skips_rows_without_style(Path(d))
     print("OK: test_sync_27ss_due")

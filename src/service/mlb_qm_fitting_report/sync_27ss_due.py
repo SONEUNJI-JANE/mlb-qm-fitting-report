@@ -4,7 +4,8 @@ SEASON = "27SS"
 DUE_OVERRIDE_SETTING_KEY = "mlb_qm_27ss_due_overrides"
 SHEET_NAME_HINT = "27SS DATA"
 HEADER_ROW = 3  # 1-based: DS/QUARTER/... 헤더가 있는 행
-# 0-based column index (엑셀 O/P/R/S열)
+# 0-based column index (엑셀 J/O/P/R/S열)
+COL_EARLIEST_ETD = 9  # J: EARLIEST ETD (가장 빠른 선적일) - 소싱팀 파일의 납기 기준
 COL_STYLE = 4
 COL_QC_DUE = 14   # O: QC CFM DUE (FIT)
 COL_PP_DUE = 15   # P: PP CFM DUE 1차
@@ -19,7 +20,7 @@ def _iso(value) -> str | None:
 
 
 def read_due_overrides(xlsx_path: str) -> dict:
-    """엑셀 '▶27SS DATA' 탭 O/P/R/S열 -> {style_code: {"qc_due","pp_due","top_due","top_due_2"}}.
+    """엑셀 '▶27SS DATA' 탭 O/P/R/S열 + J열(EARLIEST ETD) -> {style_code: {"qc_due","pp_due","top_due","top_due_2",("earliest_etd")}}.
 
     소싱팀 관리 파일. 27SS 납기 대비 로직이 여기서 바뀌었고, styles 테이블의 qc_due/pp_due/top_due는
     다른 시스템(PLM, qc_due_src 등 _src 컬럼으로 추적)이 주기적으로 다시 덮어쓸 수 있어서 직접
@@ -42,6 +43,10 @@ def read_due_overrides(xlsx_path: str) -> dict:
                 "top_due": _iso(row[COL_TOP_DUE]),
                 "top_due_2": _iso(row[COL_TOP_DUE_2]),
             }
+            # J열이 빈 스타일은 키 자체를 넣지 않는다 - 넣으면 live_app이 styles의 기존 납기를 None으로 지운다.
+            etd = _iso(row[COL_EARLIEST_ETD])
+            if etd:
+                overrides[style_code]["earliest_etd"] = etd
         return overrides
     finally:
         wb.close()
