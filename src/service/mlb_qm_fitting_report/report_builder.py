@@ -616,9 +616,17 @@ function businessDaysSince(iso, refIso) {
 function computeProgressFromRaw(rawRows, asOfDate, offsets) {
   const result = {TD: {}, QA: {}};
   for (const row of rawRows) {
+    // 미완료 상세 리스트는 단계 순서(FIT→PP→TOP)를 지킨다: 스타일당 "아직 안 끝난 가장 앞 단계"
+    // 한 곳에만 올린다. 2nd FIT 승인 다음은 PP 미입고, PP 다음이 TOP이다. 뒤 단계 due가 먼저
+    // 지났다고 TOP 리스트로 건너뛰지 않는다. (앞 단계 due가 아직 안 와도, 뒤 단계 due가 지났으면
+    // 앞 단계에 올려 챙긴다.)
+    const dueOf = {};
+    STAGES.forEach(s => { dueOf[s] = resolveDue(row, s, offsets); });
+    const firstPending = STAGES.find(s => !row[`${s.toLowerCase()}_done`]);
+    const anyDuePending = STAGES.some(s => !row[`${s.toLowerCase()}_done`] && dueOf[s] && dueOf[s] <= asOfDate);
     for (const stage of STAGES) {
       const isDone = row[`${stage.toLowerCase()}_done`];
-      const due = resolveDue(row, stage, offsets);
+      const due = dueOf[stage];
       // due date를 못 구했어도(라벨/ETD 누락 등) 이미 완료된 건은 "Due Date 기준"에서 완료로 잡는다.
       // 안 그러면 그 스타일은 어느 쪽 통계에도 안 잡히고 조용히 빠져버림.
       const isDue = !!(due && due <= asOfDate) || (!due && isDone);
@@ -628,10 +636,10 @@ function computeProgressFromRaw(rawRows, asOfDate, offsets) {
       if (isDone) bucket.total_done++;
       if (isDue) {
         bucket.baseline_all++;
-        if (isDone) {
-          bucket.baseline_done++;
-        } else {
-          const d = (row.detail && row.detail[stage]) || {};
+        if (isDone) bucket.baseline_done++;
+      }
+      if (!isDone && stage === firstPending && anyDuePending) {
+          const d =(row.detail && row.detail[stage]) || {};
           // 기도산업은 2ND TOP을 보지 않는다 - TOP을 이미 한 번 낸 뒤라면 리젝이 나도 다음
           // 회차가 없어서 납기에 영향이 없다. 완료율(Due%/전체%)엔 그대로 미완료로 잡고,
           // 챙길 대상을 추리는 미완료 상세 리스트에서만 뺀다.
@@ -652,11 +660,11 @@ function computeProgressFromRaw(rawRows, asOfDate, offsets) {
           bucket.overdue.push({
             style_code: row.style_code, vendor: row.vendor || null, due, status: d.status || '접수 전',
             confirm_stage: confirmStage, confirm_date: confirmRawDate ? shortDate(confirmRawDate) : null,
+            confirm_raw: confirmRawDate,
             elapsed_days: businessDaysSince(confirmRawDate, asOfDate), overdue_days: overdueDays,
             etd: row.etd || null, etd_buffer_days: etdBufferDays, impacts_delivery: impactsDelivery,
             reason: confirmReason,
           });
-        }
       }
     }
   }
@@ -709,10 +717,25 @@ function compareOverdueValues(a, b) {
   return String(a).localeCompare(String(b), 'ko');
 }
 
+// 정렬용 값. 전달일(confirm_date)은 화면용 "10/19" 문자열이라 그대로 비교하면 10/19 < 10/2 < 10/20이
+// 되어버린다 - ISO 원본(confirm_raw)으로 비교한다.
+function overduePick(o, key) {
+  if (key === 'vendor') return vendorAlias(o.vendor) || '';
+  if (key === 'confirm_date') return o.confirm_raw;
+  // "2ND FIT" 같은 글자는 글자순으로 비교하면 회차(10TH < 2ND)와 단계 순서가 엉킨다 -> 단계 순서, 회차 순의 숫자로 바꿔 비교.
+  if (key === 'confirm_stage') {
+    const m = /^(\d+)(?:ST|ND|RD|TH)\s+(.+)$/.exec(o.confirm_stage || '');
+    if (!m) return o.confirm_stage;
+    const stageIdx = ['보정', 'FIT', 'PP', 'TOP'].indexOf(m[2]);
+    return (stageIdx < 0 ? 9 : stageIdx) * 100 + parseInt(m[1], 10);
+  }
+  return o[key];
+}
+
 function sortedOverdue(overdue, overdueId) {
   const st = overdueSort[overdueId];
   if (!st) return overdue;
-  const pick = o => st.key === 'vendor' ? (vendorAlias(o.vendor) || '') : o[st.key];
+  const pick = o => overduePick(o, st.key);
   return [...overdue].sort((x, y) => {
     const c = compareOverdueValues(pick(x), pick(y));
     return c === 0 ? 0 : c * st.dir;
@@ -1031,7 +1054,7 @@ function overdueListHtml(items, emptyText) {
   // 머리글을 누르면 그 칸으로 정렬(다시 누르면 반대). 빈 칸은 항상 뒤로.
   const sorted = drillSort
     ? [...items].sort((a, b) => {
-        const pick = o => drillSort.key === 'vendor' ? (vendorAlias(o.vendor) || '') : o[drillSort.key];
+        const pick = o => overduePick(o, drillSort.key);
         const c = compareOverdueValues(pick(a), pick(b));
         return c === 0 ? 0 : c * drillSort.dir;
       })
